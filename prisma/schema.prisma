@@ -485,3 +485,13 @@ model TicketCounter {
 
   @@map("ticket_counter")
 }
+
+model ReceiptTemplate {
+  id        String   @id @default(uuid())
+  format    String   @unique
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("receipt_templates")
+}
