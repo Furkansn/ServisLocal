@@ -2,6 +2,8 @@ import { SessionProvider } from 'next-auth/react';
 import Sidebar from '@/components/ui/Sidebar';
 import Navbar from '@/components/ui/Navbar';
 
+export const dynamic = 'force-dynamic';
+
 export default function DashboardLayout({
     children,
 }: {

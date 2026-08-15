@@ -2,6 +2,8 @@ import { getDashboardStats } from '@/actions/tickets';
 import { STATUS_LABELS } from '@/lib/state-machine';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
     const stats = await getDashboardStats();
 

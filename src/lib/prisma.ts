@@ -7,8 +7,9 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
+  const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_EobqeiNB2L6S@ep-purple-math-ahlo7uon-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&schema=servisplus';
   const adapter = new PrismaNeon(
-    { connectionString: process.env.DATABASE_URL! },
+    { connectionString },
     { schema: 'servisplus' }
   );
 
