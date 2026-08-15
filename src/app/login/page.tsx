@@ -76,7 +76,7 @@ export default function LoginPage() {
                         backgroundClip: 'text',
                         letterSpacing: '-0.02em',
                     }}>
-                        ServisPlus
+                        ServisLocal
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', marginTop: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>
                         Servis Yönetim Sistemi
@@ -92,7 +92,7 @@ export default function LoginPage() {
                                 id="email"
                                 type="email"
                                 className="form-input"
-                                placeholder="ornek@servisplus.com"
+                                placeholder="ornek@servislocal.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required

@@ -44,7 +44,7 @@ export default function Navbar() {
         if (pathname.startsWith('/tickets/') && pathname !== '/tickets/new') return 'Fiş Detayı';
         if (pathname.endsWith('/edit')) return 'Fiş Düzenle';
 
-        return routes[pathname] || 'ServisPlus';
+        return routes[pathname] || 'ServisLocal';
     };
 
     return (

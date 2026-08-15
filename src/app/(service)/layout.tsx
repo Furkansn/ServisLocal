@@ -8,7 +8,7 @@ export default function ServiceLayout({ children }: { children: React.ReactNode 
     return (
         <SessionProvider>
             <div className="mobile-layout">
-                <MobileHeaderNav title="ServisPlus Saha" icon="🚐" />
+                <MobileHeaderNav title="ServisLocal Saha" icon="🚐" />
                 <main className="mobile-content">{children}</main>
                 <MobileBottomNav />
             </div>

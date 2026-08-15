@@ -1,6 +1,6 @@
 {
-  "name": "ServisPlus",
-  "short_name": "ServisPlus",
+  "name": "ServisLocal",
+  "short_name": "ServisLocal",
   "description": "Servis/Tamir Yönetim Sistemi",
   "start_url": "/",
   "display": "standalone",

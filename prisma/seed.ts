@@ -16,11 +16,11 @@ async function main() {
     const passwordHash = await bcrypt.hash('admin123', 12);
 
     const admin = await prisma.personnel.upsert({
-        where: { email: 'admin@servisplus.com' },
+        where: { email: 'admin@servislocal.com' },
         update: {},
         create: {
             name: 'Admin Kullanıcı',
-            email: 'admin@servisplus.com',
+            email: 'admin@servislocal.com',
             passwordHash,
             phone: '05551234567',
             roles: {
@@ -37,11 +37,11 @@ async function main() {
     // ─── Create Sample Personnel ───────────────────────────
     const operatorHash = await bcrypt.hash('operator123', 12);
     const operator = await prisma.personnel.upsert({
-        where: { email: 'operator@servisplus.com' },
+        where: { email: 'operator@servislocal.com' },
         update: {},
         create: {
             name: 'Ayşe Operatör',
-            email: 'operator@servisplus.com',
+            email: 'operator@servislocal.com',
             passwordHash: operatorHash,
             phone: '05559876543',
             roles: {
@@ -53,11 +53,11 @@ async function main() {
 
     const serviceHash = await bcrypt.hash('servis123', 12);
     const serviceStaff = await prisma.personnel.upsert({
-        where: { email: 'servis@servisplus.com' },
+        where: { email: 'servis@servislocal.com' },
         update: {},
         create: {
             name: 'Mehmet Servis',
-            email: 'servis@servisplus.com',
+            email: 'servis@servislocal.com',
             passwordHash: serviceHash,
             phone: '05553334455',
             roles: {
@@ -69,11 +69,11 @@ async function main() {
 
     const techHash = await bcrypt.hash('teknisyen123', 12);
     const technician = await prisma.personnel.upsert({
-        where: { email: 'teknisyen@servisplus.com' },
+        where: { email: 'teknisyen@servislocal.com' },
         update: {},
         create: {
             name: 'Ali Teknisyen',
-            email: 'teknisyen@servisplus.com',
+            email: 'teknisyen@servislocal.com',
             passwordHash: techHash,
             phone: '05551112233',
             roles: {
@@ -146,10 +146,10 @@ async function main() {
 
     console.log('\n✅ Database seeded successfully!\n');
     console.log('Login credentials:');
-    console.log('  Admin:     admin@servisplus.com / admin123');
-    console.log('  Operatör:  operator@servisplus.com / operator123');
-    console.log('  Servis:    servis@servisplus.com / servis123');
-    console.log('  Teknisyen: teknisyen@servisplus.com / teknisyen123');
+    console.log('  Admin:     admin@servislocal.com / admin123');
+    console.log('  Operatör:  operator@servislocal.com / operator123');
+    console.log('  Servis:    servis@servislocal.com / servis123');
+    console.log('  Teknisyen: teknisyen@servislocal.com / teknisyen123');
 }
 
 main()

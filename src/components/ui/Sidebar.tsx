@@ -56,7 +56,7 @@ export default function Sidebar() {
             {/* Logo */}
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon">🔧</div>
-                <h1>ServisPlus</h1>
+                <h1>ServisLocal</h1>
                 <button
                     className="sidebar-toggle-btn"
                     onClick={toggleCollapse}
