@@ -1,0 +1,487 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ───────────────────────────────────────────────
+
+enum Role {
+  OPERATOR
+  SERVICE_STAFF
+  TECHNICIAN
+}
+
+enum RequestType {
+  SCREEN_CHANGE
+  SCREEN_LED_CHANGE
+  LED_CHANGE
+  LGP_REPAIR
+  BOARD_REPAIR
+  OTHER
+}
+
+enum Priority {
+  STANDARD
+  PRIORITY
+  URGENT
+}
+
+enum TicketStatus {
+  YENI_KAYIT
+  SERVIS_ISTENDI
+  TESLIM_ALINDI
+  ERTELENDI
+  ATOLYEYE_ALINDI
+  TEKNISYENE_VERILDI
+  TEST_EDILIYOR
+  PARCA_BEKLIYOR
+  TAMIR_TAMAMLANDI
+  TESLIMAT_SERVIS_ISTENDI
+  TESLIM_EDILDI
+  ODEME_BEKLIYOR
+  IADE
+  TAMAMLANDI
+  IPTAL
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  REPAIRER
+}
+
+enum ServiceRecordType {
+  PICKUP
+  DELIVERY
+}
+
+enum ServiceRecordStatus {
+  PLANNED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+enum PhotoType {
+  BROKEN_DEVICE
+  BARCODE
+  WORKING_DEVICE
+  OTHER
+}
+
+enum OperationType {
+  SCREEN_CHANGE
+  LED_CHANGE
+  LGP_CHANGE
+  BOARD_REPAIR
+  OTHER
+}
+
+enum ProductCategory {
+  ACCESSORY
+  SCREEN
+  LED
+  LGP
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+}
+
+enum AccountType {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+}
+
+// ─── MODELS ──────────────────────────────────────────────
+
+model Personnel {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  phone        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roles              PersonnelRole[]
+  createdTickets     RepairTicket[]     @relation("CreatedBy")
+  assignedTickets    RepairTicket[]     @relation("AssignedTechnician")
+  serviceAssignments ServiceRecord[]    @relation("AssignedServicePersonnel")
+  uploadedPhotos     TicketPhoto[]
+  performedOps       TicketOperation[]
+  soldAccessories    TicketAccessory[]
+  receivedPayments   Payment[]          @relation("ReceivedPayments")
+  approvedPayments   Payment[]          @relation("ApprovedPayments")
+  createdExpenses    Expense[]
+  performedSettlements AccountSettlement[]
+  performedTransfers   AccountTransfer[]
+  statusChanges        StatusHistory[]
+  customerNotes      CustomerNote[]
+  repairerNotes      RepairerNote[]
+  auditLogs          AuditLog[]
+
+  @@map("personnel")
+}
+
+model PersonnelRole {
+  id          String    @id @default(uuid())
+  personnelId String
+  role        Role
+
+  personnel Personnel @relation(fields: [personnelId], references: [id], onDelete: Cascade)
+
+  @@unique([personnelId, role])
+  @@map("personnel_roles")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  taxId     String?
+  address   String?
+  city      String
+  district  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets RepairTicket[]
+  notes   CustomerNote[]
+
+  @@map("customers")
+}
+
+model CustomerNote {
+  id          String   @id @default(uuid())
+  customerId  String
+  personnelId String
+  content     String
+  createdAt   DateTime @default(now())
+
+  customer  Customer  @relation(fields: [customerId], references: [id])
+  personnel Personnel @relation(fields: [personnelId], references: [id])
+
+  @@map("customer_notes")
+}
+
+model Repairer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  taxId     String
+  address   String?
+  city      String
+  district  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets RepairTicket[]
+  notes   RepairerNote[]
+
+  @@map("repairers")
+}
+
+model RepairerNote {
+  id          String   @id @default(uuid())
+  repairerId  String
+  personnelId String
+  content     String
+  createdAt   DateTime @default(now())
+
+  repairer  Repairer  @relation(fields: [repairerId], references: [id])
+  personnel Personnel @relation(fields: [personnelId], references: [id])
+
+  @@map("repairer_notes")
+}
+
+model Brand {
+  id   String @id @default(uuid())
+  name String @unique
+
+  tickets RepairTicket[]
+
+  @@map("brands")
+}
+
+model RepairTicket {
+  id                   String       @id @default(uuid())
+  ticketNo             String       @unique
+  requestType          RequestType
+  priority             Priority     @default(STANDARD)
+  status               TicketStatus @default(YENI_KAYIT)
+  customerType         CustomerType
+  customerId           String?
+  repairerId           String?
+  brandId              String
+  model                String
+  serialNo             String?
+  hasWarranty          Boolean      @default(false)
+  deviceCondition      String?
+  notes                String?
+  repairPrice          Decimal      @default(0) @db.Decimal(12, 2)
+  repairItems          Json?        @default("[]")
+  totalAmount          Decimal      @default(0) @db.Decimal(12, 2)
+  paidAmount           Decimal      @default(0) @db.Decimal(12, 2)
+  closedWithoutPayment Boolean      @default(false)
+  createdById          String
+  assignedTechnicianId String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  customer           Customer?         @relation(fields: [customerId], references: [id])
+  repairer           Repairer?         @relation(fields: [repairerId], references: [id])
+  brand              Brand             @relation(fields: [brandId], references: [id])
+  createdBy          Personnel         @relation("CreatedBy", fields: [createdById], references: [id])
+  assignedTechnician Personnel?        @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
+  photos             TicketPhoto[]
+  operations         TicketOperation[]
+  accessories        TicketAccessory[]
+  payments           Payment[]
+  serviceRecords     ServiceRecord[]
+  statusHistory      StatusHistory[]
+  auditLogs          AuditLog[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([repairerId])
+  @@index([createdAt])
+  @@index([assignedTechnicianId])
+  @@map("repair_tickets")
+}
+
+model ServiceRecord {
+  id                  String              @id @default(uuid())
+  ticketId            String
+  type                ServiceRecordType
+  scheduledDate       DateTime            @db.Date
+  assignedPersonnelId String?
+  status              ServiceRecordStatus @default(PLANNED)
+  postponedDate       DateTime?           @db.Date
+  notes               String?
+  completedAt         DateTime?
+  sortOrder           Int                 @default(0)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  ticket            RepairTicket @relation(fields: [ticketId], references: [id])
+  assignedPersonnel Personnel?   @relation("AssignedServicePersonnel", fields: [assignedPersonnelId], references: [id])
+  photos            TicketPhoto[]
+
+  @@index([scheduledDate])
+  @@index([assignedPersonnelId])
+  @@index([status])
+  @@map("service_records")
+}
+
+model TicketPhoto {
+  id              String    @id @default(uuid())
+  ticketId        String
+  serviceRecordId String?
+  type            PhotoType
+  url             String
+  uploadedById    String
+  createdAt       DateTime  @default(now())
+
+  ticket        RepairTicket   @relation(fields: [ticketId], references: [id])
+  serviceRecord ServiceRecord? @relation(fields: [serviceRecordId], references: [id])
+  uploadedBy    Personnel      @relation(fields: [uploadedById], references: [id])
+
+  @@map("ticket_photos")
+}
+
+model TicketOperation {
+  id                 String        @id @default(uuid())
+  ticketId           String
+  operationType      OperationType
+  removedPart        String?
+  installedProductId String?
+  notes              String?
+  performedById      String
+  createdAt          DateTime      @default(now())
+
+  ticket           RepairTicket @relation(fields: [ticketId], references: [id])
+  installedProduct Product?     @relation(fields: [installedProductId], references: [id])
+  performedBy      Personnel    @relation(fields: [performedById], references: [id])
+
+  @@map("ticket_operations")
+}
+
+model Product {
+  id        String          @id @default(uuid())
+  name      String
+  sku       String?
+  category  ProductCategory
+  price     Decimal         @db.Decimal(12, 2)
+  cost      Decimal?        @db.Decimal(12, 2)
+  stock     Int             @default(0)
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  operations  TicketOperation[]
+  accessories TicketAccessory[]
+
+  @@map("products")
+}
+
+model TicketAccessory {
+  id         String   @id @default(uuid())
+  ticketId   String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(12, 2)
+  totalPrice Decimal  @db.Decimal(12, 2)
+  soldById   String
+  createdAt  DateTime @default(now())
+
+  ticket  RepairTicket @relation(fields: [ticketId], references: [id])
+  product Product      @relation(fields: [productId], references: [id])
+  soldBy  Personnel    @relation(fields: [soldById], references: [id])
+
+  @@map("ticket_accessories")
+}
+
+model Payment {
+  id           String        @id @default(uuid())
+  ticketId     String
+  method       PaymentMethod
+  accountId    String?
+  amount       Decimal       @db.Decimal(12, 2)
+  notes        String?
+  receivedById String
+  isApproved   Boolean       @default(false)
+  approvedAt   DateTime?
+  approvedById String?
+  createdAt    DateTime      @default(now())
+
+  ticket     RepairTicket @relation(fields: [ticketId], references: [id])
+  account    Account?     @relation(fields: [accountId], references: [id])
+  receivedBy Personnel    @relation("ReceivedPayments", fields: [receivedById], references: [id])
+  approvedBy Personnel?   @relation("ApprovedPayments", fields: [approvedById], references: [id])
+
+  @@map("payments")
+}
+
+model Account {
+  id          String      @id @default(uuid())
+  name        String
+  type        AccountType
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  payments      Payment[]
+  expenses      Expense[]
+  settlements   AccountSettlement[]
+  transfersFrom AccountTransfer[]   @relation("TransfersFrom")
+  transfersTo   AccountTransfer[]   @relation("TransfersTo")
+
+  @@map("accounts")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  title       String
+  amount      Decimal  @db.Decimal(12, 2)
+  category    String?
+  accountId   String
+  createdById String
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  account   Account   @relation(fields: [accountId], references: [id])
+  createdBy Personnel @relation(fields: [createdById], references: [id])
+
+  @@map("expenses")
+}
+
+model AccountSettlement {
+  id            String   @id @default(uuid())
+  accountId     String
+  amount        Decimal  @db.Decimal(12, 2)
+  performedById String
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  account     Account   @relation(fields: [accountId], references: [id])
+  performedBy Personnel @relation(fields: [performedById], references: [id])
+
+  @@map("account_settlements")
+}
+
+model AccountTransfer {
+  id            String   @id @default(uuid())
+  fromAccountId String
+  toAccountId   String
+  amount        Decimal  @db.Decimal(12, 2)
+  performedById String
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  fromAccount Account   @relation("TransfersFrom", fields: [fromAccountId], references: [id])
+  toAccount   Account   @relation("TransfersTo", fields: [toAccountId], references: [id])
+  performedBy Personnel @relation(fields: [performedById], references: [id])
+
+  @@map("account_transfers")
+}
+
+model StatusHistory {
+  id          String        @id @default(uuid())
+  ticketId    String
+  fromStatus  TicketStatus?
+  toStatus    TicketStatus
+  changedById String
+  notes       String?
+  createdAt   DateTime      @default(now())
+
+  ticket    RepairTicket @relation(fields: [ticketId], references: [id])
+  changedBy Personnel    @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId])
+  @@map("status_history")
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  ticketId    String?
+  entityType  String
+  entityId    String
+  action      AuditAction
+  field       String?
+  oldValue    String?
+  newValue    String?
+  changedById String
+  createdAt   DateTime    @default(now())
+
+  ticket    RepairTicket? @relation(fields: [ticketId], references: [id])
+  changedBy Personnel     @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model TicketCounter {
+  id      String @id @default("singleton")
+  counter Int    @default(0)
+
+  @@map("ticket_counter")
+}

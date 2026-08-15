@@ -1,0 +1,258 @@
+{
+  "format": "a4",
+  "elements": [
+    {
+      "id": "1",
+      "type": "image",
+      "x": 40,
+      "y": 35.294117647058826,
+      "width": 125.29411764705881,
+      "height": 118.23529411764707,
+      "content": "/logo.png",
+      "styles": {}
+    },
+    {
+      "id": "2",
+      "type": "text",
+      "x": 162.9411764705882,
+      "y": 44.705882352941174,
+      "width": 285.88235294117646,
+      "height": 45.294117647058826,
+      "content": "Zero Elektronik Tv Ekran Değişim ve\nTamir Servisi\n",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 15,
+        "fontWeight": "bold",
+        "lineHeight": 1.3,
+        "color": "#1f2937"
+      }
+    },
+    {
+      "id": "3",
+      "type": "text",
+      "x": 518.90756302521,
+      "y": 61.09243697478992,
+      "width": 230,
+      "height": 80,
+      "content": "Fiş No : {{ticketNo}}\nTarih : {{creationDate}}\nDurum : {{status}}",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 12,
+        "fontWeight": "normal",
+        "lineHeight": 1.5,
+        "color": "#374151",
+        "textAlign": "right"
+      }
+    },
+    {
+      "id": "4",
+      "type": "divider",
+      "x": 41.1764705882353,
+      "y": 157.05882352941177,
+      "width": 714,
+      "height": 10,
+      "styles": {
+        "borderWidth": 2,
+        "borderColor": "#e5e7eb",
+        "borderStyle": "solid"
+      }
+    },
+    {
+      "id": "5",
+      "type": "text",
+      "x": 37.64705882352941,
+      "y": 167.94117647058823,
+      "width": 714,
+      "height": 72.05882352941177,
+      "content": "Samsung Tv Ekran Değişim Tamir Teslim Formu\nMüşteri: {{customerName}}\nTelefon: {{customerPhone}}",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 13,
+        "fontWeight": "bold",
+        "lineHeight": 1.5,
+        "color": "#111827"
+      }
+    },
+    {
+      "id": "6",
+      "type": "table",
+      "x": 38.8235294117647,
+      "y": 267.6470588235294,
+      "width": 714,
+      "height": 200,
+      "styles": {
+        "fontSize": 12,
+        "borderWidth": 1,
+        "borderColor": "#d8dadf",
+        "headerBackgroundColor": "#1e61e6",
+        "headerColor": "#fafafa",
+        "color": "#030303",
+        "backgroundColor": "#ffffff"
+      },
+      "columns": [
+        {
+          "id": "c1",
+          "title": "Ürün Veya Hizmet",
+          "key": "name",
+          "width": 50
+        },
+        {
+          "id": "c2",
+          "title": "Fiyat",
+          "key": "price",
+          "width": 20
+        },
+        {
+          "id": "c3",
+          "title": "Adet",
+          "key": "qty",
+          "width": 10
+        },
+        {
+          "id": "c4",
+          "title": "Satır Toplamı",
+          "key": "total",
+          "width": 20
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "type": "text",
+      "x": 36.470588235294116,
+      "y": 638.2352941176471,
+      "width": 725.2941176470589,
+      "height": 261.1764705882353,
+      "content": "Ödeme teslimatta nakit olarak alınır.\n\nYasal Şartlar\n- Ekran değişim işlemi ORIGINAL yedek parçalar kullanılarak yapılır ve değişen parçalar için 12 Ay garanti verilir.\n- Onarım işlemi stoklu ürünler için 4-5 iş günüdür.\n- Müşteri tarafından belirtilen arıza dışında bir arıza tespit edilirse, ortaya çıkacak maliyet müşteriye yansıtılır.",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 15,
+        "lineHeight": 1.4,
+        "color": "#4b5563"
+      }
+    },
+    {
+      "id": "8",
+      "type": "text",
+      "x": 512.5210084033614,
+      "y": 518.655462184874,
+      "width": 230,
+      "height": 80,
+      "content": "Ara Toplam: {{totalAmount}}\nToplam Fiyat: {{totalAmount}}",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 13,
+        "fontWeight": "bold",
+        "lineHeight": 1.6,
+        "color": "#111827",
+        "textAlign": "right"
+      }
+    },
+    {
+      "id": "9",
+      "type": "text",
+      "x": 37.64705882352941,
+      "y": 940.5882352941177,
+      "width": 300,
+      "height": 50,
+      "content": "Teslim Eden\n........................",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "textAlign": "center",
+        "color": "#374151"
+      }
+    },
+    {
+      "id": "10",
+      "type": "text",
+      "x": 463.4117647058824,
+      "y": 940.5882352941177,
+      "width": 300,
+      "height": 50,
+      "content": "Teslim Alan\n........................",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "textAlign": "center",
+        "color": "#374151"
+      }
+    },
+    {
+      "id": "ltf6x284z",
+      "type": "image",
+      "x": 694.0000000000001,
+      "y": 1026.2941176470588,
+      "width": 58.823529411764696,
+      "height": 60,
+      "content": "/logo.png",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 13,
+        "fontWeight": "normal",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "transparent",
+        "textAlign": "left"
+      }
+    },
+    {
+      "id": "oe7c75ofa",
+      "type": "variable",
+      "x": 608.2352941176472,
+      "y": 16.722689075630257,
+      "width": 143.44537815126048,
+      "height": 34.28571428571428,
+      "content": "{{status}}",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 13,
+        "fontWeight": "bold",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "transparent",
+        "textAlign": "right"
+      }
+    },
+    {
+      "id": "woh8gulkv",
+      "type": "text",
+      "x": 164.7058823529412,
+      "y": 90.00000000000001,
+      "width": 231.76470588235293,
+      "height": 67.05882352941177,
+      "content": "Turgut Reis Mah. Armutlu sokak\nN:2 Sultanbeyli / İstanbul\nzero@ledtvpaneli.com\n+90 534 763 46 54 ",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 9,
+        "fontWeight": "normal",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "transparent",
+        "textAlign": "left"
+      }
+    },
+    {
+      "id": "n6vz5ktnz",
+      "type": "divider",
+      "x": 42.35294117647058,
+      "y": 252.3529411764706,
+      "width": 708.2352941176471,
+      "height": 15,
+      "content": "",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 13,
+        "fontWeight": "normal",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "transparent",
+        "textAlign": "left",
+        "borderColor": "#f1f2f3"
+      }
+    }
+  ],
+  "updatedAt": "2026-08-06T00:16:38.112Z"
+}

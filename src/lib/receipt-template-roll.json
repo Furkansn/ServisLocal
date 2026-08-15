@@ -1,0 +1,112 @@
+{
+  "format": "roll",
+  "widthMm": 100,
+  "heightMm": 100,
+  "width": 400,
+  "height": 400,
+  "elements": [
+    {
+      "id": "r3",
+      "type": "divider",
+      "x": 2.5,
+      "y": 89.36274509803918,
+      "width": 390.5882352941176,
+      "height": 6,
+      "styles": {
+        "borderWidth": 1,
+        "borderColor": "#000000",
+        "borderStyle": "solid"
+      }
+    },
+    {
+      "id": "r4",
+      "type": "text",
+      "x": 0,
+      "y": 95.83333333333331,
+      "width": 399.3627450980392,
+      "height": 304.1666666666667,
+      "content": "Müşteri Tipi : {{customerType}}\nMüşteri: {{customerName}}\nCihaz: {{brand}} {{model}}\nTarih: {{creationDate}}\n",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "lineHeight": 3,
+        "color": "#111827",
+        "textAlign": "left"
+      }
+    },
+    {
+      "id": "ten38w7d1",
+      "type": "variable",
+      "x": 0,
+      "y": 10.00000000000001,
+      "width": 397.64705882352945,
+      "height": 76.47058823529412,
+      "content": "{{model}}",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 60,
+        "fontWeight": "bold",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "id": "qzjrjz70q",
+      "type": "text",
+      "x": 260.8333333333333,
+      "y": 104.50980392156863,
+      "width": 139.16666666666669,
+      "height": 29.999999999999996,
+      "content": "Fiş No: {{ticketNo}}",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 14,
+        "fontWeight": "bold",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "transparent",
+        "textAlign": "left"
+      }
+    },
+    {
+      "id": "jtp6t8hnt",
+      "type": "variable",
+      "x": 50,
+      "y": 315.88235294117646,
+      "width": 180,
+      "height": 60,
+      "content": "{{deviceCondition}}",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 13,
+        "fontWeight": "bold",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "transparent",
+        "textAlign": "left"
+      }
+    },
+    {
+      "id": "g9x0q5q4i",
+      "type": "text",
+      "x": 11.176470588235293,
+      "y": 331.76470588235287,
+      "width": 78.8235294117647,
+      "height": 34.117647058823536,
+      "content": "Not :",
+      "styles": {
+        "fontFamily": "sans-serif",
+        "fontSize": 15,
+        "fontWeight": "800",
+        "lineHeight": 1.4,
+        "color": "#000000",
+        "backgroundColor": "transparent",
+        "textAlign": "left"
+      }
+    }
+  ],
+  "updatedAt": "2026-08-15T11:36:31.523Z"
+}
