@@ -11,9 +11,13 @@ export interface ElementStyles {
     textAlign?: 'left' | 'center' | 'right' | 'justify';
     color?: string;
     backgroundColor?: string;
+    isTransparentFill?: boolean;
+    isTransparentBorder?: boolean;
     borderWidth?: number;
     borderColor?: string;
-    borderStyle?: 'solid' | 'dashed' | 'dotted';
+    borderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'groove' | 'ridge' | 'none';
+    borderRadius?: number;
+    shapeType?: 'rect' | 'circle' | 'triangle';
     headerBackgroundColor?: string;
     headerColor?: string;
 }
@@ -158,6 +162,7 @@ export default function PropertiesPanel({ element, onUpdateElement, onDeleteElem
                     {element.type === 'variable' && '🏷️ Değişken Alanı'}
                     {element.type === 'image' && '📸 Görsel / Logo'}
                     {element.type === 'divider' && '➖ Çizgi / Ayırıcı'}
+                    {element.type === 'shape' && '🔷 Geometrik Şekil'}
                     {element.type === 'table' && '📊 Hizmet Tablosu'}
                 </span>
                 <button
@@ -616,31 +621,185 @@ export default function PropertiesPanel({ element, onUpdateElement, onDeleteElem
                 {/* Divider Layout Settings */}
                 {element.type === 'divider' && (
                     <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: '16px' }}>
-                        <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Çizgi Detayları</h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                            <div>
-                                <label style={labelStyle}>Kalınlık (px)</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="20"
-                                    value={element.styles.borderWidth || 2}
-                                    onChange={(e) => updateStyles({ borderWidth: parseInt(e.target.value) || 1 })}
-                                    style={inputStyle}
-                                />
+                        <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Çizgi Türü & Detayları</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div>
+                                    <label style={labelStyle}>Kalınlık (px)</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="30"
+                                        value={element.styles.borderWidth || 2}
+                                        onChange={(e) => updateStyles({ borderWidth: parseInt(e.target.value) || 1 })}
+                                        style={inputStyle}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Çizgi Türü (Stil)</label>
+                                    <select
+                                        value={element.styles.borderStyle || 'solid'}
+                                        onChange={(e) => updateStyles({ borderStyle: e.target.value as any })}
+                                        style={inputStyle}
+                                    >
+                                        <option value="solid">Düz (Solid)</option>
+                                        <option value="dashed">Kesikli (Dashed)</option>
+                                        <option value="dotted">Noktalı (Dotted)</option>
+                                        <option value="double">Çift Çizgi (Double)</option>
+                                        <option value="groove">Oluklu (Groove)</option>
+                                        <option value="ridge">Kabartmalı (Ridge)</option>
+                                    </select>
+                                </div>
                             </div>
+
                             <div>
-                                <label style={labelStyle}>Stil</label>
+                                <label style={labelStyle}>Çizgi Rengi (HEX)</label>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <input
+                                        type="color"
+                                        value={element.styles.borderColor || '#000000'}
+                                        onChange={(e) => updateStyles({ borderColor: e.target.value })}
+                                        style={{ width: '36px', height: '36px', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '2px', cursor: 'pointer', background: 'transparent' }}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={element.styles.borderColor || '#000000'}
+                                        onChange={(e) => updateStyles({ borderColor: e.target.value })}
+                                        style={inputStyle}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Geometric Shape Settings */}
+                {element.type === 'shape' && (
+                    <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: '16px' }}>
+                        <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Geometrik Şekil Ayarları</h4>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {/* Shape Type Select */}
+                            <div>
+                                <label style={labelStyle}>Şekil Türü</label>
                                 <select
-                                    value={element.styles.borderStyle || 'solid'}
-                                    onChange={(e) => updateStyles({ borderStyle: e.target.value as any })}
+                                    value={element.styles.shapeType || 'rect'}
+                                    onChange={(e) => updateStyles({ shapeType: e.target.value as any })}
                                     style={inputStyle}
                                 >
-                                    <option value="solid">Düz (Solid)</option>
-                                    <option value="dashed">Kesikli (Dashed)</option>
-                                    <option value="dotted">Noktalı (Dotted)</option>
+                                    <option value="rect">🔲 Dikdörtgen / Kare</option>
+                                    <option value="circle">🟡 Daire / Elips</option>
+                                    <option value="triangle">🔺 Üçgen</option>
                                 </select>
                             </div>
+
+                            {/* Interior Fill Color & Transparent Option */}
+                            <div style={{ borderTop: '1px dashed var(--border-primary)', paddingTop: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                    <label style={{ ...labelStyle, margin: 0 }}>İç Dolgu Rengi (HEX)</label>
+                                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!element.styles.isTransparentFill}
+                                            onChange={(e) => updateStyles({ isTransparentFill: e.target.checked })}
+                                        />
+                                        Saydam (Renksiz)
+                                    </label>
+                                </div>
+                                {!element.styles.isTransparentFill && (
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <input
+                                            type="color"
+                                            value={element.styles.backgroundColor || '#e5e7eb'}
+                                            onChange={(e) => updateStyles({ backgroundColor: e.target.value })}
+                                            style={{ width: '36px', height: '36px', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '2px', cursor: 'pointer', background: 'transparent' }}
+                                        />
+                                        <input
+                                            type="text"
+                                            value={element.styles.backgroundColor || '#e5e7eb'}
+                                            onChange={(e) => updateStyles({ backgroundColor: e.target.value })}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Border Color & Transparent Option */}
+                            <div style={{ borderTop: '1px dashed var(--border-primary)', paddingTop: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                    <label style={{ ...labelStyle, margin: 0 }}>Çerçeve (Kenarlık)</label>
+                                    <label style={{ fontSize: '11px', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!element.styles.isTransparentBorder}
+                                            onChange={(e) => updateStyles({ isTransparentBorder: e.target.checked })}
+                                        />
+                                        Çerçevesiz
+                                    </label>
+                                </div>
+
+                                {!element.styles.isTransparentBorder && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <input
+                                                type="color"
+                                                value={element.styles.borderColor || '#000000'}
+                                                onChange={(e) => updateStyles({ borderColor: e.target.value })}
+                                                style={{ width: '36px', height: '36px', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '2px', cursor: 'pointer', background: 'transparent' }}
+                                            />
+                                            <input
+                                                type="text"
+                                                value={element.styles.borderColor || '#000000'}
+                                                onChange={(e) => updateStyles({ borderColor: e.target.value })}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                            <div>
+                                                <label style={labelStyle}>Kalınlık (px)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="20"
+                                                    value={element.styles.borderWidth || 2}
+                                                    onChange={(e) => updateStyles({ borderWidth: parseInt(e.target.value) || 1 })}
+                                                    style={inputStyle}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>Çerçeve Türü</label>
+                                                <select
+                                                    value={element.styles.borderStyle || 'solid'}
+                                                    onChange={(e) => updateStyles({ borderStyle: e.target.value as any })}
+                                                    style={inputStyle}
+                                                >
+                                                    <option value="solid">Düz (Solid)</option>
+                                                    <option value="dashed">Kesikli (Dashed)</option>
+                                                    <option value="dotted">Noktalı (Dotted)</option>
+                                                    <option value="double">Çift (Double)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Corner Radius (for Rect) */}
+                            {element.styles.shapeType === 'rect' && (
+                                <div style={{ borderTop: '1px dashed var(--border-primary)', paddingTop: '10px' }}>
+                                    <label style={labelStyle}>Köşe Yuvarlama (Radius - px)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={element.styles.borderRadius ?? 8}
+                                        onChange={(e) => updateStyles({ borderRadius: parseInt(e.target.value) || 0 })}
+                                        style={inputStyle}
+                                        placeholder="0 (Dik) - 16 (Yumuşak)"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

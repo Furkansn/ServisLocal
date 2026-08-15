@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Type, Image, Minus, Table, Braces } from 'lucide-react';
+import { Type, Image, Minus, Table, Braces, Square, Circle, Triangle } from 'lucide-react';
 
 interface SidebarProps {
     onAddElement: (type: string, variableKey?: string) => void;
@@ -37,7 +37,25 @@ export default function Sidebar({ onAddElement }: SidebarProps) {
             type: 'divider',
             label: 'Çizgi / Ayırıcı',
             icon: Minus,
-            desc: 'Bölümleri ayıran çizgi',
+            desc: 'Bölümleri ayıran çizgi (düz, kesikli, noktalı)',
+        },
+        {
+            type: 'shape:rect',
+            label: 'Dikdörtgen / Çerçeve',
+            icon: Square,
+            desc: 'Kare, dikdörtgen veya yumuşak köşeli çerçeve',
+        },
+        {
+            type: 'shape:circle',
+            label: 'Daire / Elips',
+            icon: Circle,
+            desc: 'Daire veya yuvarlak geometrik şekil',
+        },
+        {
+            type: 'shape:triangle',
+            label: 'Üçgen',
+            icon: Triangle,
+            desc: 'Köşeleri yumuşak veya düz üçgen',
         },
     ];
 
@@ -86,7 +104,13 @@ export default function Sidebar({ onAddElement }: SidebarProps) {
                             key={tool.type}
                             draggable
                             onDragStart={(e) => handleDragStart(e, tool.type)}
-                            onClick={() => onAddElement(tool.type)}
+                            onClick={() => {
+                                if (tool.type.startsWith('shape:')) {
+                                    onAddElement('shape', tool.type.split(':')[1]);
+                                } else {
+                                    onAddElement(tool.type);
+                                }
+                            }}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',

@@ -17,11 +17,15 @@ interface ElementStyles {
     textAlign?: 'left' | 'center' | 'right' | 'justify';
     color?: string;
     backgroundColor?: string;
+    isTransparentFill?: boolean;
+    isTransparentBorder?: boolean;
     headerBackgroundColor?: string;
     headerColor?: string;
     borderWidth?: number;
     borderColor?: string;
-    borderStyle?: 'solid' | 'dashed' | 'dotted';
+    borderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'groove' | 'ridge' | 'none';
+    borderRadius?: number;
+    shapeType?: 'rect' | 'circle' | 'triangle';
 }
 
 interface TableColumn {
@@ -379,6 +383,20 @@ export default function TemplateBuilderPage() {
                 { id: 'c2', title: 'Fiyat', key: 'price', width: 25 },
                 { id: 'c3', title: 'Toplam', key: 'total', width: 25 },
             ];
+        } else if (type === 'shape') {
+            const shapeType = (variableKey || 'rect') as 'rect' | 'circle' | 'triangle';
+            newEl.width = 120;
+            newEl.height = 100;
+            newEl.styles = {
+                shapeType,
+                borderWidth: 2,
+                borderColor: '#000000',
+                borderStyle: 'solid',
+                backgroundColor: '#e5e7eb',
+                isTransparentFill: false,
+                isTransparentBorder: false,
+                borderRadius: shapeType === 'circle' ? 999 : 8,
+            };
         }
 
         setElements([...elements, newEl]);
@@ -386,24 +404,31 @@ export default function TemplateBuilderPage() {
     };
 
     const handleAddElementAt = (type: string, x: number, y: number, variableKey?: string) => {
+        let actualType = type;
+        let actualShapeKey = variableKey;
+        if (type.startsWith('shape:')) {
+            actualType = 'shape';
+            actualShapeKey = type.split(':')[1];
+        }
+
         const newEl: TemplateElement = {
             id: Math.random().toString(36).substr(2, 9),
-            type,
+            type: actualType,
             x,
             y,
-            width: type === 'table' || type === 'divider' ? (canvasType === 'a4' ? 600 : 280) : 180,
-            height: type === 'table' ? 120 : type === 'divider' ? 15 : 60,
-            content: type === 'text' 
+            width: actualType === 'table' || actualType === 'divider' ? (canvasType === 'a4' ? 600 : 280) : 180,
+            height: actualType === 'table' ? 120 : actualType === 'divider' ? 15 : 60,
+            content: actualType === 'text' 
                 ? 'Yeni Metin Kutusu' 
-                : type === 'variable' 
-                ? (variableKey ? `{{${variableKey}}}` : '{{customerName}}')
-                : type === 'image' 
+                : actualType === 'variable' 
+                ? (actualShapeKey ? `{{${actualShapeKey}}}` : '{{customerName}}')
+                : actualType === 'image' 
                 ? '/logo.png' 
                 : '',
             styles: {
                 fontFamily: 'sans-serif',
                 fontSize: 13,
-                fontWeight: type === 'variable' ? 'bold' : 'normal',
+                fontWeight: actualType === 'variable' ? 'bold' : 'normal',
                 lineHeight: 1.4,
                 color: '#000000',
                 backgroundColor: 'transparent',
@@ -411,7 +436,7 @@ export default function TemplateBuilderPage() {
             },
         };
 
-        if (type === 'table') {
+        if (actualType === 'table') {
             newEl.styles.headerBackgroundColor = '#2461db';
             newEl.styles.headerColor = '#ffffff';
             newEl.styles.color = '#000000';
@@ -421,6 +446,20 @@ export default function TemplateBuilderPage() {
                 { id: 'c2', title: 'Fiyat', key: 'price', width: 25 },
                 { id: 'c3', title: 'Toplam', key: 'total', width: 25 },
             ];
+        } else if (actualType === 'shape') {
+            const shapeType = (actualShapeKey || 'rect') as 'rect' | 'circle' | 'triangle';
+            newEl.width = 120;
+            newEl.height = 100;
+            newEl.styles = {
+                shapeType,
+                borderWidth: 2,
+                borderColor: '#000000',
+                borderStyle: 'solid',
+                backgroundColor: '#e5e7eb',
+                isTransparentFill: false,
+                isTransparentBorder: false,
+                borderRadius: shapeType === 'circle' ? 999 : 8,
+            };
         }
 
         setElements([...elements, newEl]);

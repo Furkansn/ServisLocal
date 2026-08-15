@@ -10,9 +10,13 @@ interface ElementStyles {
     textAlign?: 'left' | 'center' | 'right' | 'justify';
     color?: string;
     backgroundColor?: string;
+    isTransparentFill?: boolean;
+    isTransparentBorder?: boolean;
     borderWidth?: number;
     borderColor?: string;
-    borderStyle?: 'solid' | 'dashed' | 'dotted';
+    borderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'groove' | 'ridge' | 'none';
+    borderRadius?: number;
+    shapeType?: 'rect' | 'circle' | 'triangle';
     headerBackgroundColor?: string;
     headerColor?: string;
 }
@@ -421,6 +425,47 @@ export default function Canvas({
                                         width: '100%',
                                         borderTop: `${el.styles.borderWidth || 2}px ${el.styles.borderStyle || 'solid'} ${el.styles.borderColor || '#000000'}`,
                                     }} />
+                                </div>
+                            )}
+
+                            {el.type === 'shape' && (
+                                <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+                                    {el.styles?.shapeType === 'triangle' ? (
+                                        <svg
+                                            width="100%"
+                                            height="100%"
+                                            viewBox="0 0 100 100"
+                                            preserveAspectRatio="none"
+                                            style={{ display: 'block' }}
+                                        >
+                                            <polygon
+                                                points="50,5 95,95 5,95"
+                                                fill={el.styles?.isTransparentFill ? 'transparent' : (el.styles?.backgroundColor || '#e5e7eb')}
+                                                stroke={el.styles?.isTransparentBorder ? 'transparent' : (el.styles?.borderColor || '#000000')}
+                                                strokeWidth={el.styles?.isTransparentBorder ? 0 : (el.styles?.borderWidth || 2)}
+                                                strokeDasharray={
+                                                    el.styles?.borderStyle === 'dashed'
+                                                        ? '6,4'
+                                                        : el.styles?.borderStyle === 'dotted'
+                                                        ? '2,2'
+                                                        : undefined
+                                                }
+                                                strokeLinejoin="round"
+                                                strokeLinecap="round"
+                                            />
+                                        </svg>
+                                    ) : (
+                                        <div style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            boxSizing: 'border-box',
+                                            borderRadius: el.styles?.shapeType === 'circle' ? '50%' : `${el.styles?.borderRadius ?? 8}px`,
+                                            backgroundColor: el.styles?.isTransparentFill ? 'transparent' : (el.styles?.backgroundColor || '#e5e7eb'),
+                                            border: el.styles?.isTransparentBorder 
+                                                ? 'none' 
+                                                : `${el.styles?.borderWidth || 2}px ${el.styles?.borderStyle || 'solid'} ${el.styles?.borderColor || '#000000'}`,
+                                        }} />
+                                    )}
                                 </div>
                             )}
 
