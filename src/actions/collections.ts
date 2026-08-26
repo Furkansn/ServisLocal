@@ -269,6 +269,185 @@ export async function getCollectionsData(year: number, month: number, accountId?
     };
 }
 
+export async function getCollectionsExportData(options: {
+    year?: number;
+    month?: number;
+    accountId?: string;
+    allTime?: boolean;
+}) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const accounts = await getAccounts();
+    const { year, month, accountId, allTime } = options;
+
+    let dateFilter: any = {};
+    if (!allTime) {
+        if (year && month && month >= 1 && month <= 12) {
+            const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+            const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+            dateFilter = {
+                gte: startDate,
+                lte: endDate,
+            };
+        } else if (year) {
+            const startDate = new Date(year, 0, 1, 0, 0, 0, 0);
+            const endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+            dateFilter = {
+                gte: startDate,
+                lte: endDate,
+            };
+        }
+    }
+
+    // Payments filter
+    const paymentWhere: any = {};
+    if (Object.keys(dateFilter).length > 0) {
+        paymentWhere.createdAt = dateFilter;
+    }
+    if (accountId && accountId !== 'ALL') {
+        paymentWhere.accountId = accountId;
+    }
+
+    const payments = await prisma.payment.findMany({
+        where: paymentWhere,
+        include: {
+            ticket: {
+                select: {
+                    id: true,
+                    ticketNo: true,
+                    requestType: true,
+                    model: true,
+                    serialNo: true,
+                    brand: { select: { name: true } },
+                    operations: {
+                        select: {
+                            operationType: true,
+                        },
+                    },
+                    customer: { select: { name: true, phone: true } },
+                    repairer: { select: { name: true, phone: true } },
+                },
+            },
+            account: { select: { id: true, name: true, type: true } },
+            receivedBy: { select: { id: true, name: true } },
+            approvedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    // Expenses filter
+    const expenseWhere: any = {};
+    if (Object.keys(dateFilter).length > 0) {
+        expenseWhere.createdAt = dateFilter;
+    }
+    if (accountId && accountId !== 'ALL') {
+        expenseWhere.accountId = accountId;
+    }
+
+    const expenses = await prisma.expense.findMany({
+        where: expenseWhere,
+        include: {
+            account: { select: { id: true, name: true, type: true } },
+            createdBy: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    // Settlements filter
+    const settlementWhere: any = {};
+    if (Object.keys(dateFilter).length > 0) {
+        settlementWhere.createdAt = dateFilter;
+    }
+    if (accountId && accountId !== 'ALL') {
+        settlementWhere.accountId = accountId;
+    }
+
+    const settlements = await prisma.accountSettlement.findMany({
+        where: settlementWhere,
+        include: {
+            account: { select: { id: true, name: true, type: true } },
+            performedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    // Transfers filter
+    const transferWhere: any = {};
+    if (Object.keys(dateFilter).length > 0) {
+        transferWhere.createdAt = dateFilter;
+    }
+    if (accountId && accountId !== 'ALL') {
+        transferWhere.OR = [
+            { fromAccountId: accountId },
+            { toAccountId: accountId },
+        ];
+    }
+
+    const transfers = await prisma.accountTransfer.findMany({
+        where: transferWhere,
+        include: {
+            fromAccount: { select: { id: true, name: true, type: true } },
+            toAccount: { select: { id: true, name: true, type: true } },
+            performedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    // Compute Account Balances
+    const accountSummaries = accounts.map(acc => {
+        const accPayments = payments.filter(p => p.accountId === acc.id || (!p.accountId && acc.type === 'CASH'));
+        const accApprovedPayments = accPayments.filter(p => p.isApproved);
+        const accPendingPayments = accPayments.filter(p => !p.isApproved);
+        const accExpenses = expenses.filter(e => e.accountId === acc.id);
+        const accSettlements = settlements.filter(s => s.accountId === acc.id);
+        const accTransfersOut = transfers.filter(t => t.fromAccountId === acc.id);
+        const accTransfersIn = transfers.filter(t => t.toAccountId === acc.id);
+
+        const totalCollected = accPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalApproved = accApprovedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalPending = accPendingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalExpenses = accExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+        const totalSettled = accSettlements.reduce((sum, s) => sum + Number(s.amount), 0);
+        const totalTransfersOut = accTransfersOut.reduce((sum, t) => sum + Number(t.amount), 0);
+        const totalTransfersIn = accTransfersIn.reduce((sum, t) => sum + Number(t.amount), 0);
+        const currentBalance = totalCollected + totalTransfersIn - totalExpenses - totalSettled - totalTransfersOut;
+
+        return {
+            account: acc,
+            totalCollected,
+            totalApproved,
+            totalPending,
+            totalExpenses,
+            totalSettled,
+            totalTransfersOut,
+            totalTransfersIn,
+            currentBalance,
+        };
+    });
+
+    return {
+        accounts,
+        accountSummaries,
+        payments: payments.map(p => ({
+            ...p,
+            amount: Number(p.amount),
+        })),
+        expenses: expenses.map(e => ({
+            ...e,
+            amount: Number(e.amount),
+        })),
+        settlements: settlements.map(s => ({
+            ...s,
+            amount: Number(s.amount),
+        })),
+        transfers: transfers.map(t => ({
+            ...t,
+            amount: Number(t.amount),
+        })),
+    };
+}
+
 export async function approvePayment(paymentId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');

@@ -128,7 +128,8 @@ export default function ServicePage() {
         setPaymentsList([]);
         setPayAmount('');
         setPayMethod('CASH');
-        setPayAccountId('');
+        const defaultMatching = accounts.filter((acc: any) => acc.type === 'CASH');
+        setPayAccountId(defaultMatching.length === 1 ? defaultMatching[0].id : '');
         setPayNotes('');
         setAddAccessoryEnabled(false);
         setAccProduct('');
@@ -404,259 +405,393 @@ export default function ServicePage() {
             {/* Action Modal */}
             {showActionModal && actionRecord && (
                 <div className="modal-overlay" onClick={() => setShowActionModal(false)}>
-                    <div className="modal" style={{ maxHeight: '92vh', overflowY: 'auto', maxWidth: '960px', width: '95vw' }} onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <div className="modal-title">
-                                <div style={{ fontWeight: 700, fontSize: '16px' }}>
+                    <div className="modal" style={{ maxHeight: '90vh', overflowY: 'auto', maxWidth: '780px', width: '95vw', padding: 0 }} onClick={(e) => e.stopPropagation()}>
+                        {/* Compact Modal Header */}
+                        <div className="modal-header" style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontWeight: 700, fontSize: '15px' }}>
                                     {actionRecord.type === 'PICKUP' ? '📥 Teslim Al' : '📤 Teslim Et'}
-                                </div>
-                                <div style={{ fontSize: '13px', color: 'var(--brand-primary)', fontFamily: 'monospace', fontWeight: 600, marginTop: '2px' }}>
+                                </span>
+                                <span style={{ fontSize: '12px', color: 'var(--brand-primary)', fontFamily: 'monospace', fontWeight: 700, background: 'rgba(59, 130, 246, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>
                                     {(actionRecord.ticket as any).ticketNo}
-                                </div>
+                                </span>
                             </div>
-                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowActionModal(false)}>✕</button>
+                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowActionModal(false)} style={{ padding: '2px 6px' }}>✕</button>
                         </div>
-                        <div className="modal-body">
-                            {/* Device info */}
-                            <div style={{ padding: 'var(--space-3)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '15px' }}>{(actionRecord.ticket as any).brand?.name} {(actionRecord.ticket as any).model}</div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-xs"
-                                        onClick={() => setShowAddOpForm(prev => !prev)}
-                                        title="Fişe Ekstra Onarım / İşlem Ekle"
-                                        style={{ fontSize: '11px', border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)', padding: '1px 6px' }}
-                                    >
-                                        ➕ İşlem Ekle
-                                    </button>
-                                </div>
 
-                                {/* Form to Add Extra Repair Item / Operation */}
-                                {showAddOpForm && (
-                                    <div style={{ padding: '10px', background: 'var(--bg-primary)', border: '1px solid var(--brand-primary)', borderRadius: '8px', marginBottom: '10px' }}>
-                                        <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--brand-primary)' }}>
-                                            ➕ Fişe Ekstra İşlem Ekle
+                        {/* Modal Body - 2 Column Grid */}
+                        <div className="modal-body" style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '12px', alignItems: 'start' }}>
+                            {/* Left Column: Device Info, Financial Summary, Photo Capture */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {/* Device & Financial Card */}
+                                <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                        <div style={{ fontWeight: 600, fontSize: '13.5px' }}>
+                                            {(actionRecord.ticket as any).brand?.name} {(actionRecord.ticket as any).model}
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                <select
-                                                    className="form-select"
-                                                    value={newOpType}
-                                                    onChange={(e) => setNewOpType(e.target.value)}
-                                                    style={{ flex: 1, fontSize: '12px' }}
-                                                >
-                                                    <option value="LED_CHANGE">LED Değişimi</option>
-                                                    <option value="LGP_REPAIR">LGP Tamiri / Değişimi</option>
-                                                    <option value="BOARD_REPAIR">Anakart Tamiri</option>
-                                                    <option value="SCREEN_CHANGE">Ekran Değişimi</option>
-                                                    <option value="OTHER">Diğer / Özel İşlem</option>
-                                                </select>
-                                                <input
-                                                    type="number"
-                                                    className="form-input"
-                                                    placeholder="Ücret (₺)"
-                                                    value={newOpPrice}
-                                                    onChange={(e) => setNewOpPrice(e.target.value)}
-                                                    style={{ width: '110px', fontSize: '12px' }}
-                                                />
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-xs"
+                                            onClick={() => setShowAddOpForm(prev => !prev)}
+                                            title="Fişe Ekstra Onarım / İşlem Ekle"
+                                            style={{
+                                                fontSize: '9.5px',
+                                                fontWeight: 600,
+                                                border: '1px solid var(--brand-primary)',
+                                                color: 'var(--brand-primary)',
+                                                padding: '0 4px',
+                                                height: '18px',
+                                                lineHeight: '16px',
+                                                borderRadius: '3px',
+                                            }}
+                                        >
+                                            + İşlem
+                                        </button>
+                                    </div>
+
+                                    {/* Form to Add Extra Repair Item / Operation */}
+                                    {showAddOpForm && (
+                                        <div style={{ padding: '8px', background: 'var(--bg-primary)', border: '1px solid var(--brand-primary)', borderRadius: '6px', marginBottom: '8px' }}>
+                                            <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '4px', color: 'var(--brand-primary)' }}>
+                                                ➕ Fişe Ekstra İşlem Ekle
                                             </div>
-                                            {newOpType === 'OTHER' && (
-                                                <input
-                                                    type="text"
-                                                    className="form-input"
-                                                    placeholder="İşlem Tanımı..."
-                                                    value={newOpCustomType}
-                                                    onChange={(e) => setNewOpCustomType(e.target.value)}
-                                                    style={{ fontSize: '12px' }}
-                                                />
-                                            )}
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-secondary btn-xs"
-                                                    onClick={() => setShowAddOpForm(false)}
-                                                >
-                                                    İptal
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-primary btn-xs"
-                                                    disabled={isAddingOp}
-                                                    onClick={async () => {
-                                                        if (!newOpPrice || Number(newOpPrice) < 0) {
-                                                            alert('Geçerli bir tutar giriniz.');
-                                                            return;
-                                                        }
-                                                        setIsAddingOp(true);
-                                                        try {
-                                                            const finalType = newOpType === 'OTHER' ? (newOpCustomType.trim() || 'Özel İşlem') : newOpType;
-                                                            const updatedTicket = await addRepairItemToTicket((actionRecord.ticket as any).id, finalType, Number(newOpPrice));
-                                                            (actionRecord.ticket as any).repairItems = updatedTicket.repairItems;
-                                                            (actionRecord.ticket as any).repairPrice = updatedTicket.repairPrice;
-                                                            (actionRecord.ticket as any).totalAmount = updatedTicket.totalAmount;
-                                                            setShowAddOpForm(false);
-                                                            setNewOpPrice('');
-                                                            setNewOpCustomType('');
-                                                            load();
-                                                        } catch (err: any) {
-                                                            alert(err.message);
-                                                        } finally {
-                                                            setIsAddingOp(false);
-                                                        }
-                                                    }}
-                                                >
-                                                    {isAddingOp ? 'Ekleniyor...' : '💾 İşlemi Ekle'}
-                                                </button>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <select
+                                                        className="form-select"
+                                                        value={newOpType}
+                                                        onChange={(e) => setNewOpType(e.target.value)}
+                                                        style={{ flex: 1, fontSize: '11.5px', padding: '4px 24px 4px 6px', minHeight: '30px', height: '30px' }}
+                                                    >
+                                                        <option value="LED_CHANGE">LED Değişimi</option>
+                                                        <option value="LGP_REPAIR">LGP Tamiri / Değişimi</option>
+                                                        <option value="BOARD_REPAIR">Anakart Tamiri</option>
+                                                        <option value="SCREEN_CHANGE">Ekran Değişimi</option>
+                                                        <option value="OTHER">Diğer / Özel İşlem</option>
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        placeholder="Ücret ₺"
+                                                        value={newOpPrice}
+                                                        onChange={(e) => setNewOpPrice(e.target.value)}
+                                                        style={{ width: '85px', fontSize: '11px', padding: '3px 6px', height: '28px' }}
+                                                    />
+                                                </div>
+                                                {newOpType === 'OTHER' && (
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        placeholder="İşlem Tanımı..."
+                                                        value={newOpCustomType}
+                                                        onChange={(e) => setNewOpCustomType(e.target.value)}
+                                                        style={{ fontSize: '11px', padding: '3px 6px', height: '28px' }}
+                                                    />
+                                                )}
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-xs"
+                                                        onClick={() => setShowAddOpForm(false)}
+                                                        style={{ fontSize: '10.5px', padding: '2px 6px' }}
+                                                    >
+                                                        İptal
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-primary btn-xs"
+                                                        disabled={isAddingOp}
+                                                        onClick={async () => {
+                                                            if (!newOpPrice || Number(newOpPrice) < 0) {
+                                                                alert('Geçerli bir tutar giriniz.');
+                                                                return;
+                                                            }
+                                                            setIsAddingOp(true);
+                                                            try {
+                                                                const finalType = newOpType === 'OTHER' ? (newOpCustomType.trim() || 'Özel İşlem') : newOpType;
+                                                                const updatedTicket = await addRepairItemToTicket((actionRecord.ticket as any).id, finalType, Number(newOpPrice));
+                                                                (actionRecord.ticket as any).repairItems = updatedTicket.repairItems;
+                                                                (actionRecord.ticket as any).repairPrice = updatedTicket.repairPrice;
+                                                                (actionRecord.ticket as any).totalAmount = updatedTicket.totalAmount;
+                                                                setShowAddOpForm(false);
+                                                                setNewOpPrice('');
+                                                                setNewOpCustomType('');
+                                                                load();
+                                                            } catch (err: any) {
+                                                                alert(err.message);
+                                                            } finally {
+                                                                setIsAddingOp(false);
+                                                            }
+                                                        }}
+                                                        style={{ fontSize: '10.5px', padding: '2px 6px' }}
+                                                    >
+                                                        {isAddingOp ? 'Ekleniyor...' : '💾 Ekle'}
+                                                    </button>
+                                                </div>
                                             </div>
+                                        </div>
+                                    )}
+
+                                    {/* Compact Financial Items List */}
+                                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                                        {(() => {
+                                            const rawItems = (actionRecord.ticket as any)?.repairItems;
+                                            const parsedRepairItems: any[] = rawItems
+                                                ? (typeof rawItems === 'string'
+                                                    ? (() => { try { return JSON.parse(rawItems); } catch (e) { return []; } })()
+                                                    : Array.isArray(rawItems) ? rawItems : [])
+                                                : [];
+
+                                            if (parsedRepairItems.length > 0) {
+                                                return parsedRepairItems.map((item: any, idx: number) => {
+                                                    const itemLabel = item.type
+                                                        ? (OPERATION_TYPE_LABELS[item.type as keyof typeof OPERATION_TYPE_LABELS] || REQUEST_TYPE_LABELS[item.type as keyof typeof REQUEST_TYPE_LABELS] || item.type)
+                                                        : 'Tamir İşlemi';
+                                                    return (
+                                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                                            <span>{itemLabel}:</span>
+                                                            <span style={{ fontWeight: 600 }}>{formatCurrency(Number(item.price || 0))}</span>
+                                                        </div>
+                                                    );
+                                                });
+                                            }
+
+                                            return (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                                    <span>{REQUEST_TYPE_LABELS[(actionRecord.ticket as any).requestType as keyof typeof REQUEST_TYPE_LABELS] || 'Tamir Ücreti'}:</span>
+                                                    <span>{formatCurrency(getRepairPrice())}</span>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {(actionRecord.ticket as any).accessories?.length > 0 && (
+                                            <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px dashed var(--border-primary)' }}>
+                                                {(actionRecord.ticket as any).accessories.map((acc: any) => (
+                                                    <div key={acc.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', color: 'var(--text-secondary)' }}>
+                                                        <span>🛍️ {acc.product?.name || 'Aksesuar'} (x{acc.quantity})</span>
+                                                        <span>{formatCurrency(Number(acc.unitPrice) * acc.quantity)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {getNewAccessoryTotal() > 0 && (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                                                <span>+ Yeni Satış ({accQty}x):</span>
+                                                <span>{formatCurrency(getNewAccessoryTotal())}</span>
+                                            </div>
+                                        )}
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid var(--border-primary)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                            <span>Toplam:</span>
+                                            <span>{formatCurrency(getGrandTotal())}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px', color: 'var(--text-tertiary)' }}>
+                                            <span>Önceden Alınan:</span>
+                                            <span>- {formatCurrency(getPaidAmount())}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid var(--border-primary)', fontWeight: 700, color: getRemaining() > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                                            <span style={{ fontSize: '12.5px' }}>Kalan Ödeme:</span>
+                                            <span style={{ fontSize: '13.5px' }}>{formatCurrency(getRemaining())}</span>
                                         </div>
                                     </div>
-                                )}
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                                    {(() => {
-                                        const rawItems = (actionRecord.ticket as any)?.repairItems;
-                                        const parsedRepairItems: any[] = rawItems
-                                            ? (typeof rawItems === 'string'
-                                                ? (() => { try { return JSON.parse(rawItems); } catch (e) { return []; } })()
-                                                : Array.isArray(rawItems) ? rawItems : [])
-                                            : [];
+                                </div>
 
-                                        if (parsedRepairItems.length > 0) {
-                                            return parsedRepairItems.map((item: any, idx: number) => {
-                                                const itemLabel = item.type
-                                                    ? (OPERATION_TYPE_LABELS[item.type as keyof typeof OPERATION_TYPE_LABELS] || REQUEST_TYPE_LABELS[item.type as keyof typeof REQUEST_TYPE_LABELS] || item.type)
-                                                    : 'Tamir İşlemi';
-                                                return (
-                                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: 'var(--font-size-sm)' }}>
-                                                        <span>{itemLabel}:</span>
-                                                        <span style={{ fontWeight: 600 }}>{formatCurrency(Number(item.price || 0))}</span>
-                                                    </div>
-                                                );
-                                            });
-                                        }
+                                {/* Compact Photo Capture Section */}
+                                <div style={{ padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                        <span style={{ fontSize: '11.5px', fontWeight: 600 }}>
+                                            📸 Fotoğraf Çek <span style={{ color: 'var(--color-danger)' }}>*</span>
+                                        </span>
+                                        {photos.length > 0 && (
+                                            <span style={{ fontSize: '10.5px', color: 'var(--color-success)', fontWeight: 600 }}>
+                                                ✓ {photos.length} Adet Eklendi
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '4px' }}>
+                                        {actionRecord.type === 'PICKUP' ? (
+                                            <>
+                                                <button type="button" className="btn btn-secondary btn-xs" onClick={() => triggerCapture('BROKEN_DEVICE')} style={{ fontSize: '11px', padding: '4px 6px' }}>
+                                                    📸 Arızalı Cihaz
+                                                </button>
+                                                <button type="button" className="btn btn-secondary btn-xs" onClick={() => triggerCapture('BARCODE')} style={{ fontSize: '11px', padding: '4px 6px' }}>
+                                                    🔖 Barkod
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button type="button" className="btn btn-secondary btn-xs" onClick={() => triggerCapture('WORKING_DEVICE')} style={{ fontSize: '11px', padding: '4px 6px' }}>
+                                                ✅ Çalışır Hali
+                                            </button>
+                                        )}
+                                        <button type="button" className="btn btn-secondary btn-xs" onClick={() => triggerCapture('OTHER')} style={{ fontSize: '11px', padding: '4px 6px' }}>
+                                            📷 Diğer
+                                        </button>
+                                    </div>
+                                    <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFileCapture} />
 
-                                        return (
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                                                <span>{REQUEST_TYPE_LABELS[(actionRecord.ticket as any).requestType as keyof typeof REQUEST_TYPE_LABELS] || 'Tamir Ücreti'}:</span>
-                                                <span>{formatCurrency(getRepairPrice())}</span>
-                                            </div>
-                                        );
-                                    })()}
-                                    {(actionRecord.ticket as any).accessories?.length > 0 && (
-                                        <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px dashed var(--border-color)' }}>
-                                            <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, marginBottom: '2px', color: 'var(--text-tertiary)' }}>Mevcut Aksesuarlar</div>
-                                            {(actionRecord.ticket as any).accessories.map((acc: any) => (
-                                                <div key={acc.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', fontSize: 'var(--font-size-sm)' }}>
-                                                    <span>{acc.product?.name || 'Bilinmeyen Ürün'} (x{acc.quantity})</span>
-                                                    <span>{formatCurrency(Number(acc.unitPrice) * acc.quantity)}</span>
+                                    {/* Compact Thumbnail Grid */}
+                                    {photos.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                            {photos.map((p, i) => (
+                                                <div key={i} style={{ position: 'relative', width: '52px', height: '52px' }}>
+                                                    <img src={p.base64} alt={p.label} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-primary)' }} />
+                                                    <button
+                                                        type="button"
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: -4,
+                                                            right: -4,
+                                                            background: 'rgba(239, 68, 68, 0.9)',
+                                                            color: '#fff',
+                                                            border: 'none',
+                                                            borderRadius: '50%',
+                                                            width: 16,
+                                                            height: 16,
+                                                            cursor: 'pointer',
+                                                            fontSize: 9,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                        }}
+                                                        onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                                    >
+                                                        ✕
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
-                                    {getNewAccessoryTotal() > 0 && (
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)', color: 'var(--brand-primary)', fontSize: 'var(--font-size-sm)' }}>
-                                            <span>+ Yeni Satış ({accQty}x)</span>
-                                            <span>{formatCurrency(getNewAccessoryTotal())}</span>
-                                        </div>
-                                    )}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-color)', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                        <span>Toplam Alınacak:</span>
-                                        <span>{formatCurrency(getGrandTotal())}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                                        <span>Önceden Alınan:</span>
-                                        <span>- {formatCurrency(getPaidAmount())}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-color)', fontWeight: 700, color: getRemaining() > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                                        <span style={{ fontSize: '15px' }}>Kalan Ödeme:</span>
-                                        <span style={{ fontSize: '15px' }}>{formatCurrency(getRemaining())}</span>
-                                    </div>
                                 </div>
                             </div>
 
-                            {/* Photo section */}
-                            <div className="form-group">
-                                <label className="form-label"> Fotoğraf <span style={{ color: 'var(--color-danger)' }}>*</span> </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-                                    {actionRecord.type === 'PICKUP' ? (
-                                        <>
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => triggerCapture('BROKEN_DEVICE')}>📸 Arızalı Cihaz</button>
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => triggerCapture('BARCODE')}>🔖 Barkod</button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => triggerCapture('WORKING_DEVICE')}>✅ Çalışır Hali</button>
-                                        </>
-                                    )}
-                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => triggerCapture('OTHER')}>📷 Diğer</button>
-                                </div>
-                                <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFileCapture} />
-                                {photos.length > 0 && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-                                        {photos.map((p, i) => (
-                                            <div key={i} style={{ position: 'relative' }}>
-                                                <img src={p.base64} alt={p.label} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
-                                                <button type="button" style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 11 }} onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Accessory Sale is available for BOTH Pickup and Delivery */}
-                            <div className="form-group" style={{ background: 'var(--bg-secondary)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', width: '100%', cursor: 'pointer', marginBottom: addAccessoryEnabled ? 'var(--space-2)' : 0 }}>
-                                    <input type="checkbox" checked={addAccessoryEnabled} onChange={(e) => setAddAccessoryEnabled(e.target.checked)} />
-                                    <span style={{ fontWeight: 600 }}>🛍 Aksesuar Satışı</span>
-                                </label>
-                                {addAccessoryEnabled && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                                        <select className="form-select" value={accProduct} onChange={(e) => {
-                                            setAccProduct(e.target.value);
-                                            const p = accessories.find(a => a.id === e.target.value);
-                                            if (p) { setAccPrice(String(p.price)); setAccQty('1'); }
-                                        }}>
-                                            <option value="">Aksesuar Seçin</option>
-                                            {accessories.map(a => <option key={a.id} value={a.id}>{a.name} (Stok: {a.stock})</option>)}
-                                        </select>
-                                        {accProduct && (
-                                            <div style={{ display: 'flex', gap: '10px' }}>
-                                                <input type="number" className="form-input" placeholder="Adet" value={accQty} onChange={(e) => setAccQty(e.target.value)} min="1" style={{ flex: 1 }} />
-                                                <input type="number" className="form-input" placeholder="Birim Fiyat ₺" value={accPrice} onChange={(e) => setAccPrice(e.target.value)} min="0" style={{ flex: 2 }} />
-                                            </div>
+                            {/* Right Column: Physical Condition, Accessory, Payment, Notes */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {/* Physical Device Condition Box */}
+                                <div style={{ padding: '8px 10px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                                        <span style={{ fontSize: '11px', color: '#d97706', fontWeight: 700 }}>🔍 Cihaz Durumu / Hasar</span>
+                                        {!isEditingCondition ? (
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-xs"
+                                                onClick={() => setIsEditingCondition(true)}
+                                                style={{ fontSize: '10.5px', color: '#d97706', padding: '1px 5px' }}
+                                            >
+                                                ✏️ {deviceConditionInput ? 'Düzenle' : 'Not Ekle'}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary btn-xs"
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateTicketDeviceCondition((actionRecord.ticket as any).id, deviceConditionInput);
+                                                        (actionRecord.ticket as any).deviceCondition = deviceConditionInput;
+                                                        setIsEditingCondition(false);
+                                                    } catch (err: any) {
+                                                        alert(err.message);
+                                                    }
+                                                }}
+                                                style={{ fontSize: '10.5px', padding: '1px 6px', background: '#d97706', borderColor: '#d97706' }}
+                                            >
+                                                💾 Kaydet
+                                            </button>
                                         )}
                                     </div>
-                                )}
-                            </div>
 
-                            {/* Optional payment - only if delivery */}
-                            {actionRecord.type === 'DELIVERY' && (
-                                <>
-                                    {/* Payment is mandatory now */}
-                                    <div className="form-group" style={{ background: 'var(--bg-secondary)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', borderLeft: '4px solid var(--brand-primary)' }}>
-                                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-                                            <span>💰 Ödeme Girişi Yap {getRemaining() > 0 ? '(Zorunlu)' : ''}</span>
-                                        </label>
+                                    {isEditingCondition ? (
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={deviceConditionInput}
+                                            onChange={(e) => setDeviceConditionInput(e.target.value)}
+                                            placeholder="Örn: Arka kapak kırık, ekranda çizikler..."
+                                            style={{ fontSize: '11.5px', padding: '3px 8px', width: '100%', height: '28px', marginTop: '4px' }}
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <div style={{ fontSize: '11.5px', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.3 }}>
+                                            {deviceConditionInput || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Hasar / durum notu eklenmedi</span>}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Compact Accessory Sale Section */}
+                                <div style={{ background: 'var(--bg-secondary)', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', cursor: 'pointer', marginBottom: addAccessoryEnabled ? '6px' : 0 }}>
+                                        <input type="checkbox" checked={addAccessoryEnabled} onChange={(e) => setAddAccessoryEnabled(e.target.checked)} />
+                                        <span style={{ fontWeight: 600, fontSize: '11.5px' }}>🛍 Aksesuar Satışı</span>
+                                    </label>
+                                    {addAccessoryEnabled && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                                            <select
+                                                className="form-select"
+                                                value={accProduct}
+                                                onChange={(e) => {
+                                                    setAccProduct(e.target.value);
+                                                    const p = accessories.find(a => a.id === e.target.value);
+                                                    if (p) { setAccPrice(String(p.price)); setAccQty('1'); }
+                                                }}
+                                                style={{
+                                                    fontSize: '12px',
+                                                    padding: '4px 28px 4px 8px',
+                                                    minHeight: '32px',
+                                                    height: '32px',
+                                                    lineHeight: 'normal',
+                                                    width: '100%',
+                                                }}
+                                            >
+                                                <option value="">Aksesuar Seçin</option>
+                                                {accessories.map(a => <option key={a.id} value={a.id}>{a.name} (Stok: {a.stock})</option>)}
+                                            </select>
+                                            {accProduct && (
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <input type="number" className="form-input" placeholder="Adet" value={accQty} onChange={(e) => setAccQty(e.target.value)} min="1" style={{ width: '70px', fontSize: '11px', padding: '3px 6px', height: '28px' }} />
+                                                    <input type="number" className="form-input" placeholder="Birim Fiyat ₺" value={accPrice} onChange={(e) => setAccPrice(e.target.value)} min="0" style={{ flex: 1, fontSize: '11px', padding: '3px 6px', height: '28px' }} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Optional Payment Section - Delivery Only */}
+                                {actionRecord.type === 'DELIVERY' && (
+                                    <div style={{ background: 'var(--bg-secondary)', padding: '8px 10px', borderRadius: '8px', borderLeft: '3px solid var(--brand-primary)', border: '1px solid var(--border-primary)' }}>
+                                        <div style={{ fontSize: '11.5px', fontWeight: 600, marginBottom: '6px' }}>
+                                            💰 Ödeme Girişi {getRemaining() > 0 ? '(Zorunlu)' : ''}
+                                        </div>
 
                                         {paymentsList.map((p, idx) => (
-                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-primary)', padding: 'var(--space-2)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-2)', fontSize: '14px' }}>
+                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-primary)', padding: '3px 6px', borderRadius: '4px', marginBottom: '4px', fontSize: '11.5px' }}>
                                                 <div>
                                                     <span style={{ fontWeight: 600 }}>{formatCurrency(p.amount)}</span>
-                                                    <span style={{ color: 'var(--text-tertiary)', marginLeft: 'var(--space-2)', fontSize: '12px' }}>{PAYMENT_METHOD_LABELS[p.method as keyof typeof PAYMENT_METHOD_LABELS] || p.method}</span>
-                                                    {p.notes && <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{p.notes}</div>}
+                                                    <span style={{ color: 'var(--text-tertiary)', marginLeft: '4px', fontSize: '10.5px' }}>
+                                                        ({PAYMENT_METHOD_LABELS[p.method as keyof typeof PAYMENT_METHOD_LABELS] || p.method})
+                                                    </span>
                                                 </div>
-                                                <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', border: 'none', padding: '0 5px' }} onClick={() => setPaymentsList(prev => prev.filter((_, i) => i !== idx))}>✕</button>
+                                                <button type="button" className="btn btn-ghost btn-xs" style={{ color: 'var(--color-danger)', border: 'none', padding: '0 4px' }} onClick={() => setPaymentsList(prev => prev.filter((_, i) => i !== idx))}>✕</button>
                                             </div>
                                         ))}
 
-                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                            <input type="number" className="form-input" placeholder="Tutar (₺)" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required={paymentsList.length === 0} style={{ flex: 1, minWidth: '100px' }} />
-                                            <select className="form-select" value={payMethod} onChange={(e) => { setPayMethod(e.target.value); setPayAccountId(''); }} style={{ flex: 1, minWidth: '120px' }}>
+                                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                            <input type="number" className="form-input" placeholder="Tutar ₺" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required={paymentsList.length === 0} style={{ flex: 1, minWidth: '80px', fontSize: '11px', padding: '3px 6px', height: '28px' }} />
+                                            <select
+                                                className="form-select"
+                                                value={payMethod}
+                                                onChange={(e) => {
+                                                    const m = e.target.value;
+                                                    setPayMethod(m);
+                                                    const matching = accounts.filter((acc: any) => acc.type === m);
+                                                    setPayAccountId(matching.length === 1 ? matching[0].id : '');
+                                                }}
+                                                style={{ width: '105px', fontSize: '11.5px', padding: '4px 22px 4px 6px', minHeight: '30px', height: '30px' }}
+                                            >
                                                 {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                                             </select>
                                             <button
                                                 type="button"
-                                                className="btn btn-secondary"
+                                                className="btn btn-secondary btn-xs"
                                                 onClick={() => {
                                                     if (!payAmount) return;
                                                     if ((payMethod === 'BANK_TRANSFER' || payMethod === 'CREDIT_CARD') && !payAccountId) {
@@ -668,24 +803,26 @@ export default function ServicePage() {
                                                     const rem = getRemaining() - currentSum;
                                                     setPayAmount(rem > 0 ? rem.toString() : '');
                                                     setPayNotes('');
-                                                    setPayAccountId('');
+                                                    const defMatch = accounts.filter((acc: any) => acc.type === payMethod);
+                                                    setPayAccountId(defMatch.length === 1 ? defMatch[0].id : '');
                                                 }}
+                                                style={{ fontSize: '11px', padding: '3px 8px', height: '28px' }}
                                             >
                                                 Ekle
                                             </button>
                                         </div>
 
                                         {(payMethod === 'BANK_TRANSFER' || payMethod === 'CREDIT_CARD') && (
-                                            <div style={{ marginTop: '8px' }}>
-                                                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', fontWeight: 600, color: 'var(--brand-primary)' }}>
-                                                    🏦 Hedef Banka / POS Hesabı Seçiniz (Zorunlu)
-                                                </label>
+                                            <div style={{ marginTop: '4px' }}>
                                                 <select
                                                     className="form-select"
                                                     value={payAccountId}
                                                     onChange={(e) => setPayAccountId(e.target.value)}
+                                                    style={{ fontSize: '11.5px', padding: '4px 24px 4px 6px', minHeight: '30px', height: '30px', width: '100%' }}
                                                 >
-                                                    <option value="">-- Hedef Hesap Seçiniz --</option>
+                                                    {accounts.filter((acc: any) => acc.type === payMethod).length !== 1 && (
+                                                        <option value="">-- Hedef Hesap Seçiniz (Zorunlu) --</option>
+                                                    )}
                                                     {accounts
                                                         .filter((acc: any) => acc.type === payMethod)
                                                         .map((acc: any) => (
@@ -704,79 +841,35 @@ export default function ServicePage() {
                                             <input
                                                 type="text"
                                                 className="form-input"
-                                                placeholder="Havale/EFT Notu (Gönderici adı vs.)"
+                                                placeholder="Havale Gönderici Adı..."
                                                 value={payNotes}
                                                 onChange={(e) => setPayNotes(e.target.value)}
-                                                style={{ marginTop: '8px' }}
+                                                style={{ marginTop: '4px', fontSize: '11px', padding: '3px 6px', height: '28px' }}
                                             />
                                         )}
-
-                                        {paymentsList.length > 0 && (
-                                            <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>
-                                                Girilen Toplam: <span style={{ fontWeight: 600 }}>{formatCurrency(paymentsList.reduce((acc, p) => acc + p.amount, 0) + (Number(payAmount) || 0))}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Physical Device Condition Box (Moved right above process notes) */}
-                            <div style={{ marginBottom: 'var(--space-3)', padding: '10px 12px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                    <span style={{ fontSize: '12px', color: '#d97706', fontWeight: 700 }}>🔍 Cihaz Fiziksel Durumu / Hasar Bilgisi</span>
-                                    {!isEditingCondition ? (
-                                        <button
-                                            type="button"
-                                            className="btn btn-ghost btn-xs"
-                                            onClick={() => setIsEditingCondition(true)}
-                                            style={{ fontSize: '11px', color: '#d97706', padding: '2px 6px' }}
-                                        >
-                                            ✏️ {deviceConditionInput ? 'Düzenle' : 'Not Ekle'}
-                                        </button>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary btn-xs"
-                                            onClick={async () => {
-                                                try {
-                                                    await updateTicketDeviceCondition((actionRecord.ticket as any).id, deviceConditionInput);
-                                                    (actionRecord.ticket as any).deviceCondition = deviceConditionInput;
-                                                    setIsEditingCondition(false);
-                                                } catch (err: any) {
-                                                    alert(err.message);
-                                                }
-                                            }}
-                                            style={{ fontSize: '11px', padding: '2px 6px', background: '#d97706', borderColor: '#d97706' }}
-                                        >
-                                            💾 Kaydet
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isEditingCondition ? (
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={deviceConditionInput}
-                                        onChange={(e) => setDeviceConditionInput(e.target.value)}
-                                        placeholder="Örn: Arka kapak kırık, ekranda çizikler var..."
-                                        style={{ fontSize: '12px', padding: '6px 10px', width: '100%' }}
-                                        autoFocus
-                                    />
-                                ) : (
-                                    <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                                        {deviceConditionInput || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Durum eklenmedi</span>}
                                     </div>
                                 )}
-                            </div>
 
-                            <textarea className="form-textarea" placeholder="İşlem notu..." value={actionNotes} onChange={(e) => setActionNotes(e.target.value)} rows={2} />
-                            {actionError && <div style={{ color: 'var(--color-danger)', marginTop: '10px' }}>{actionError}</div>}
+                                {/* Compact Process Note */}
+                                <div>
+                                    <textarea
+                                        className="form-textarea"
+                                        placeholder="İşlem / teslimat notu..."
+                                        value={actionNotes}
+                                        onChange={(e) => setActionNotes(e.target.value)}
+                                        rows={2}
+                                        style={{ fontSize: '11.5px', padding: '6px 8px', resize: 'none', width: '100%' }}
+                                    />
+                                    {actionError && <div style={{ color: 'var(--color-danger)', fontSize: '11px', marginTop: '2px' }}>{actionError}</div>}
+                                </div>
+                            </div>
                         </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-secondary" onClick={() => setShowActionModal(false)}>İptal</button>
-                            <button className="btn btn-success" disabled={savingAction} onClick={handleCompleteService}>
-                                {savingAction ? 'Kaydediliyor...' : 'Tamamla'}
+
+                        {/* Compact Modal Footer */}
+                        <div className="modal-footer" style={{ padding: '10px 16px', borderTop: '1px solid var(--border-primary)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setShowActionModal(false)} style={{ fontSize: '12px', padding: '4px 12px' }}>İptal</button>
+                            <button className="btn btn-success btn-sm" disabled={savingAction} onClick={handleCompleteService} style={{ fontSize: '12px', padding: '4px 16px', fontWeight: 600 }}>
+                                {savingAction ? 'Kaydediliyor...' : '✓ Tamamla'}
                             </button>
                         </div>
                     </div>

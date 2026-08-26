@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
     getCollectionsData,
+    getCollectionsExportData,
     approvePayment,
     unapprovePayment,
     addExpense,
@@ -17,6 +18,7 @@ import {
 } from '@/actions/collections';
 import { AccountType } from '@prisma/client';
 import { formatCurrency, formatDateTime, formatDate, REQUEST_TYPE_LABELS } from '@/lib/constants';
+import { exportCollectionsToExcel } from '@/lib/exportCollectionsExcel';
 
 const MONTH_NAMES = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -82,6 +84,12 @@ export default function CollectionsPage() {
     const [payTransferTargetAccountId, setPayTransferTargetAccountId] = useState('');
     const [payTransferError, setPayTransferError] = useState('');
 
+    // Excel Export state
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [exportScope, setExportScope] = useState<'CURRENT_MONTH' | 'CURRENT_YEAR' | 'ALL_TIME'>('CURRENT_MONTH');
+    const [exportAccountId, setExportAccountId] = useState('ALL');
+
     const loadData = (showSpinner = true) => {
         if (showSpinner) setIsLoading(true);
         startTransition(async () => {
@@ -99,6 +107,63 @@ export default function CollectionsPage() {
     useEffect(() => {
         loadData(true);
     }, [selectedYear, selectedMonth, selectedAccountId]);
+
+    const handleDownloadExcel = async (scope = exportScope, accId = exportAccountId) => {
+        setIsExporting(true);
+        try {
+            let exportDataToUse: any = null;
+            let periodLabel = '';
+            let accountFilterLabel = 'Tüm Hesaplar';
+
+            if (accId !== 'ALL') {
+                const found = data?.accounts?.find((a: any) => a.id === accId);
+                if (found) accountFilterLabel = `${found.name} (${found.type})`;
+            }
+
+            if (scope === 'CURRENT_MONTH') {
+                periodLabel = `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`;
+                if (data && selectedAccountId === accId) {
+                    exportDataToUse = data;
+                } else {
+                    exportDataToUse = await getCollectionsExportData({
+                        year: selectedYear,
+                        month: selectedMonth,
+                        accountId: accId,
+                    });
+                }
+            } else if (scope === 'CURRENT_YEAR') {
+                periodLabel = `${selectedYear} Yılı (Tüm Aylar)`;
+                exportDataToUse = await getCollectionsExportData({
+                    year: selectedYear,
+                    accountId: accId,
+                });
+            } else {
+                periodLabel = 'Tüm Zamanlar (Tüm İşlem Geçmişi)';
+                exportDataToUse = await getCollectionsExportData({
+                    allTime: true,
+                    accountId: accId,
+                });
+            }
+
+            exportCollectionsToExcel({
+                accounts: exportDataToUse.accounts || [],
+                accountSummaries: exportDataToUse.accountSummaries || [],
+                payments: exportDataToUse.payments || [],
+                expenses: exportDataToUse.expenses || [],
+                settlements: exportDataToUse.settlements || [],
+                transfers: exportDataToUse.transfers || [],
+                periodLabel,
+                accountFilterLabel,
+            });
+
+            setShowExportModal(false);
+        } catch (err: any) {
+            console.error(err);
+            alert('Excel indirilirken bir hata oluştu: ' + (err.message || err));
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     const handleApprove = async (paymentId: string) => {
         try {
@@ -292,6 +357,25 @@ export default function CollectionsPage() {
 
                 <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                     <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                            setExportScope('CURRENT_MONTH');
+                            setExportAccountId(selectedAccountId);
+                            setShowExportModal(true);
+                        }}
+                        style={{
+                            background: '#10b981',
+                            borderColor: '#059669',
+                            color: '#ffffff',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: 600,
+                        }}
+                    >
+                        📊 Toplu Excel İndir
+                    </button>
+                    <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => setShowExpenseModal(true)}
                     >
@@ -361,9 +445,28 @@ export default function CollectionsPage() {
                         </select>
                     </div>
 
-                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Dönem: </span>
-                        <strong style={{ color: 'var(--brand-primary)' }}>{MONTH_NAMES[selectedMonth - 1]} {selectedYear}</strong>
+                    <div style={{ marginLeft: 'auto', textAlign: 'right', display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                        <div>
+                            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Dönem: </span>
+                            <strong style={{ color: 'var(--brand-primary)' }}>{MONTH_NAMES[selectedMonth - 1]} {selectedYear}</strong>
+                        </div>
+                        <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleDownloadExcel('CURRENT_MONTH', selectedAccountId)}
+                            disabled={isExporting || isLoading || !data}
+                            title="Görüntülenen ayı anında Excel olarak indir"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                borderColor: '#10b981',
+                                color: '#10b981',
+                                fontSize: '12px',
+                                padding: '4px 10px',
+                            }}
+                        >
+                            {isExporting ? '⏳ İndiriliyor...' : '📥 Bu Ayı İndir (.xlsx)'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1145,6 +1248,184 @@ export default function CollectionsPage() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={() => setShowAccountModal(false)}>Kapat</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal 6: Bulk Excel Export Modal */}
+            {showExportModal && (
+                <div className="modal-overlay" onClick={() => !isExporting && setShowExportModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
+                        <div className="modal-header">
+                            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                📊 Toplu Kasa & Tahsilat Excel Raporu İndir
+                            </h3>
+                            <button className="modal-close" onClick={() => !isExporting && setShowExportModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
+                                İndirilecek Excel çalışma kitabında <strong>6 ayrı sayfa (Sheet)</strong> bulunacak ve tüm veriler ayrıntılı, filtreli ve formüllere uygun formatta sunulacaktır.
+                            </p>
+
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label className="form-label" style={{ fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+                                    📅 Rapor Kapsamı (Dönem Seçimi)
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <label style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        border: `1px solid ${exportScope === 'CURRENT_MONTH' ? 'var(--brand-primary)' : 'var(--border-primary)'}`,
+                                        background: exportScope === 'CURRENT_MONTH' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                        cursor: 'pointer',
+                                    }}>
+                                        <input
+                                            type="radio"
+                                            name="exportScope"
+                                            checked={exportScope === 'CURRENT_MONTH'}
+                                            onChange={() => setExportScope('CURRENT_MONTH')}
+                                        />
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                                                📅 Seçili Dönem: {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                Yalnızca şu an seçili olan ayın tahsilat, gider ve kasa hareketleri
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        border: `1px solid ${exportScope === 'CURRENT_YEAR' ? 'var(--brand-primary)' : 'var(--border-primary)'}`,
+                                        background: exportScope === 'CURRENT_YEAR' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                        cursor: 'pointer',
+                                    }}>
+                                        <input
+                                            type="radio"
+                                            name="exportScope"
+                                            checked={exportScope === 'CURRENT_YEAR'}
+                                            onChange={() => setExportScope('CURRENT_YEAR')}
+                                        />
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                                                📆 {selectedYear} Yılı Raporu (12 Ayın Tümü)
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                {selectedYear} yılına ait tüm ayların birleşik toplamları ve hareketleri
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        border: `1px solid ${exportScope === 'ALL_TIME' ? 'var(--brand-primary)' : 'var(--border-primary)'}`,
+                                        background: exportScope === 'ALL_TIME' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                        cursor: 'pointer',
+                                    }}>
+                                        <input
+                                            type="radio"
+                                            name="exportScope"
+                                            checked={exportScope === 'ALL_TIME'}
+                                            onChange={() => setExportScope('ALL_TIME')}
+                                        />
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                                                🌐 Tüm Zamanlar (Tüm İşlem Geçmişi)
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                Sisteme bugüne kadar kaydedilmiş istisnasız tüm tahsilat, gider ve kasa işlemleri
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label className="form-label" style={{ fontWeight: 600 }}>
+                                    💳 Kasa / Hesap Filtresi
+                                </label>
+                                <select
+                                    className="input"
+                                    value={exportAccountId}
+                                    onChange={(e) => setExportAccountId(e.target.value)}
+                                >
+                                    <option value="ALL">🌐 Tüm Hesaplar ve Kasalar (Birleşik)</option>
+                                    {data?.accounts?.map((acc: any) => (
+                                        <option key={acc.id} value={acc.id}>{acc.name} ({acc.type})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Info Box about generated sheets */}
+                            <div style={{
+                                background: 'var(--bg-secondary)',
+                                padding: '12px 14px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                border: '1px solid var(--border-primary)',
+                                color: 'var(--text-secondary)',
+                            }}>
+                                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>
+                                    📋 Excel Dosyasında Yer Alacak Sayfalar (Sheets):
+                                </strong>
+                                <ul style={{ margin: 0, paddingLeft: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                                    <li>1. 📊 Kasa Bakiye Özetleri</li>
+                                    <li>2. 📜 Tüm Hareketler (Ekstre)</li>
+                                    <li>3. 💰 Tahsilatlar (Detaylı)</li>
+                                    <li>4. 📉 Giderler & Harcamalar</li>
+                                    <li>5. 🔄 Virman & Transferler</li>
+                                    <li>6. 🏛️ Kasa Sıfırlamaları</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setShowExportModal(false)}
+                                disabled={isExporting}
+                            >
+                                İptal
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => handleDownloadExcel()}
+                                disabled={isExporting}
+                                style={{
+                                    background: '#10b981',
+                                    borderColor: '#059669',
+                                    color: '#ffffff',
+                                    fontWeight: 600,
+                                    minWidth: '160px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                }}
+                            >
+                                {isExporting ? (
+                                    <>
+                                        <span className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                                        <span>Hazırlanıyor...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>📥 Excel (.xlsx) İndir</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>

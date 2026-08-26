@@ -112,3 +112,114 @@ export async function updatePersonnel(
         include: { roles: true },
     });
 }
+
+export async function deletePersonnel(id: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const userRoles = (session.user as any)?.roles || [];
+    if (!userRoles.includes('OPERATOR')) {
+        throw new Error('Personel silme işlemi için Operatör / Servis Müdürü yetkisi gereklidir.');
+    }
+
+    if (session.user.id === id) {
+        throw new Error('Kendi hesabınızı silemezsiniz.');
+    }
+
+    const target = await prisma.personnel.findUnique({
+        where: { id },
+        include: { roles: true },
+    });
+
+    if (!target) {
+        throw new Error('Silinmek istenen personel bulunamadı.');
+    }
+
+    // Check all related records across the system
+    const [
+        createdTickets,
+        assignedTickets,
+        serviceAssignments,
+        photos,
+        ops,
+        accessories,
+        receivedPayments,
+        approvedPayments,
+        expenses,
+        settlements,
+        transfers,
+        statusChanges,
+        customerNotes,
+        repairerNotes,
+        auditLogs,
+    ] = await Promise.all([
+        prisma.repairTicket.count({ where: { createdById: id } }),
+        prisma.repairTicket.count({ where: { assignedTechnicianId: id } }),
+        prisma.serviceRecord.count({ where: { assignedPersonnelId: id } }),
+        prisma.ticketPhoto.count({ where: { uploadedById: id } }),
+        prisma.ticketOperation.count({ where: { performedById: id } }),
+        prisma.ticketAccessory.count({ where: { soldById: id } }),
+        prisma.payment.count({ where: { receivedById: id } }),
+        prisma.payment.count({ where: { approvedById: id } }),
+        prisma.expense.count({ where: { createdById: id } }),
+        prisma.accountSettlement.count({ where: { performedById: id } }),
+        prisma.accountTransfer.count({ where: { performedById: id } }),
+        prisma.statusHistory.count({ where: { changedById: id } }),
+        prisma.customerNote.count({ where: { personnelId: id } }),
+        prisma.repairerNote.count({ where: { personnelId: id } }),
+        prisma.auditLog.count({ where: { changedById: id } }),
+    ]);
+
+    const totalActivity =
+        createdTickets +
+        assignedTickets +
+        serviceAssignments +
+        photos +
+        ops +
+        accessories +
+        receivedPayments +
+        approvedPayments +
+        expenses +
+        settlements +
+        transfers +
+        statusChanges +
+        customerNotes +
+        repairerNotes +
+        auditLogs;
+
+    if (totalActivity === 0) {
+        // No related records, safe to delete completely
+        await prisma.personnelRole.deleteMany({ where: { personnelId: id } });
+        await prisma.personnel.delete({ where: { id } });
+        return {
+            deleted: true,
+            deactivated: false,
+            message: `"${target.name}" adlı personel sistemden tamamen silindi.`,
+        };
+    } else {
+        // Unassign from active pending assignments
+        await prisma.repairTicket.updateMany({
+            where: { assignedTechnicianId: id, status: { notIn: ['TAMAMLANDI', 'IPTAL', 'IADE'] } },
+            data: { assignedTechnicianId: null },
+        });
+
+        await prisma.serviceRecord.updateMany({
+            where: { assignedPersonnelId: id, status: { in: ['PLANNED', 'ASSIGNED'] } },
+            data: { assignedPersonnelId: null, status: 'PLANNED' },
+        });
+
+        // Deactivate account
+        await prisma.personnel.update({
+            where: { id },
+            data: {
+                isActive: false,
+            },
+        });
+
+        return {
+            deleted: false,
+            deactivated: true,
+            message: `"${target.name}" adlı personelin geçmişe ait ${totalActivity} adet işlem/kasa kaydı bulunduğu için sistem ve muhasebe geçmişinin korunması adına HESAP PASİFE ALINDI ve tüm sisteme giriş yetkileri sonlandırıldı.`,
+        };
+    }
+}

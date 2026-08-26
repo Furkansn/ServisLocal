@@ -128,7 +128,7 @@ export async function getDailyServiceRecords(date?: string) {
                         select: { id: true, name: true, phone: true, address: true, city: true, district: true, _count: { select: { notes: true } } }
                     },
                     brand: { select: { name: true } },
-                    accessories: { include: { product: { select: { name: true } } } },
+                    accessories: { include: { product: { select: { name: true } }, soldBy: { select: { name: true } } } },
                     operations: { include: { performedBy: { select: { name: true } } }, orderBy: { createdAt: 'desc' } },
                     statusHistory: { include: { changedBy: { select: { name: true } } }, orderBy: { createdAt: 'desc' } },
                 },
@@ -187,7 +187,7 @@ export async function getMyWorkOrders() {
                         include: { _count: { select: { notes: true } } }
                     },
                     brand: { select: { name: true } },
-                    accessories: { include: { product: { select: { name: true } } } },
+                    accessories: { include: { product: { select: { name: true } }, soldBy: { select: { name: true } } } },
                     operations: { include: { performedBy: { select: { name: true } } }, orderBy: { createdAt: 'desc' } },
                     statusHistory: { include: { changedBy: { select: { name: true } } }, orderBy: { createdAt: 'desc' } },
                 },

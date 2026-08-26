@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { getPersonnel, createPersonnel, updatePersonnel } from '@/actions/personnel';
+import { getPersonnel, createPersonnel, updatePersonnel, deletePersonnel } from '@/actions/personnel';
 
 const ROLE_LABELS: Record<string, string> = {
     OPERATOR: 'Operatör',
@@ -17,6 +17,7 @@ export default function PersonnelPage() {
     const [showForm, setShowForm] = useState(false);
     const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
     const [formError, setFormError] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const load = () => { startTransition(async () => { setPersonnel(await getPersonnel()); }); };
     useEffect(() => { load(); }, []);
@@ -52,13 +53,31 @@ export default function PersonnelPage() {
         } catch (err: any) { setFormError(err.message); }
     };
 
+    const handleDelete = async (p: Personnel) => {
+        if (!confirm(`"${p.name}" adlı personeli silmek istediğinize emin misiniz?`)) return;
+        setIsDeleting(true);
+        try {
+            const res = await deletePersonnel(p.id);
+            alert(res.message);
+            if (showForm) setShowForm(false);
+            setEditingPersonnel(null);
+            load();
+        } catch (err: any) {
+            alert('Hata: ' + (err.message || err));
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const openEditForm = (p: Personnel) => {
         setEditingPersonnel(p);
+        setFormError('');
         setShowForm(true);
     };
 
     const openCreateForm = () => {
         setEditingPersonnel(null);
+        setFormError('');
         setShowForm(true);
     };
 
@@ -75,7 +94,7 @@ export default function PersonnelPage() {
             <div className="table-container">
                 <table className="table">
                     <thead>
-                        <tr><th>Ad Soyad</th><th>E-posta</th><th>Telefon</th><th>Roller</th><th>Durum</th><th>İşlemler</th></tr>
+                        <tr><th>Ad Soyad</th><th>E-posta</th><th>Telefon</th><th>Roller</th><th>Durum</th><th style={{ textAlign: 'right' }}>İşlemler</th></tr>
                     </thead>
                     <tbody>
                         {personnel.map((p) => (
@@ -95,8 +114,19 @@ export default function PersonnelPage() {
                                         {p.isActive ? 'Aktif' : 'Pasif'}
                                     </span>
                                 </td>
-                                <td>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => openEditForm(p)}>✏️ Düzenle</button>
+                                <td style={{ textAlign: 'right' }}>
+                                    <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                        <button className="btn btn-secondary btn-sm" onClick={() => openEditForm(p)}>✏️ Düzenle</button>
+                                        <button
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => handleDelete(p)}
+                                            style={{ color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                                            title="Personeli Sil / Pasife Al"
+                                            disabled={isDeleting}
+                                        >
+                                            🗑️ Sil
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -105,11 +135,11 @@ export default function PersonnelPage() {
             </div>
 
             {showForm && (
-                <div className="modal-overlay" onClick={() => setShowForm(false)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-overlay" onClick={() => !isDeleting && setShowForm(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
                         <div className="modal-header">
                             <h3 className="modal-title">{editingPersonnel ? '✏️ Personel Düzenle' : '➕ Yeni Personel'}</h3>
-                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowForm(false)}>✕</button>
+                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => !isDeleting && setShowForm(false)}>✕</button>
                         </div>
                         <form onSubmit={handleCreate}>
                             <div className="modal-body">
@@ -133,15 +163,30 @@ export default function PersonnelPage() {
                                     <div className="form-group">
                                         <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
                                             <input type="checkbox" name="isActive" className="form-checkbox" defaultChecked={editingPersonnel.isActive} />
-                                            Aktif Personel
+                                            Aktif Personel (İşaret kaldırılırsa sisteme giriş yapamaz)
                                         </label>
                                     </div>
                                 )}
                                 {formError && <div style={{ padding: 'var(--space-2)', background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)' }}>{formError}</div>}
                             </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>İptal</button>
-                                <button type="submit" className="btn btn-primary">Kaydet</button>
+                            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    {editingPersonnel && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => handleDelete(editingPersonnel)}
+                                            style={{ color: 'var(--color-danger)' }}
+                                            disabled={isDeleting}
+                                        >
+                                            🗑️ Personeli Sil
+                                        </button>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                    <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)} disabled={isDeleting}>İptal</button>
+                                    <button type="submit" className="btn btn-primary" disabled={isDeleting}>Kaydet</button>
+                                </div>
                             </div>
                         </form>
                     </div>

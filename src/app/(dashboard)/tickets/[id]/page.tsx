@@ -101,6 +101,25 @@ export default function TicketDetailPage() {
     const [payNotes, setPayNotes] = useState('');
     const [payError, setPayError] = useState('');
 
+    const handlePayMethodChange = (newMethod: string, currentAccounts: any[] = accounts) => {
+        setPayMethod(newMethod);
+        const matching = currentAccounts.filter(acc => acc.type === newMethod);
+        if (matching.length === 1) {
+            setPayAccountId(matching[0].id);
+        } else {
+            setPayAccountId('');
+        }
+    };
+
+    const openPaymentModal = () => {
+        setPayError('');
+        setPayAmount('');
+        setPayNotes('');
+        const defaultMethod = 'CASH';
+        handlePayMethodChange(defaultMethod, accounts);
+        setShowPayment(true);
+    };
+
     const loadTicket = () => {
         startTransition(async () => {
             const data = await getTicketById(ticketId);
@@ -114,8 +133,19 @@ export default function TicketDetailPage() {
 
     useEffect(() => {
         getProductsByCategory('ACCESSORY').then(setAccessories);
-        getPersonnelByRole(Role.SERVICE_STAFF).then(setServicePersonnel);
-        getAccounts().then(setAccounts);
+        getPersonnelByRole(Role.SERVICE_STAFF).then((staff) => {
+            setServicePersonnel(staff);
+            if (staff.length === 1) {
+                setSrvPersonnelId(staff[0].id);
+            }
+        });
+        getAccounts().then((accs) => {
+            setAccounts(accs);
+            const matching = accs.filter((acc: any) => acc.type === 'CASH');
+            if (matching.length === 1) {
+                setPayAccountId(matching[0].id);
+            }
+        });
     }, []);
 
     // Auto refresh
@@ -755,7 +785,13 @@ export default function TicketDetailPage() {
                             )}
 
                             <div className="form-group" style={{ marginBottom: 0 }}>
-                                <button className="btn btn-primary btn-block" onClick={() => { setSrvError(''); setShowServiceForm(true); }}>🚗 Servis Talebi Oluştur</button>
+                                <button className="btn btn-primary btn-block" onClick={() => {
+                                    setSrvError('');
+                                    if (servicePersonnel.length === 1) {
+                                        setSrvPersonnelId(servicePersonnel[0].id);
+                                    }
+                                    setShowServiceForm(true);
+                                }}>🚗 Servis Talebi Oluştur</button>
                             </div>
 
                             <div className="form-group" style={{ marginBottom: 0, marginTop: 'var(--space-2)' }}>
@@ -811,7 +847,7 @@ export default function TicketDetailPage() {
                         {/* Payment actions */}
                         {!readOnly && ticket.status === TicketStatus.ODEME_BEKLIYOR && (
                             <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                                <button className="btn btn-primary btn-sm btn-block" onClick={() => setShowPayment(true)}>
+                                <button className="btn btn-primary btn-sm btn-block" onClick={openPaymentModal}>
                                     💳 Ödeme Al
                                 </button>
                                 {remaining <= 0 && (
@@ -891,7 +927,7 @@ export default function TicketDetailPage() {
                     {ticket.accessories.length > 0 && (
                         <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
                             <h3 className="card-title" style={{ marginBottom: 'var(--space-3)' }}>🛍 Aksesuar Satışları</h3>
-                            {ticket.accessories.map((a) => (
+                            {ticket.accessories.map((a: any) => (
                                 <div key={a.id} style={{
                                     display: 'flex',
                                     justifyContent: 'space-between',
@@ -901,8 +937,15 @@ export default function TicketDetailPage() {
                                     fontSize: 'var(--font-size-sm)',
                                 }}>
                                     <div>
-                                        <div style={{ fontWeight: 500 }}>{a.product.name}</div>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontWeight: 500 }}>{a.product?.name || a.product}</span>
+                                            {a.soldBy?.name && (
+                                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 400 }}>
+                                                    ({a.soldBy.name})
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                                             {a.quantity} adet × {formatCurrency(Number(a.unitPrice))}
                                         </div>
                                     </div>
@@ -912,7 +955,7 @@ export default function TicketDetailPage() {
                                             <button
                                                 type="button"
                                                 className="btn btn-ghost btn-xs"
-                                                onClick={() => handleRemoveAccessory(a.id, a.product.name)}
+                                                onClick={() => handleRemoveAccessory(a.id, a.product?.name || a.product)}
                                                 title="Aksesuar Satışını İptal Et / Stoğa İade Et"
                                                 style={{ color: 'var(--color-danger)', fontSize: '11px', padding: '2px 6px' }}
                                             >
@@ -995,7 +1038,7 @@ export default function TicketDetailPage() {
                         {!readOnly && remaining > 0 && (
                             <button
                                 className="btn btn-primary btn-full"
-                                onClick={() => setShowPayment(true)}
+                                onClick={openPaymentModal}
                             >
                                 💳 Ödeme Al
                             </button>
@@ -1029,7 +1072,7 @@ export default function TicketDetailPage() {
 
                             <div className="form-group">
                                 <label className="form-label required">Ödeme Yöntemi</label>
-                                <select className="form-select" value={payMethod} onChange={(e) => { setPayMethod(e.target.value); setPayAccountId(''); }}>
+                                <select className="form-select" value={payMethod} onChange={(e) => handlePayMethodChange(e.target.value)}>
                                     <option value="CASH">Nakit</option>
                                     <option value="BANK_TRANSFER">Havale</option>
                                     <option value="CREDIT_CARD">Kredi Kartı</option>
@@ -1039,7 +1082,13 @@ export default function TicketDetailPage() {
                             <div className="form-group">
                                 <label className="form-label">Aktarılacak Kasa / Banka Hesabı</label>
                                 <select className="form-select" value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)}>
-                                    <option value="">— Otomatik (Varsayılan Kasa) —</option>
+                                    {accounts.filter(acc => acc.type === payMethod).length !== 1 && (
+                                        <option value="">
+                                            {accounts.filter(acc => acc.type === payMethod).length > 1
+                                                ? '— Kasa / Hesap Seçin —'
+                                                : '— Otomatik (Varsayılan Kasa) —'}
+                                        </option>
+                                    )}
                                     {accounts
                                         .filter(acc => acc.type === payMethod)
                                         .map(acc => (
@@ -1177,7 +1226,7 @@ export default function TicketDetailPage() {
                                 <label className="form-label">Atanacak Sürücü / Personel</label>
                                 <select
                                     className="form-select"
-                                    value={srvPersonnelId}
+                                    value={srvPersonnelId || (servicePersonnel.length === 1 ? servicePersonnel[0].id : '')}
                                     onChange={(e) => setSrvPersonnelId(e.target.value)}
                                 >
                                     <option value="">— Sürücü Seçimi (İsteğe Bağlı) —</option>
@@ -1213,16 +1262,17 @@ export default function TicketDetailPage() {
                             <button className="btn btn-primary" onClick={async () => {
                                 setSrvError('');
                                 if (!srvDate) { setSrvError('Tarih seçiniz'); return; }
+                                const assignedId = srvPersonnelId || (servicePersonnel.length === 1 ? servicePersonnel[0].id : '');
                                 try {
                                     await createServiceRecord({
                                         ticketId,
                                         type: srvType,
                                         scheduledDate: srvDate,
-                                        assignedPersonnelId: srvPersonnelId || undefined,
+                                        assignedPersonnelId: assignedId || undefined,
                                         notes: srvNotes || undefined,
                                     });
                                     setShowServiceForm(false);
-                                    setSrvPersonnelId('');
+                                    setSrvPersonnelId(servicePersonnel.length === 1 ? servicePersonnel[0].id : '');
                                     setSrvNotes('');
                                     loadTicket();
                                     alert('Servis talebi oluşturuldu!');
