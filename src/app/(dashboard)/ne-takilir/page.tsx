@@ -10,6 +10,28 @@ import {
     CompatibilityImportRecord
 } from '@/actions/compatibility';
 
+function formatDateValue(val: any): string {
+    if (!val) return '-';
+    const str = String(val).trim();
+    if (!str || str === 'false' || str === 'true') return '-';
+
+    const num = Number(str);
+    if (!isNaN(num) && num > 30000 && num < 60000) {
+        const jsDate = new Date(Math.round((num - 25569) * 86400 * 1000));
+        const day = String(jsDate.getUTCDate()).padStart(2, '0');
+        const month = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+        const year = jsDate.getUTCFullYear();
+        return `${day}.${month}.${year}`;
+    }
+    return str;
+}
+
+function isValidValue(val: any): boolean {
+    if (!val) return false;
+    const str = String(val).trim().toLowerCase();
+    return str !== '' && str !== 'false' && str !== 'true' && str !== 'null' && str !== 'undefined' && str !== '-';
+}
+
 export default function NeTakilirDashboardPage() {
     const [stats, setStats] = useState<{ totalCount: number; brands: { brand: string; count: number }[] }>({ totalCount: 0, brands: [] });
     const [searchQuery, setSearchQuery] = useState('');
@@ -321,8 +343,8 @@ export default function NeTakilirDashboardPage() {
                                         </td>
                                         <td style={{ fontSize: '12px' }}>{r.tcon || '-'}</td>
                                         <td style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                                            <div>{r.technicianName || '-'}</div>
-                                            <div>{r.date || '-'}</div>
+                                            <div>{isValidValue(r.technicianName) ? r.technicianName : '-'}</div>
+                                            <div>{formatDateValue(r.date)}</div>
                                         </td>
                                         <td>
                                             <button className="btn btn-ghost btn-xs" style={{ color: 'var(--brand-primary)' }}>
@@ -435,12 +457,12 @@ export default function NeTakilirDashboardPage() {
             {/* Modal: Record Detail */}
             {selectedRecord && (
                 <div className="modal-overlay" onClick={() => setSelectedRecord(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
                         <div className="modal-header">
                             <h3 className="modal-title">💡 {selectedRecord.brand} {selectedRecord.model} — Uyumluluk Detayı</h3>
                             <button className="modal-close" onClick={() => setSelectedRecord(null)}>×</button>
                         </div>
-                        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+                        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', wordBreak: 'break-word' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>MARKA & MODEL</div>
@@ -448,49 +470,51 @@ export default function NeTakilirDashboardPage() {
                                 </div>
                                 <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>TCON</div>
-                                    <div style={{ fontWeight: 600 }}>{selectedRecord.tcon || '-'}</div>
+                                    <div style={{ fontWeight: 600 }}>{isValidValue(selectedRecord.tcon) ? selectedRecord.tcon : '-'}</div>
                                 </div>
                             </div>
 
                             <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '8px' }}>
-                                <div style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 700, marginBottom: '4px' }}>📱 EKRAN UYUMLULUK BİLGİSİ</div>
+                                <div style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 700, marginBottom: '6px' }}>📱 EKRAN UYUMLULUK BİLGİSİ</div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <div><strong>Orijinal Ekran:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedRecord.originalScreen || '-'}</span></div>
-                                    <div><strong>Takılan Ekran:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--color-success)', fontWeight: 700 }}>{selectedRecord.installedScreen || '-'}</span></div>
-                                    {selectedRecord.screenAction && (
-                                        <div><strong>Yapılan İşlem:</strong> <span className="badge badge-success" style={{ marginLeft: '4px' }}>{selectedRecord.screenAction}</span></div>
+                                    {isValidValue(selectedRecord.originalScreen) && <div><strong>Orijinal Ekran:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedRecord.originalScreen}</span></div>}
+                                    {isValidValue(selectedRecord.installedScreen) && <div><strong>Takılan Ekran:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--color-success)', fontWeight: 700 }}>{selectedRecord.installedScreen}</span></div>}
+                                    {isValidValue(selectedRecord.screenAction) && (
+                                        <div style={{ marginTop: '6px', fontSize: '12px', background: 'rgba(16, 185, 129, 0.12)', padding: '8px 10px', borderRadius: '6px', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                                            <strong>Yapılan İşlem:</strong> {selectedRecord.screenAction}
+                                        </div>
                                     )}
                                 </div>
                             </div>
 
-                            {selectedRecord.installedLed && (
+                            {isValidValue(selectedRecord.installedLed) && (
                                 <div style={{ padding: '12px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '8px' }}>
-                                    <div style={{ fontSize: '11px', color: '#d97706', fontWeight: 700, marginBottom: '4px' }}>💡 LED UYUMLULUK BİLGİSİ</div>
+                                    <div style={{ fontSize: '11px', color: '#d97706', fontWeight: 700, marginBottom: '6px' }}>💡 LED UYUMLULUK BİLGİSİ</div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <div><strong>Takılan LED Seti:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{selectedRecord.installedLed}</span></div>
-                                        {selectedRecord.ledAction && <div><strong>LED İşlemi:</strong> {selectedRecord.ledAction}</div>}
-                                        {selectedRecord.installedQuantity && <div><strong>Adet:</strong> {selectedRecord.installedQuantity}</div>}
+                                        {isValidValue(selectedRecord.ledAction) && <div style={{ marginTop: '4px', whiteSpace: 'pre-wrap' }}><strong>LED İşlemi:</strong> {selectedRecord.ledAction}</div>}
+                                        {isValidValue(selectedRecord.installedQuantity) && <div><strong>Adet:</strong> {selectedRecord.installedQuantity}</div>}
                                     </div>
                                 </div>
                             )}
 
-                            {selectedRecord.notes && (
+                            {isValidValue(selectedRecord.notes) && (
                                 <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>BİLGİ NOTU</div>
                                     <div style={{ whiteSpace: 'pre-wrap', marginTop: '2px' }}>{selectedRecord.notes}</div>
                                 </div>
                             )}
 
-                            {selectedRecord.panelData && (
+                            {isValidValue(selectedRecord.panelData) && (
                                 <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>PANEL DATASI</div>
-                                    <div style={{ fontFamily: 'monospace', marginTop: '2px', fontSize: '12px' }}>{selectedRecord.panelData}</div>
+                                    <div style={{ fontFamily: 'monospace', marginTop: '2px', fontSize: '12px', whiteSpace: 'pre-wrap' }}>{selectedRecord.panelData}</div>
                                 </div>
                             )}
 
-                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', borderTop: '1px solid var(--border-primary)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Eski Fiş No: #{selectedRecord.legacyTicketNo || '-'}</span>
-                                <span>Teknisyen: {selectedRecord.technicianName || '-'} · Tarih: {selectedRecord.date || '-'}</span>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', borderTop: '1px solid var(--border-primary)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                                <span>Eski Fiş No: #{isValidValue(selectedRecord.legacyTicketNo) ? selectedRecord.legacyTicketNo : '-'}</span>
+                                <span>Teknisyen: {isValidValue(selectedRecord.technicianName) ? selectedRecord.technicianName : '-'} · Tarih: {formatDateValue(selectedRecord.date)}</span>
                             </div>
                         </div>
                     </div>
