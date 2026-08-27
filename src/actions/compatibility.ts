@@ -86,19 +86,48 @@ export async function importCompatibilityBatch(records: CompatibilityImportRecor
 export async function searchCompatibilityRecords(options: {
     query?: string;
     brand?: string;
+    modelQuery?: string;
+    ticketNoQuery?: string;
+    tconFilter?: string;
+    screenActionFilter?: string;
     page?: number;
     limit?: number;
 }) {
     const model = getModel();
     if (!model) return { total: 0, page: 1, totalPages: 0, records: [] };
 
-    const { query = '', brand = '', page = 1, limit = 50 } = options;
+    const {
+        query = '',
+        brand = '',
+        modelQuery = '',
+        ticketNoQuery = '',
+        tconFilter = '',
+        screenActionFilter = '',
+        page = 1,
+        limit = 50
+    } = options;
     const skip = (page - 1) * limit;
 
     const where: any = {};
 
     if (brand && brand !== 'ALL') {
         where.brand = { equals: brand, mode: 'insensitive' };
+    }
+
+    if (modelQuery.trim()) {
+        where.model = { contains: modelQuery.trim(), mode: 'insensitive' };
+    }
+
+    if (ticketNoQuery.trim()) {
+        where.legacyTicketNo = { contains: ticketNoQuery.trim(), mode: 'insensitive' };
+    }
+
+    if (tconFilter && tconFilter !== 'ALL') {
+        where.tcon = { equals: tconFilter, mode: 'insensitive' };
+    }
+
+    if (screenActionFilter && screenActionFilter !== 'ALL') {
+        where.screenAction = { equals: screenActionFilter, mode: 'insensitive' };
     }
 
     if (query.trim()) {
@@ -140,14 +169,21 @@ export async function searchCompatibilityRecords(options: {
 
 export async function getCompatibilityStats() {
     const model = getModel();
-    if (!model) return { totalCount: 0, brands: [] };
+    if (!model) return { totalCount: 0, brands: [], screenActions: [] };
 
-    const [totalCount, brandsGroup] = await Promise.all([
+    const [totalCount, brandsGroup, actionsGroup] = await Promise.all([
         model.count(),
         model.groupBy({
             by: ['brand'],
             _count: { id: true },
             where: { brand: { not: null } },
+            orderBy: { _count: { id: 'desc' } },
+            take: 30,
+        }),
+        model.groupBy({
+            by: ['screenAction'],
+            _count: { id: true },
+            where: { screenAction: { not: null } },
             orderBy: { _count: { id: 'desc' } },
             take: 20,
         }),
@@ -156,6 +192,7 @@ export async function getCompatibilityStats() {
     return {
         totalCount,
         brands: brandsGroup.map((b: any) => ({ brand: b.brand || 'Bilinmiyor', count: b._count.id })),
+        screenActions: actionsGroup.map((a: any) => ({ action: a.screenAction || '-', count: a._count.id })).filter((a: any) => a.action !== '-' && a.action !== 'false' && a.action !== 'true'),
     };
 }
 

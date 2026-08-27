@@ -33,9 +33,12 @@ function isValidValue(val: any): boolean {
 }
 
 export default function NeTakilirDashboardPage() {
-    const [stats, setStats] = useState<{ totalCount: number; brands: { brand: string; count: number }[] }>({ totalCount: 0, brands: [] });
+    const [stats, setStats] = useState<{ totalCount: number; brands: { brand: string; count: number }[]; screenActions?: { action: string; count: number }[] }>({ totalCount: 0, brands: [], screenActions: [] });
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedBrand, setSelectedBrand] = useState('ALL');
+    const [ticketNoQuery, setTicketNoQuery] = useState('');
+    const [modelQuery, setModelQuery] = useState('');
+    const [screenActionFilter, setScreenActionFilter] = useState('ALL');
     const [page, setPage] = useState(1);
 
     const [data, setData] = useState<{ total: number; page: number; totalPages: number; records: any[] }>({ total: 0, page: 1, totalPages: 1, records: [] });
@@ -69,6 +72,9 @@ export default function NeTakilirDashboardPage() {
                 const res = await searchCompatibilityRecords({
                     query: searchQuery,
                     brand: selectedBrand,
+                    ticketNoQuery,
+                    modelQuery,
+                    screenActionFilter,
                     page,
                     limit: 30,
                 });
@@ -87,7 +93,7 @@ export default function NeTakilirDashboardPage() {
 
     useEffect(() => {
         loadRecords(true);
-    }, [searchQuery, selectedBrand, page]);
+    }, [searchQuery, selectedBrand, ticketNoQuery, modelQuery, screenActionFilter, page]);
 
     // Handle File Parse & Batch Import
     const processExcelFile = async (file: File) => {
@@ -186,8 +192,19 @@ export default function NeTakilirDashboardPage() {
         } catch (err: any) { alert(err.message); }
     };
 
+    const hasActiveFilters = ticketNoQuery || modelQuery || selectedBrand !== 'ALL' || screenActionFilter !== 'ALL' || searchQuery;
+
+    const resetFilters = () => {
+        setTicketNoQuery('');
+        setModelQuery('');
+        setSelectedBrand('ALL');
+        setScreenActionFilter('ALL');
+        setSearchQuery('');
+        setPage(1);
+    };
+
     return (
-        <div style={{ padding: 'var(--space-6)', maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ padding: 'var(--space-6)', maxWidth: '1440px', margin: '0 auto' }}>
             {/* Header Banner */}
             <div style={{
                 display: 'flex',
@@ -244,22 +261,26 @@ export default function NeTakilirDashboardPage() {
                 </div>
             </div>
 
-            {/* Filters & Instant Search */}
+            {/* Granular Column Filters */}
             <div className="card" style={{ marginBottom: 'var(--space-6)', padding: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 2, minWidth: '280px' }}>
-                        <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px' }}>Arama</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)', alignItems: 'flex-end' }}>
+                    <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                            📌 Fiş No
+                        </label>
                         <input
                             type="text"
                             className="input"
-                            placeholder="🔍 Model (49NU7100), Ekran Kodu (LSF490FN06), LED, TCON veya Not ara..."
-                            value={searchQuery}
-                            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                            placeholder="Örn: 345"
+                            value={ticketNoQuery}
+                            onChange={(e) => { setTicketNoQuery(e.target.value); setPage(1); }}
                         />
                     </div>
 
-                    <div style={{ minWidth: '180px' }}>
-                        <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px' }}>Marka Filtresi</label>
+                    <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                            🏷️ Marka
+                        </label>
                         <select
                             className="input"
                             value={selectedBrand}
@@ -272,14 +293,58 @@ export default function NeTakilirDashboardPage() {
                         </select>
                     </div>
 
-                    {searchQuery && (
-                        <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => { setSearchQuery(''); setSelectedBrand('ALL'); setPage(1); }}
-                            style={{ alignSelf: 'flex-end', marginBottom: '2px', fontSize: '12px' }}
+                    <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                            📺 Model
+                        </label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="Örn: 49NU7100"
+                            value={modelQuery}
+                            onChange={(e) => { setModelQuery(e.target.value); setPage(1); }}
+                        />
+                    </div>
+
+                    <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                            ⚡ İşlem Notu Filtresi
+                        </label>
+                        <select
+                            className="input"
+                            value={screenActionFilter}
+                            onChange={(e) => { setScreenActionFilter(e.target.value); setPage(1); }}
                         >
-                            ✕ Temizle
-                        </button>
+                            <option value="ALL">Tüm İşlemler</option>
+                            {stats.screenActions?.map(a => (
+                                <option key={a.action} value={a.action}>{a.action} ({a.count})</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                            🔍 Genel Arama (Ekran / LED / Not)
+                        </label>
+                        <input
+                            type="text"
+                            className="input"
+                            placeholder="LSF490FN06, LED, TCON veya Not..."
+                            value={searchQuery}
+                            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                        />
+                    </div>
+
+                    {hasActiveFilters && (
+                        <div>
+                            <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={resetFilters}
+                                style={{ color: 'var(--color-danger)', fontSize: '12px', marginBottom: '2px' }}
+                            >
+                                ✕ Filtreleri Temizle
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -294,10 +359,10 @@ export default function NeTakilirDashboardPage() {
                 <div className="empty-state" style={{ padding: '40px' }}>
                     <div className="empty-state-icon" style={{ fontSize: '36px' }}>💡</div>
                     <div className="empty-state-title" style={{ fontSize: '16px' }}>
-                        {searchQuery ? 'Aramanıza uygun kayıt bulunamadı' : 'Henüz hiç uyumluluk kaydı yüklenmemiş'}
+                        {hasActiveFilters ? 'Aramanıza uygun kayıt bulunamadı' : 'Henüz hiç uyumluluk kaydı yüklenmemiş'}
                     </div>
                     <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', maxWidth: '400px', margin: '8px auto' }}>
-                        {searchQuery ? 'Farklı bir model veya ekran kodu ile tekrar arayın.' : 'Üstteki "Excel / CSV Yükle" butonuna tıklayarak eski programınızdaki 8.000 satırlık verinizi yükleyebilirsiniz.'}
+                        {hasActiveFilters ? 'Farklı bir model veya ekran kodu ile tekrar arayın.' : 'Üstteki "Excel / CSV Yükle" butonuna tıklayarak eski programınızdaki 8.000 satırlık verinizi yükleyebilirsiniz.'}
                     </p>
                 </div>
             ) : (
@@ -306,7 +371,9 @@ export default function NeTakilirDashboardPage() {
                         <table className="table">
                             <thead>
                                 <tr>
-                                    <th>Marka & Model</th>
+                                    <th>Fiş No</th>
+                                    <th>Marka</th>
+                                    <th>Model</th>
                                     <th>Orijinal Ekran (Panel)</th>
                                     <th>Takılan Uyumlu Ekran</th>
                                     <th>Ekran İşlem Notu</th>
@@ -320,28 +387,35 @@ export default function NeTakilirDashboardPage() {
                                 {data.records.map((r) => (
                                     <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedRecord(r)}>
                                         <td>
-                                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.brand || '-'}</div>
-                                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--brand-primary)', fontFamily: 'monospace' }}>
-                                                {r.model || '-'}
-                                            </div>
-                                        </td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 600 }}>
-                                            {r.originalScreen || '-'}
-                                        </td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
-                                            {r.installedScreen || '-'}
+                                            <span className="badge badge-secondary" style={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                                                #{r.legacyTicketNo || '-'}
+                                            </span>
                                         </td>
                                         <td>
-                                            {r.screenAction ? (
-                                                <span className="badge badge-success" style={{ fontSize: '11px' }}>
+                                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.brand || '-'}</span>
+                                        </td>
+                                        <td>
+                                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)', fontFamily: 'monospace' }}>
+                                                {r.model || '-'}
+                                            </span>
+                                        </td>
+                                        <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 600 }}>
+                                            {isValidValue(r.originalScreen) ? r.originalScreen : '-'}
+                                        </td>
+                                        <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
+                                            {isValidValue(r.installedScreen) ? r.installedScreen : '-'}
+                                        </td>
+                                        <td>
+                                            {isValidValue(r.screenAction) ? (
+                                                <span className="badge badge-success" style={{ fontSize: '11px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }} title={r.screenAction}>
                                                     {r.screenAction}
                                                 </span>
                                             ) : '-'}
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#d97706' }}>
-                                            {r.installedLed || '-'}
+                                            {isValidValue(r.installedLed) ? r.installedLed : '-'}
                                         </td>
-                                        <td style={{ fontSize: '12px' }}>{r.tcon || '-'}</td>
+                                        <td style={{ fontSize: '12px' }}>{isValidValue(r.tcon) ? r.tcon : '-'}</td>
                                         <td style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                                             <div>{isValidValue(r.technicianName) ? r.technicianName : '-'}</div>
                                             <div>{formatDateValue(r.date)}</div>
