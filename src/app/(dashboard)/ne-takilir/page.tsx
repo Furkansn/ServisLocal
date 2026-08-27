@@ -625,7 +625,7 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
             {/* Modal: Model Summary */}
             {selectedModelName && (
                 <div className="modal-overlay" onClick={() => { setSelectedModelName(null); setModelSummaryData(null); }}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '880px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1280px', width: '95vw', maxHeight: '92vh', overflowY: 'auto' }}>
                         <div className="modal-header">
                             <div>
                                 <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

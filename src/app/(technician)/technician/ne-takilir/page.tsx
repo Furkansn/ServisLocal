@@ -311,7 +311,7 @@ export default function MobileNeTakilirPage() {
             {/* Modal: Model Summary */}
             {selectedModelName && (
                 <div className="modal-overlay" onClick={() => { setSelectedModelName(null); setModelSummaryData(null); }}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1280px', width: '95vw', maxHeight: '92vh', overflowY: 'auto' }}>
                         <div className="modal-header">
                             <div>
                                 <h3 className="modal-title" style={{ fontSize: '14px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
