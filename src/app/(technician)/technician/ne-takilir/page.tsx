@@ -1,20 +1,17 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { searchCompatibilityRecords, getCompatibilityStats } from '@/actions/compatibility';
+import { searchCompatibilityRecords, getCompatibilityStats, getModelCompatibilitySummary } from '@/actions/compatibility';
 
 function formatDateValue(val: any): string {
     if (!val) return '-';
     const str = String(val).trim();
-    if (!str || str === 'false' || str === 'true') return '-';
-
-    const num = Number(str);
-    if (!isNaN(num) && num > 30000 && num < 60000) {
-        const jsDate = new Date(Math.round((num - 25569) * 86400 * 1000));
-        const day = String(jsDate.getUTCDate()).padStart(2, '0');
-        const month = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
-        const year = jsDate.getUTCFullYear();
-        return `${day}.${month}.${year}`;
+    if (/^\d{4,5}(\.\d+)?$/.test(str)) {
+        const num = parseFloat(str);
+        const dateObj = new Date(Math.round((num - 25569) * 86400 * 1000));
+        if (!isNaN(dateObj.getTime())) {
+            return dateObj.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
     }
     return str;
 }
@@ -34,6 +31,25 @@ export default function MobileNeTakilirPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
+
+    // Model Summary Modal State
+    const [selectedModelName, setSelectedModelName] = useState<string | null>(null);
+    const [modelSummaryData, setModelSummaryData] = useState<any | null>(null);
+    const [isLoadingModelSummary, setIsLoadingModelSummary] = useState(false);
+
+    const handleOpenModelSummary = async (modelName: string) => {
+        if (!modelName) return;
+        setSelectedModelName(modelName);
+        setIsLoadingModelSummary(true);
+        try {
+            const res = await getModelCompatibilitySummary(modelName);
+            setModelSummaryData(res);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoadingModelSummary(false);
+        }
+    };
 
     useEffect(() => {
         getCompatibilityStats().then(setStats).catch(console.error);
@@ -273,6 +289,130 @@ export default function MobileNeTakilirPage() {
                                 <span>Teknisyen: {isValidValue(selectedRecord.technicianName) ? selectedRecord.technicianName : '-'}</span>
                                 <span>Tarih: {formatDateValue(selectedRecord.date)}</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Model Summary */}
+            {selectedModelName && (
+                <div className="modal-overlay" onClick={() => { setSelectedModelName(null); setModelSummaryData(null); }}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', width: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div className="modal-header">
+                            <div>
+                                <h3 className="modal-title" style={{ fontSize: '14px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    📺 {selectedModelName} — Ekran & LED Özeti
+                                </h3>
+                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                                    Bu modelde daha önce sökülen ve takılan parçalar
+                                </div>
+                            </div>
+                            <button className="modal-close" onClick={() => { setSelectedModelName(null); setModelSummaryData(null); }}>×</button>
+                        </div>
+
+                        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
+                            {isLoadingModelSummary || !modelSummaryData ? (
+                                <div style={{ padding: '30px', textAlign: 'center' }}>
+                                    <div className="spinner" style={{ margin: '0 auto 8px' }} />
+                                    <div>Model özeti yükleniyor...</div>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Summary Cards */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {/* Original Screens */}
+                                        <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+                                            <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                                                📤 Çıkan Orijinal Ekranlar
+                                            </div>
+                                            {modelSummaryData.originalScreens.length === 0 ? (
+                                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Kayıt yok</div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    {modelSummaryData.originalScreens.map((item: any) => (
+                                                        <div key={item.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', fontFamily: 'monospace', padding: '3px 6px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
+                                                            <span style={{ fontWeight: 600 }}>{item.code}</span>
+                                                            <span className="badge badge-secondary" style={{ fontSize: '10px' }}>{item.count} Kez</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Installed Compatible Screens */}
+                                        <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.06)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                                            <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--color-success)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                                                📥 Takılan Uyumlu Ekranlar
+                                            </div>
+                                            {modelSummaryData.installedScreens.length === 0 ? (
+                                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Kayıt yok</div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    {modelSummaryData.installedScreens.map((item: any) => (
+                                                        <div key={item.code} style={{ fontSize: '11.5px', padding: '5px 6px', background: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-primary)' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'monospace' }}>
+                                                                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{item.code}</span>
+                                                                <span className="badge badge-success" style={{ fontSize: '10px' }}>{item.count} Kez Takıldı</span>
+                                                            </div>
+                                                            {item.actions.length > 0 && (
+                                                                <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                                                    {item.actions.join(', ')}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Installed LED Sets */}
+                                        {modelSummaryData.installedLeds.length > 0 && (
+                                            <div style={{ padding: '10px', background: 'rgba(245, 158, 11, 0.06)', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                                                <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#d97706', textTransform: 'uppercase', marginBottom: '6px' }}>
+                                                    💡 Takılan LED Setleri
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    {modelSummaryData.installedLeds.map((item: any) => (
+                                                        <div key={item.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', fontFamily: 'monospace', padding: '3px 6px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
+                                                            <span style={{ fontWeight: 600, color: '#d97706' }}>{item.code}</span>
+                                                            <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', fontSize: '10px' }}>{item.count} Kez</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* History Records */}
+                                    <div>
+                                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                                            📋 Tüm Geçmiş Tamir Kayıtları ({modelSummaryData.records.length})
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
+                                            {modelSummaryData.records.map((r: any) => (
+                                                <div
+                                                    key={r.id}
+                                                    onClick={() => setSelectedRecord(r)}
+                                                    style={{
+                                                        padding: '8px 10px',
+                                                        background: 'var(--bg-secondary)',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid var(--border-primary)',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 700, marginBottom: '2px' }}>
+                                                        <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>#{r.legacyTicketNo || '-'}</span>
+                                                        <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>{formatDateValue(r.date)}</span>
+                                                    </div>
+                                                    {isValidValue(r.originalScreen) && <div style={{ fontSize: '10.5px' }}>Çıkan: <span style={{ fontFamily: 'monospace' }}>{r.originalScreen}</span></div>}
+                                                    {isValidValue(r.installedScreen) && <div style={{ fontSize: '10.5px', color: 'var(--color-success)', fontWeight: 600 }}>Takılan: <span style={{ fontFamily: 'monospace' }}>{r.installedScreen}</span></div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

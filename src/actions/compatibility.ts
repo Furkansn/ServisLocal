@@ -214,3 +214,64 @@ export async function clearAllCompatibilityRecords() {
 
     return { success: true };
 }
+
+// ─── Get Model Specific Summary & History ────────────────
+
+export async function getModelCompatibilitySummary(modelName: string) {
+    if (!modelName || !modelName.trim()) {
+        return { modelName: '', totalRecords: 0, records: [], originalScreens: [], installedScreens: [], installedLeds: [] };
+    }
+
+    const m = modelName.trim();
+    const model = getModel();
+
+    const records = model
+        ? await model.findMany({
+            where: {
+                model: { equals: m, mode: 'insensitive' },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+        })
+        : [];
+
+    // Group stats
+    const origMap: Record<string, number> = {};
+    const instMap: Record<string, { count: number; actions: Set<string> }> = {};
+    const ledMap: Record<string, number> = {};
+
+    records.forEach((r: any) => {
+        if (r.originalScreen && r.originalScreen !== 'false' && r.originalScreen !== 'true' && r.originalScreen !== 'null') {
+            origMap[r.originalScreen] = (origMap[r.originalScreen] || 0) + 1;
+        }
+        if (r.installedScreen && r.installedScreen !== 'false' && r.installedScreen !== 'true' && r.installedScreen !== 'null') {
+            if (!instMap[r.installedScreen]) {
+                instMap[r.installedScreen] = { count: 0, actions: new Set() };
+            }
+            instMap[r.installedScreen].count += 1;
+            if (r.screenAction && r.screenAction !== 'false' && r.screenAction !== 'true') {
+                instMap[r.installedScreen].actions.add(r.screenAction);
+            }
+        }
+        if (r.installedLed && r.installedLed !== 'false' && r.installedLed !== 'true' && r.installedLed !== 'null') {
+            ledMap[r.installedLed] = (ledMap[r.installedLed] || 0) + 1;
+        }
+    });
+
+    const originalScreens = Object.entries(origMap).map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count);
+    const installedScreens = Object.entries(instMap).map(([code, data]) => ({
+        code,
+        count: data.count,
+        actions: Array.from(data.actions),
+    })).sort((a, b) => b.count - a.count);
+    const installedLeds = Object.entries(ledMap).map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count);
+
+    return {
+        modelName: m,
+        totalRecords: records.length,
+        originalScreens,
+        installedScreens,
+        installedLeds,
+        records,
+    };
+}
