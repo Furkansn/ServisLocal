@@ -13,6 +13,7 @@ export async function addOperation(data: {
     removedPart?: string;
     installedProductId?: string;
     notes?: string;
+    performedById?: string;
 }) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
@@ -33,7 +34,7 @@ export async function addOperation(data: {
                 removedPart: data.removedPart || null,
                 installedProductId: data.installedProductId || null,
                 notes: data.notes || null,
-                performedById: session.user.id,
+                performedById: data.performedById || session.user.id,
             },
         });
 
@@ -196,6 +197,7 @@ export async function updateOperation(data: {
     removedPart?: string;
     installedProductId?: string;
     notes?: string;
+    performedById?: string;
 }) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
@@ -245,6 +247,7 @@ export async function updateOperation(data: {
                 removedPart: data.removedPart || null,
                 installedProductId: newProductId,
                 notes: data.notes || null,
+                ...(data.performedById ? { performedById: data.performedById } : {}),
             },
         });
 
