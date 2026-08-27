@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { searchCompatibilityRecords, getCompatibilityStats, getModelCompatibilitySummary } from '@/actions/compatibility';
+import NeTakilirDashboardPage from '@/app/(dashboard)/ne-takilir/page';
 
 function formatDateValue(val: any): string {
     if (!val) return '-';
@@ -23,6 +24,15 @@ function isValidValue(val: any): boolean {
 }
 
 export default function MobileNeTakilirPage() {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedBrand, setSelectedBrand] = useState('ALL');
     const [stats, setStats] = useState<{ totalCount: number; brands: { brand: string; count: number }[] }>({ totalCount: 0, brands: [] });
@@ -78,6 +88,10 @@ export default function MobileNeTakilirPage() {
     useEffect(() => {
         loadRecords();
     }, [searchQuery, selectedBrand]);
+
+    if (!isMobile) {
+        return <NeTakilirDashboardPage />;
+    }
 
     return (
         <div style={{ padding: '14px', maxWidth: '840px', margin: '0 auto', overflowX: 'hidden' }}>
