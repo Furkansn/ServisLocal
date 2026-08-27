@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { getCompletedRepairs, addOperation, updateOperation, deleteOperation } from '@/actions/operations';
 import { getProductsByCategory } from '@/actions/products';
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/state-machine';
@@ -179,106 +179,142 @@ export default function CompletedRepairsPage() {
                 </div>
             ) : (
                 <div>
-                    {filteredRepairs.map((repair) => (
-                        <div
-                            key={repair.id}
-                            className="card"
-                            style={{
-                                marginBottom: '10px',
-                                padding: '10px 12px',
-                                border: activeId === repair.id ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-primary)',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                            }}
-                            onClick={() => setActiveId(activeId === repair.id ? null : repair.id)}
-                        >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '13px' }}>{repair.ticketNo}</span>
-                                    <span className={`badge badge-priority-${repair.priority}`} style={{ fontSize: '10px', padding: '1px 5px' }}>
-                                        {PRIORITY_LABELS[repair.priority]}
+                    {filteredRepairs.map((repair) => {
+                        const isLocked = repair.status === 'TESLIM_EDILDI' || repair.status === 'TAMAMLANDI';
+                        const isExpanded = activeId === repair.id;
+
+                        return (
+                            <div
+                                key={repair.id}
+                                className="card"
+                                style={{
+                                    marginBottom: '10px',
+                                    padding: '10px 12px',
+                                    border: isExpanded ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-primary)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                }}
+                                onClick={() => setActiveId(isExpanded ? null : repair.id)}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '13px' }}>{repair.ticketNo}</span>
+                                        <span className={`badge badge-priority-${repair.priority}`} style={{ fontSize: '10px', padding: '1px 5px' }}>
+                                            {PRIORITY_LABELS[repair.priority]}
+                                        </span>
+                                    </div>
+                                    <span className="badge" style={{ background: `${STATUS_COLORS[repair.status]}20`, color: STATUS_COLORS[repair.status], fontSize: '11px', padding: '2px 6px' }}>
+                                        {STATUS_LABELS[repair.status]}
                                     </span>
                                 </div>
-                                <span className="badge" style={{ background: `${STATUS_COLORS[repair.status]}20`, color: STATUS_COLORS[repair.status], fontSize: '11px', padding: '2px 6px' }}>
-                                    {STATUS_LABELS[repair.status]}
-                                </span>
-                            </div>
 
-                            <div style={{ marginBottom: '4px' }}>
-                                <div style={{ fontWeight: 600, fontSize: '13px' }}>{repair.brand.name} {repair.model}</div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                    {CUSTOMER_TYPE_LABELS[repair.customerType as 'INDIVIDUAL' | 'REPAIRER']} · {repair.customer?.name || repair.repairer?.name || '-'}
-                                </div>
-                                <div style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                    <span style={{ color: 'var(--brand-primary)' }}>🛠</span>
-                                    <span>{REQUEST_TYPE_LABELS[repair.requestType as keyof typeof REQUEST_TYPE_LABELS] || 'Talep Belirtilmemiş'}</span>
-                                </div>
-                            </div>
-
-                            {activeId === repair.id && (
-                                <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-primary)' }}>
-                                    {repair.operations.length > 0 && (
-                                        <div style={{ marginBottom: '8px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', marginBottom: '4px' }}>YAPILAN İŞLEMLER</div>
-                                            {repair.operations.map((op: any) => (
-                                                <div key={op.id} style={{
-                                                    padding: '6px 8px',
-                                                    background: 'var(--bg-secondary)',
-                                                    borderRadius: '6px',
-                                                    marginBottom: '4px',
-                                                    fontSize: '11.5px',
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                    border: '1px solid var(--border-primary)'
-                                                }}>
-                                                    <div>
-                                                        <div style={{ fontWeight: 600 }}>
-                                                            {OPERATION_TYPE_LABELS[op.operationType as keyof typeof OPERATION_TYPE_LABELS]}
-                                                            {op.installedProduct && <span style={{ color: 'var(--brand-primary)', marginLeft: '4px' }}>→ {op.installedProduct.name}</span>}
-                                                        </div>
-                                                        {op.removedPart && <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '1px' }}>Çıkan: {op.removedPart}</div>}
-                                                        {op.notes && <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', marginTop: '1px' }}>Not: {op.notes}</div>}
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                                        <button
-                                                            className="btn btn-ghost btn-xs"
-                                                            style={{ fontSize: '10.5px', padding: '1px 5px', color: 'var(--brand-primary)' }}
-                                                            onClick={() => handleEditOp(op)}
-                                                            title="İşlemi Düzenle"
-                                                        >
-                                                            ✏️ Düzenle
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-ghost btn-xs"
-                                                            style={{ fontSize: '10.5px', padding: '1px 5px', color: 'var(--color-danger)' }}
-                                                            onClick={() => handleDeleteOp(op.id)}
-                                                            title="İşlemi Sil"
-                                                        >
-                                                            🗑️ Sil
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                        <button className="btn btn-secondary btn-xs" style={{ flex: 1, fontSize: '11.5px', padding: '5px 10px' }} onClick={() => {
-                                            setEditingOpId(null);
-                                            setOpType('SCREEN_CHANGE');
-                                            setRemoved('');
-                                            setInstalled('');
-                                            setOpNotes('');
-                                            setShowOp(true);
-                                        }}>
-                                            ➕ Ekstra İşlem Ekle
-                                        </button>
+                                <div style={{ marginBottom: '4px' }}>
+                                    <div style={{ fontWeight: 600, fontSize: '13px' }}>{repair.brand.name} {repair.model}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                        {CUSTOMER_TYPE_LABELS[repair.customerType as 'INDIVIDUAL' | 'REPAIRER']} · {repair.customer?.name || repair.repairer?.name || '-'}
+                                    </div>
+                                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                        <span style={{ color: 'var(--brand-primary)' }}>🛠</span>
+                                        <span>{REQUEST_TYPE_LABELS[repair.requestType as keyof typeof REQUEST_TYPE_LABELS] || 'Talep Belirtilmemiş'}</span>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+
+                                {isExpanded && (
+                                    <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-primary)' }}>
+                                        {/* Real-time Installed Parts Stock Check */}
+                                        {repair.operations.some((op: any) => op.installedProduct) && (
+                                            <div style={{ padding: '8px 10px', background: 'var(--bg-tertiary)', borderRadius: '6px', marginBottom: '8px', fontSize: '11.5px', border: '1px solid var(--border-primary)' }}>
+                                                <div style={{ fontWeight: 700, fontSize: '10.5px', color: 'var(--text-tertiary)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                                                    📦 TAKILAN EKRAN / PARÇA ANLIK STOK KONTROLÜ
+                                                </div>
+                                                {repair.operations.filter((op: any) => op.installedProduct).map((op: any) => {
+                                                    const stockCount = op.installedProduct.stock ?? 0;
+                                                    const hasStock = stockCount > 0;
+                                                    return (
+                                                        <div key={op.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '3px 0' }}>
+                                                            <span style={{ fontWeight: 600 }}>{op.installedProduct.name}:</span>
+                                                            <span className={`badge ${hasStock ? 'badge-success' : 'badge-danger'}`} style={{ fontWeight: 700, fontSize: '10.5px', padding: '2px 8px' }}>
+                                                                {hasStock ? `✅ STOKTA VAR (${stockCount} Adet)` : `❌ STOKTA YOK (${stockCount} Adet)`}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {repair.operations.length > 0 && (
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', marginBottom: '4px' }}>YAPILAN İŞLEMLER</div>
+                                                {repair.operations.map((op: any) => (
+                                                    <div key={op.id} style={{
+                                                        padding: '6px 8px',
+                                                        background: 'var(--bg-secondary)',
+                                                        borderRadius: '6px',
+                                                        marginBottom: '4px',
+                                                        fontSize: '11.5px',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        border: '1px solid var(--border-primary)'
+                                                    }}>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600 }}>
+                                                                {OPERATION_TYPE_LABELS[op.operationType as keyof typeof OPERATION_TYPE_LABELS]}
+                                                                {op.installedProduct && <span style={{ color: 'var(--brand-primary)', marginLeft: '4px' }}>→ {op.installedProduct.name}</span>}
+                                                            </div>
+                                                            {op.removedPart && <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '1px' }}>Çıkan: {op.removedPart}</div>}
+                                                            {op.notes && <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', marginTop: '1px' }}>Not: {op.notes}</div>}
+                                                        </div>
+                                                        {!isLocked ? (
+                                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                                <button
+                                                                    className="btn btn-ghost btn-xs"
+                                                                    style={{ fontSize: '10.5px', padding: '1px 5px', color: 'var(--brand-primary)' }}
+                                                                    onClick={() => handleEditOp(op)}
+                                                                    title="İşlemi Düzenle"
+                                                                >
+                                                                    ✏️ Düzenle
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-ghost btn-xs"
+                                                                    style={{ fontSize: '10.5px', padding: '1px 5px', color: 'var(--color-danger)' }}
+                                                                    onClick={() => handleDeleteOp(op.id)}
+                                                                    title="İşlemi Sil"
+                                                                >
+                                                                    🗑️ Sil
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', fontWeight: 600 }}>🔒 Kilitli</span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {isLocked ? (
+                                            <div style={{ padding: '6px 10px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                🔒 Bu fiş teslim edildiği veya tamamlandığı için üzerinde tamir işlemi eklenemez / düzenlenemez.
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button className="btn btn-secondary btn-xs" style={{ flex: 1, fontSize: '11.5px', padding: '5px 10px' }} onClick={() => {
+                                                    setEditingOpId(null);
+                                                    setOpType('SCREEN_CHANGE');
+                                                    setRemoved('');
+                                                    setInstalled('');
+                                                    setOpNotes('');
+                                                    setShowOp(true);
+                                                }}>
+                                                    ➕ Ekstra İşlem Ekle
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 

@@ -21,8 +21,8 @@ export async function addOperation(data: {
 
     const ticket = await prisma.repairTicket.findUnique({ where: { id: data.ticketId } });
     if (!ticket) throw new Error('Fiş bulunamadı');
-    if (ticket.status === TicketStatus.TAMAMLANDI && !isManager) {
-        throw new Error('Bu fiş tamamlandığı (kapatıldığı) için sadece Servis Müdürü tarafından düzenleme yapılabilir.');
+    if ((ticket.status === TicketStatus.TAMAMLANDI || ticket.status === TicketStatus.TESLIM_EDILDI) && !isManager) {
+        throw new Error('Bu fiş teslim edildiği / tamamlandığı için üzerinde yeni tamir işlemi eklenemez.');
     }
 
     return prisma.$transaction(async (tx) => {
@@ -170,7 +170,7 @@ export async function getCompletedRepairs() {
             brand: { select: { name: true } },
             operations: {
                 include: {
-                    installedProduct: { select: { name: true } },
+                    installedProduct: { select: { id: true, name: true, stock: true, category: true } },
                 },
             },
         },
