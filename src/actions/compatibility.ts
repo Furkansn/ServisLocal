@@ -235,36 +235,73 @@ export async function getModelCompatibilitySummary(modelName: string) {
         })
         : [];
 
-    // Group stats
-    const origMap: Record<string, number> = {};
-    const instMap: Record<string, { count: number; actions: Set<string> }> = {};
-    const ledMap: Record<string, number> = {};
+    const normalizeCode = (val: any): string | null => {
+        if (!val) return null;
+        const str = String(val).trim();
+        const lower = str.toLowerCase();
+        if (lower === '' || lower === 'false' || lower === 'true' || lower === 'null' || lower === 'undefined' || lower === '-') {
+            return null;
+        }
+        return str;
+    };
+
+    // Case-insensitive & trimmed grouping maps
+    const origMap: Record<string, { code: string; count: number }> = {};
+    const instMap: Record<string, { code: string; count: number; actions: Set<string> }> = {};
+    const ledMap: Record<string, { code: string; count: number }> = {};
 
     records.forEach((r: any) => {
-        if (r.originalScreen && r.originalScreen !== 'false' && r.originalScreen !== 'true' && r.originalScreen !== 'null') {
-            origMap[r.originalScreen] = (origMap[r.originalScreen] || 0) + 1;
-        }
-        if (r.installedScreen && r.installedScreen !== 'false' && r.installedScreen !== 'true' && r.installedScreen !== 'null') {
-            if (!instMap[r.installedScreen]) {
-                instMap[r.installedScreen] = { count: 0, actions: new Set() };
+        // Original Screen
+        const orig = normalizeCode(r.originalScreen);
+        if (orig) {
+            const key = orig.toUpperCase();
+            if (!origMap[key]) {
+                origMap[key] = { code: key, count: 0 };
             }
-            instMap[r.installedScreen].count += 1;
-            if (r.screenAction && r.screenAction !== 'false' && r.screenAction !== 'true') {
-                instMap[r.installedScreen].actions.add(r.screenAction);
+            origMap[key].count += 1;
+        }
+
+        // Installed Screen
+        const inst = normalizeCode(r.installedScreen);
+        if (inst) {
+            const key = inst.toUpperCase();
+            if (!instMap[key]) {
+                instMap[key] = { code: key, count: 0, actions: new Set() };
+            }
+            instMap[key].count += 1;
+
+            const action = normalizeCode(r.screenAction);
+            if (action) {
+                instMap[key].actions.add(action);
             }
         }
-        if (r.installedLed && r.installedLed !== 'false' && r.installedLed !== 'true' && r.installedLed !== 'null') {
-            ledMap[r.installedLed] = (ledMap[r.installedLed] || 0) + 1;
+
+        // Installed LED
+        const led = normalizeCode(r.installedLed);
+        if (led) {
+            const key = led.toUpperCase();
+            if (!ledMap[key]) {
+                ledMap[key] = { code: key, count: 0 };
+            }
+            ledMap[key].count += 1;
         }
     });
 
-    const originalScreens = Object.entries(origMap).map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count);
-    const installedScreens = Object.entries(instMap).map(([code, data]) => ({
-        code,
-        count: data.count,
-        actions: Array.from(data.actions),
-    })).sort((a, b) => b.count - a.count);
-    const installedLeds = Object.entries(ledMap).map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count);
+    const originalScreens = Object.values(origMap)
+        .map(item => ({ code: item.code, count: item.count }))
+        .sort((a, b) => b.count - a.count);
+
+    const installedScreens = Object.values(instMap)
+        .map(item => ({
+            code: item.code,
+            count: item.count,
+            actions: Array.from(item.actions),
+        }))
+        .sort((a, b) => b.count - a.count);
+
+    const installedLeds = Object.values(ledMap)
+        .map(item => ({ code: item.code, count: item.count }))
+        .sort((a, b) => b.count - a.count);
 
     return {
         modelName: m,
