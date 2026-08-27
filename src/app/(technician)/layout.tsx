@@ -9,7 +9,7 @@ export default function TechnicianLayout({ children }: { children: React.ReactNo
     return (
         <SessionProvider>
             <div className="mobile-layout">
-                <MobileHeaderNav title="ServisLocal Atölye" icon="🔧" />
+                <MobileHeaderNav title="Atölye" icon="🔧" />
                 <main className="mobile-content">{children}</main>
                 <MobileBottomNav />
             </div>
