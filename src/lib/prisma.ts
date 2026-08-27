@@ -7,6 +7,12 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
+  try {
+    const clientPath = require.resolve('@prisma/client');
+    delete require.cache[clientPath];
+  } catch (e) {}
+
+  const { PrismaClient } = require('@prisma/client');
   const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_EobqeiNB2L6S@ep-purple-math-ahlo7uon-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&schema=servisplus';
   const adapter = new PrismaNeon(
     { connectionString },
@@ -19,8 +25,13 @@ function createPrismaClient() {
   });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export function getPrismaClient(): PrismaClient {
+  if (!globalForPrisma.prisma || !(globalForPrisma.prisma as any).compatibilityRecord) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma!;
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+export const prisma = getPrismaClient();
 
 export default prisma;

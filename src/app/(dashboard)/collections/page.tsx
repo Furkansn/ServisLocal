@@ -45,7 +45,8 @@ export default function CollectionsPage() {
     const [expTitle, setExpTitle] = useState('');
     const [expAmount, setExpAmount] = useState('');
     const [expAccountId, setExpAccountId] = useState('');
-    const [expCategory, setExpCategory] = useState('Yemek');
+    const [expCategory, setExpCategory] = useState('Tedarikçi Ödemesi');
+    const [expRecipient, setExpRecipient] = useState('');
     const [expNotes, setExpNotes] = useState('');
     const [expError, setExpError] = useState('');
 
@@ -197,11 +198,13 @@ export default function CollectionsPage() {
                 amount,
                 accountId: expAccountId,
                 category: expCategory,
+                recipient: expRecipient,
                 notes: expNotes,
             });
             setShowExpenseModal(false);
             setExpTitle('');
             setExpAmount('');
+            setExpRecipient('');
             setExpNotes('');
             loadData(false);
         } catch (err: any) {
@@ -911,13 +914,26 @@ export default function CollectionsPage() {
                                     value={expCategory}
                                     onChange={(e) => setExpCategory(e.target.value)}
                                 >
+                                    <option value="Tedarikçi Ödemesi">🏢 Tedarikçi Ödemesi</option>
+                                    <option value="Malzeme/Yedek Parça">📦 Parça / Malzeme Alımı</option>
+                                    <option value="Dış Servis/Fason">🔧 Dış Servis / Fason Ödemesi</option>
                                     <option value="Yemek">🍔 Yemek & Gıda</option>
                                     <option value="Kargo/Lojistik">📦 Kargo / Lojistik</option>
                                     <option value="Yol/Yakıt">⛽ Yol / Benzin / Ulaşım</option>
-                                    <option value="Malzeme/Yedek Parça">🛠️ Malzeme / Parça</option>
                                     <option value="Ofis/Atölye">🏢 Ofis & Atölye Gideri</option>
                                     <option value="Diğer">Diğer</option>
                                 </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Alıcı / Tedarikçi Firma Adı (Opsiyonel)</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="Örn: Vestel Yetkili Satıcı, Akdeniz Elektronik..."
+                                    value={expRecipient}
+                                    onChange={(e) => setExpRecipient(e.target.value)}
+                                />
                             </div>
 
                             <div className="form-group">
@@ -1073,6 +1089,10 @@ export default function CollectionsPage() {
 
                             <div style={{ marginBottom: '12px', fontSize: '13px' }}>
                                 <strong>Sıfırlanacak Kasa:</strong> {resetAccount.name}
+                            </div>
+
+                            <div style={{ padding: '10px 12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '8px', marginBottom: '12px', fontSize: '12px', color: 'var(--brand-primary)', lineHeight: '1.4' }}>
+                                💡 <strong>Kasa Sıfırlama:</strong> Kasadaki tutar teslim alınır ve altındaki tüm alt sayaçlar (Tahsilat, Onaylı, Gider, Bekleyen) yeni dönem için sıfırlanır.
                             </div>
 
                             <div className="form-group">

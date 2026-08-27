@@ -77,7 +77,9 @@ function MobileBottomNav() {
         links.push({ href: '/service', label: 'Saha', icon: '🚚' });
     }
 
-    links.push({ href: '/technician', label: 'Atölye', icon: '🔧' });
+    links.push({ href: '/technician', label: 'Aktif Tamirler', icon: '🔧' });
+    links.push({ href: '/technician/completed', label: 'Tamamlananlar', icon: '✅' });
+    links.push({ href: '/technician/ne-takilir', label: 'Ne Takılır?', icon: '💡' });
 
     return (
         <nav className="mobile-bottom-nav">

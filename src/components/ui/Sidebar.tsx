@@ -15,6 +15,7 @@ const OPERATOR_LINKS = [
     { href: '/customers', label: 'Müşteriler', icon: '👥' },
     { href: '/repairers', label: 'Tamirciler', icon: '🏪' },
     { href: '/products', label: 'Ürünler & Stok', icon: '📦' },
+    { href: '/ne-takilir', label: 'Ne Takılır?', icon: '💡' },
     { href: '/personnel', label: 'Personel', icon: '👤' },
     { href: '/tv-display', label: 'TV Ekranı', icon: '📺' },
 ];

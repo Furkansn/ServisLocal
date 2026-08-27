@@ -495,3 +495,31 @@ model ReceiptTemplate {
 
   @@map("receipt_templates")
 }
+
+model CompatibilityRecord {
+  id                String   @id @default(uuid())
+  legacyTicketNo    String?
+  date              String?
+  technicianName    String?
+  brand             String?
+  model             String?
+  tcon              String?
+  originalScreen    String?
+  installedScreen   String?
+  screenAction      String?
+  installedLed      String?
+  ledAction         String?
+  installedQuantity String?
+  transactionType   String?
+  notes             String?
+  panelData         String?
+  rowId             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([brand, model])
+  @@index([originalScreen])
+  @@index([installedScreen])
+  @@index([installedLed])
+  @@map("compatibility_records")
+}

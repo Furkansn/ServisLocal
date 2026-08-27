@@ -94,8 +94,9 @@ export default function TechnicianPage() {
     const [postponeNotes, setPostponeNotes] = useState('');
     const [isPostponing, setIsPostponing] = useState(false);
 
-    // Sorting state
+    // Sorting & Search state
     const [isSorting, setIsSorting] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const load = () => {
         startTransition(async () => {
@@ -346,9 +347,32 @@ export default function TechnicianPage() {
         } catch (err: any) { alert(err.message); }
     };
 
+    const filteredRepairs = repairs.filter((repair) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase().trim();
+        const ticketNoMatch = repair.ticketNo?.toLowerCase().includes(q);
+        const modelMatch = repair.model?.toLowerCase().includes(q);
+        const brandMatch = repair.brand?.name?.toLowerCase().includes(q);
+        const customerMatch = repair.customer?.name?.toLowerCase().includes(q);
+        const repairerMatch = repair.repairer?.name?.toLowerCase().includes(q);
+        return ticketNoMatch || modelMatch || brandMatch || customerMatch || repairerMatch;
+    });
+
     return (
         <div style={{ padding: '14px', maxWidth: '840px', margin: '0 auto' }}>
             <TodayDate />
+
+            {/* Search Input */}
+            <div style={{ marginBottom: '14px' }}>
+                <input
+                    type="text"
+                    className="form-input"
+                    placeholder="🔍 Fiş No (SP-000003), Model veya Müşteri / Tamirci Adı ile ara..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ fontSize: '13px', padding: '8px 12px', width: '100%', borderRadius: '8px' }}
+                />
+            </div>
 
             {/* My Service Work Orders */}
             {workOrders.length > 0 && (
@@ -422,18 +446,22 @@ export default function TechnicianPage() {
 
             {/* My Active Repairs */}
             <h2 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-secondary)' }}>
-                🔧 Aktif Tamirlerim ({repairs.length})
+                🔧 Aktif Tamirlerim ({filteredRepairs.length})
             </h2>
 
-            {repairs.length === 0 ? (
+            {filteredRepairs.length === 0 ? (
                 <div className="empty-state" style={{ padding: '30px 16px' }}>
                     <div className="empty-state-icon" style={{ fontSize: '28px', marginBottom: '8px' }}>🔧</div>
-                    <div className="empty-state-title" style={{ fontSize: '14px' }}>Aktif tamir yok</div>
-                    <p style={{ fontSize: '12px' }}>Operatör size fiş atadığında burada görünecek.</p>
+                    <div className="empty-state-title" style={{ fontSize: '14px' }}>
+                        {searchQuery ? 'Aramanıza uygun aktif tamir bulunamadı' : 'Aktif tamir yok'}
+                    </div>
+                    <p style={{ fontSize: '12px' }}>
+                        {searchQuery ? 'Farklı bir arama terimi deneyin.' : 'Operatör size fiş atadığında burada görünecek.'}
+                    </p>
                 </div>
             ) : (
                 <div>
-                    {repairs.map((repair) => (
+                    {filteredRepairs.map((repair) => (
                         <div
                             key={repair.id}
                             className="card"

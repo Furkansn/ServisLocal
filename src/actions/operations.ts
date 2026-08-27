@@ -146,6 +146,48 @@ export async function getActiveRepairs() {
     }));
 }
 
+// ─── Get Technician's Completed Repairs ──────────────────
+
+export async function getCompletedRepairs() {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const tickets = await prisma.repairTicket.findMany({
+        where: {
+            status: {
+                in: [
+                    TicketStatus.TAMIR_TAMAMLANDI,
+                    TicketStatus.TESLIMAT_SERVIS_ISTENDI,
+                    TicketStatus.TESLIM_EDILDI,
+                    TicketStatus.ODEME_BEKLIYOR,
+                    TicketStatus.TAMAMLANDI,
+                ],
+            },
+        },
+        include: {
+            customer: { select: { name: true, phone: true } },
+            repairer: { select: { name: true, phone: true } },
+            brand: { select: { name: true } },
+            operations: {
+                include: {
+                    installedProduct: { select: { name: true } },
+                },
+            },
+        },
+        orderBy: {
+            updatedAt: 'desc',
+        },
+        take: 100,
+    });
+
+    return tickets.map(t => ({
+        ...t,
+        repairPrice: Number(t.repairPrice),
+        totalAmount: Number(t.totalAmount),
+        paidAmount: Number(t.paidAmount),
+    }));
+}
+
 // ─── Update Operation ────────────────────────────────────
 
 export async function updateOperation(data: {

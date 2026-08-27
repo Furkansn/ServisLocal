@@ -110,7 +110,7 @@ export async function getCollectionsData(year: number, month: number, accountId?
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
 
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
-    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
     const accounts = await getAccounts();
 
@@ -215,24 +215,66 @@ export async function getCollectionsData(year: number, month: number, accountId?
         orderBy: { createdAt: 'desc' },
     });
 
+    // All-time transactions up to endDate for calculating cumulative currentBalance
+    const [allPayments, allExpenses, allSettlements, allTransfers] = await Promise.all([
+        prisma.payment.findMany({
+            where: { createdAt: { lte: endDate } },
+            select: { accountId: true, amount: true, isApproved: true, createdAt: true },
+        }),
+        prisma.expense.findMany({
+            where: { createdAt: { lte: endDate } },
+            select: { accountId: true, amount: true, createdAt: true },
+        }),
+        prisma.accountSettlement.findMany({
+            where: { createdAt: { lte: endDate } },
+            select: { accountId: true, amount: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.accountTransfer.findMany({
+            where: { createdAt: { lte: endDate } },
+            select: { fromAccountId: true, toAccountId: true, amount: true, createdAt: true },
+        }),
+    ]);
+
     // Compute Account Balances & Summaries
     const accountSummaries = accounts.map(acc => {
-        const accPayments = payments.filter(p => p.accountId === acc.id || (!p.accountId && acc.type === 'CASH'));
-        const accApprovedPayments = accPayments.filter(p => p.isApproved);
-        const accPendingPayments = accPayments.filter(p => !p.isApproved);
-        const accExpenses = expenses.filter(e => e.accountId === acc.id);
-        const accSettlements = settlements.filter(s => s.accountId === acc.id);
-        const accTransfersOut = transfers.filter(t => t.fromAccountId === acc.id);
-        const accTransfersIn = transfers.filter(t => t.toAccountId === acc.id);
+        // Find latest settlement for this account (if any)
+        const latestSettlement = allSettlements.find(s => s.accountId === acc.id);
+        const settlementCutoffTime = latestSettlement ? new Date(latestSettlement.createdAt).getTime() : 0;
 
-        const totalCollected = accPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalApproved = accApprovedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalPending = accPendingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalExpenses = accExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-        const totalSettled = accSettlements.reduce((sum, s) => sum + Number(s.amount), 0);
-        const totalTransfersOut = accTransfersOut.reduce((sum, t) => sum + Number(t.amount), 0);
-        const totalTransfersIn = accTransfersIn.reduce((sum, t) => sum + Number(t.amount), 0);
-        const currentBalance = totalCollected + totalTransfersIn - totalExpenses - totalSettled - totalTransfersOut;
+        // Cumulative Balance (from all-time up to selected month end)
+        const cumPayments = allPayments.filter(p => p.accountId === acc.id || (!p.accountId && acc.type === 'CASH'));
+        const cumExpenses = allExpenses.filter(e => e.accountId === acc.id);
+        const cumSettlements = allSettlements.filter(s => s.accountId === acc.id);
+        const cumTransfersIn = allTransfers.filter(t => t.toAccountId === acc.id);
+        const cumTransfersOut = allTransfers.filter(t => t.fromAccountId === acc.id);
+
+        const currentBalance = cumPayments.reduce((sum, p) => sum + Number(p.amount), 0) +
+            cumTransfersIn.reduce((sum, t) => sum + Number(t.amount), 0) -
+            cumExpenses.reduce((sum, e) => sum + Number(e.amount), 0) -
+            cumSettlements.reduce((sum, s) => sum + Number(s.amount), 0) -
+            cumTransfersOut.reduce((sum, t) => sum + Number(t.amount), 0);
+
+        // Period subtotals (resets after settlement or month change)
+        let monthAccPayments = payments.filter(p => p.accountId === acc.id || (!p.accountId && acc.type === 'CASH'));
+        let monthAccExpenses = expenses.filter(e => e.accountId === acc.id);
+        let monthAccTransfersIn = transfers.filter(t => t.toAccountId === acc.id);
+        let monthAccTransfersOut = transfers.filter(t => t.fromAccountId === acc.id);
+
+        if (settlementCutoffTime > 0) {
+            monthAccPayments = monthAccPayments.filter(p => new Date(p.createdAt).getTime() > settlementCutoffTime);
+            monthAccExpenses = monthAccExpenses.filter(e => new Date(e.createdAt).getTime() > settlementCutoffTime);
+            monthAccTransfersIn = monthAccTransfersIn.filter(t => new Date(t.createdAt).getTime() > settlementCutoffTime);
+            monthAccTransfersOut = monthAccTransfersOut.filter(t => new Date(t.createdAt).getTime() > settlementCutoffTime);
+        }
+
+        const totalCollected = monthAccPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalApproved = monthAccPayments.filter(p => p.isApproved).reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalPending = monthAccPayments.filter(p => !p.isApproved).reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalExpenses = monthAccExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+        const totalSettled = settlements.filter(s => s.accountId === acc.id).reduce((sum, s) => sum + Number(s.amount), 0);
+        const totalTransfersIn = monthAccTransfersIn.reduce((sum, t) => sum + Number(t.amount), 0);
+        const totalTransfersOut = monthAccTransfersOut.reduce((sum, t) => sum + Number(t.amount), 0);
 
         return {
             account: acc,
@@ -594,6 +636,7 @@ export async function addExpense(data: {
     amount: number;
     accountId: string;
     category?: string;
+    recipient?: string;
     notes?: string;
 }) {
     const session = await auth();
@@ -603,14 +646,20 @@ export async function addExpense(data: {
     if (data.amount <= 0) throw new Error('Tutar 0\'dan büyük olmalıdır.');
     if (!data.accountId) throw new Error('Ödemenin yapıldığı kasa/hesap seçilmelidir.');
 
+    const category = data.category?.trim() || 'Genel Gider';
+    const notesText = [
+        data.recipient?.trim() ? `Alıcı/Tedarikçi: ${data.recipient.trim()}` : null,
+        data.notes?.trim() || null,
+    ].filter(Boolean).join(' · ');
+
     const expense = await prisma.expense.create({
         data: {
             title: data.title.trim(),
             amount: data.amount,
-            category: data.category?.trim() || 'Genel Gider',
+            category,
             accountId: data.accountId,
             createdById: session.user.id,
-            notes: data.notes?.trim() || null,
+            notes: notesText || null,
         },
     });
 
