@@ -30,7 +30,7 @@ function isValidValue(val: any): boolean {
     return str !== '' && str !== 'false' && str !== 'true' && str !== 'null' && str !== 'undefined' && str !== '-';
 }
 
-export default function NeTakilirDashboardPage() {
+export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?: boolean }) {
     const [stats, setStats] = useState<{ totalCount: number; brands: { brand: string; count: number }[]; screenActions?: { action: string; count: number }[] }>({ totalCount: 0, brands: [], screenActions: [] });
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedBrand, setSelectedBrand] = useState('ALL');
@@ -240,25 +240,27 @@ export default function NeTakilirDashboardPage() {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-                    <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => setShowUploadModal(true)}
-                        style={{ background: '#10b981', borderColor: '#059669', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-                    >
-                        📥 Excel / CSV Yükle
-                    </button>
-                    {stats.totalCount > 0 && (
+                {!readOnly && (
+                    <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
                         <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={handleClearAll}
-                            style={{ color: 'var(--color-danger)', fontSize: '12px' }}
-                            title="Tüm verileri temizle"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => setShowUploadModal(true)}
+                            style={{ background: '#10b981', borderColor: '#059669', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
                         >
-                            🗑️ Verileri Temizle
+                            📥 Excel / CSV Yükle
                         </button>
-                    )}
-                </div>
+                        {stats.totalCount > 0 && (
+                            <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={handleClearAll}
+                                style={{ color: 'var(--color-danger)', fontSize: '12px' }}
+                                title="Tüm verileri temizle"
+                            >
+                                🗑️ Verileri Temizle
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Quick Stats Bar */}

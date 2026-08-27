@@ -90,7 +90,7 @@ export default function MobileNeTakilirPage() {
     }, [searchQuery, selectedBrand]);
 
     if (!isMobile) {
-        return <NeTakilirDashboardPage />;
+        return <NeTakilirDashboardPage readOnly={true} />;
     }
 
     return (
