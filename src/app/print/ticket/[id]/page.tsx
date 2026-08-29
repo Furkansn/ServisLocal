@@ -102,6 +102,14 @@ export default function TicketPrintPage() {
         return result;
     };
 
+    const renderVariableTextHtml = (content?: string) => {
+        if (!content) return '';
+        let result = renderVariableText(content);
+        result = result.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        result = result.replace(/\*(.*?)\*/g, '<i>$1</i>');
+        return result;
+    };
+
     // Table parsing & rendering
     const renderTable = (el: any) => {
         let tableItems: { name: string; price: number; quantity: number }[] = [];
@@ -425,14 +433,16 @@ export default function TicketPrintPage() {
                         return (
                             <div key={el.id} style={elementStyles}>
                                 {el.type === 'text' && (
-                                    <div style={{ whiteSpace: 'pre-wrap' }}>
-                                        {renderVariableText(el.content)}
-                                    </div>
+                                    <div
+                                        style={{ whiteSpace: 'pre-wrap' }}
+                                        dangerouslySetInnerHTML={{ __html: renderVariableTextHtml(el.content) }}
+                                    />
                                 )}
                                 {el.type === 'variable' && (
-                                    <div style={{ fontWeight: 700 }}>
-                                        {renderVariableText(el.content)}
-                                    </div>
+                                    <div
+                                        style={{ fontWeight: 700, whiteSpace: 'pre-wrap' }}
+                                        dangerouslySetInnerHTML={{ __html: renderVariableTextHtml(el.content) }}
+                                    />
                                 )}
                                 {el.type === 'image' && el.content && (
                                     <img 

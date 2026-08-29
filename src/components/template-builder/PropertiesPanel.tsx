@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Trash2 } from 'lucide-react';
+import React, { useRef } from 'react';
+import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Trash2, Bold, Italic, Underline } from 'lucide-react';
 
 export interface ElementStyles {
     fontFamily?: string;
@@ -65,6 +65,8 @@ const VARIABLES = [
 ];
 
 export default function PropertiesPanel({ element, onUpdateElement, onDeleteElement }: PropertiesPanelProps) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
     if (!element) {
         return (
             <div style={{
@@ -84,6 +86,46 @@ export default function PropertiesPanel({ element, onUpdateElement, onDeleteElem
             </div>
         );
     }
+
+    const applySelectionFormat = (formatType: 'bold' | 'italic' | 'underline' | 'variable', varKey?: string) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const currentContent = element.content || '';
+        const selectedText = currentContent.substring(start, end);
+
+        let formattedText = '';
+        let newCursorPos = start;
+
+        if (formatType === 'bold') {
+            const inner = selectedText || 'Koyu Metin';
+            formattedText = `<b>${inner}</b>`;
+            newCursorPos = start + 3 + inner.length + 4;
+        } else if (formatType === 'italic') {
+            const inner = selectedText || 'Eğik Metin';
+            formattedText = `<i>${inner}</i>`;
+            newCursorPos = start + 3 + inner.length + 4;
+        } else if (formatType === 'underline') {
+            const inner = selectedText || 'Altı Çizili Metin';
+            formattedText = `<u>${inner}</u>`;
+            newCursorPos = start + 3 + inner.length + 4;
+        } else if (formatType === 'variable' && varKey) {
+            formattedText = `{{${varKey}}}`;
+            newCursorPos = start + formattedText.length;
+        }
+
+        const newContent = currentContent.substring(0, start) + formattedText + currentContent.substring(end);
+        onUpdateElement(element.id, { content: newContent });
+
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+            }
+        }, 50);
+    };
 
     const updateStyles = (updates: Partial<ElementStyles>) => {
         onUpdateElement(element.id, {
@@ -188,18 +230,98 @@ export default function PropertiesPanel({ element, onUpdateElement, onDeleteElem
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* Content Configuration */}
                 {element.type === 'text' && (
-                    <div>
-                        <label style={labelStyle}>Metin İçeriği</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={labelStyle}>Metin İçeriği</label>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => applySelectionFormat('bold')}
+                                    style={{
+                                        padding: '3px 8px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        background: 'var(--bg-tertiary)',
+                                        border: '1px solid var(--border-primary)',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        color: 'var(--text-primary)',
+                                    }}
+                                    title="Seçilen kelimeyi/harfi Koyu (Bold) yap: <b>...</b>"
+                                >
+                                    <b>B</b>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => applySelectionFormat('italic')}
+                                    style={{
+                                        padding: '3px 8px',
+                                        fontSize: '11px',
+                                        fontStyle: 'italic',
+                                        background: 'var(--bg-tertiary)',
+                                        border: '1px solid var(--border-primary)',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        color: 'var(--text-primary)',
+                                    }}
+                                    title="Seçilen metni Eğik (Italic) yap: <i>...</i>"
+                                >
+                                    <i>I</i>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => applySelectionFormat('underline')}
+                                    style={{
+                                        padding: '3px 8px',
+                                        fontSize: '11px',
+                                        textDecoration: 'underline',
+                                        background: 'var(--bg-tertiary)',
+                                        border: '1px solid var(--border-primary)',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        color: 'var(--text-primary)',
+                                    }}
+                                    title="Seçilen metni Altı Çizili yap: <u>...</u>"
+                                >
+                                    <u>U</u>
+                                </button>
+                            </div>
+                        </div>
+
                         <textarea
+                            ref={textareaRef}
                             value={element.content || ''}
                             onChange={(e) => onUpdateElement(element.id, { content: e.target.value })}
                             style={{
                                 ...inputStyle,
-                                minHeight: '65px',
-                                fontFamily: 'inherit',
+                                minHeight: '95px',
+                                fontFamily: 'monospace',
+                                fontSize: '12px',
                                 resize: 'vertical',
                             }}
                         />
+
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', lineHeight: '1.4', background: 'var(--bg-tertiary)', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-primary)' }}>
+                            💡 <strong>İpucu:</strong> Seçtiğiniz kelime veya başlığı koyu yapmak için fare ile metni seçip <strong>[B]</strong> butonuna tıklayabilir veya metne <code>&lt;b&gt;Müşteri:&lt;/b&gt;</code> ekleyebilirsiniz.
+                        </div>
+
+                        <div>
+                            <label style={{ ...labelStyle, marginTop: '4px' }}>İmleç Konumuna Değişken Ekle</label>
+                            <select
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        applySelectionFormat('variable', e.target.value);
+                                        e.target.value = '';
+                                    }
+                                }}
+                                style={inputStyle}
+                            >
+                                <option value="">Değişken Seçin ve Ekleyin...</option>
+                                {VARIABLES.map((v) => (
+                                    <option key={v.key} value={v.key}>{v.label}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 )}
 

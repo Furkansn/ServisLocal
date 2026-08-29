@@ -226,12 +226,17 @@ export default function Canvas({
         window.addEventListener('mouseup', handleMouseUp);
     };
 
-    // Text parser
-    const renderTextContent = (content?: string) => {
+    // Text parser (HTML & Markdown aware)
+    const renderTextContentHtml = (content?: string) => {
         let result = content || '';
         Object.entries(PREVIEW_DATA).forEach(([key, val]) => {
             result = result.replaceAll(`{{${key}}}`, val);
         });
+
+        // Convert Markdown **bold** to <b>bold</b> and *italic* to <i>italic</i>
+        result = result.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        result = result.replace(/\*(.*?)\*/g, '<i>$1</i>');
+
         return result;
     };
 
@@ -366,24 +371,26 @@ export default function Canvas({
 
                             {/* Render Element Types */}
                             {el.type === 'text' && (
-                                <div style={renderStyles}>
-                                    {renderTextContent(el.content) || 'Metin girin...'}
-                                </div>
+                                <div
+                                    style={renderStyles}
+                                    dangerouslySetInnerHTML={{ __html: renderTextContentHtml(el.content) || 'Metin girin...' }}
+                                />
                             )}
 
                             {el.type === 'variable' && (
-                                <div style={{
-                                    ...renderStyles,
-                                    border: '1px dashed #3b82f6',
-                                    backgroundColor: el.styles.backgroundColor && el.styles.backgroundColor !== 'transparent' ? el.styles.backgroundColor : 'rgba(59, 130, 246, 0.05)',
-                                    borderRadius: '4px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: el.styles.textAlign === 'center' ? 'center' : el.styles.textAlign === 'right' ? 'flex-end' : 'flex-start',
-                                    fontWeight: 700,
-                                }}>
-                                    {renderTextContent(el.content) || 'Değişken Seçilmedi'}
-                                </div>
+                                <div
+                                    style={{
+                                        ...renderStyles,
+                                        border: '1px dashed #3b82f6',
+                                        backgroundColor: el.styles.backgroundColor && el.styles.backgroundColor !== 'transparent' ? el.styles.backgroundColor : 'rgba(59, 130, 246, 0.05)',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: el.styles.textAlign === 'center' ? 'center' : el.styles.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                                        fontWeight: 700,
+                                    }}
+                                    dangerouslySetInnerHTML={{ __html: renderTextContentHtml(el.content) || 'Değişken Seçilmedi' }}
+                                />
                             )}
 
                             {el.type === 'image' && (
