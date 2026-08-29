@@ -287,20 +287,57 @@ export async function getModelCompatibilitySummary(modelName: string) {
         }
     });
 
+    // Query active products from system database to check stock for installed screens & LEDs
+    const sysDb = getPrismaClient();
+    const systemProducts = await sysDb.product.findMany({
+        where: { isActive: true },
+        select: { name: true, stock: true, category: true },
+    });
+
+    const getStockForCode = (code: string, category: 'SCREEN' | 'LED') => {
+        const cleanCode = code.toLowerCase().trim();
+        const cleanAlphanumeric = cleanCode.replace(/[^a-z0-9]/g, '');
+
+        const match = systemProducts.find(p => {
+            if (p.category !== category) return false;
+            const pName = p.name.toLowerCase().trim();
+            const pAlpha = pName.replace(/[^a-z0-9]/g, '');
+            return pName === cleanCode || pAlpha === cleanAlphanumeric || pName.includes(cleanCode) || cleanCode.includes(pName);
+        });
+
+        if (match) {
+            return { inStock: match.stock > 0, stock: match.stock };
+        }
+        return { inStock: false, stock: 0 };
+    };
+
     const originalScreens = Object.values(origMap)
         .map(item => ({ code: item.code, count: item.count }))
         .sort((a, b) => b.count - a.count);
 
     const installedScreens = Object.values(instMap)
-        .map(item => ({
-            code: item.code,
-            count: item.count,
-            actions: Array.from(item.actions),
-        }))
+        .map(item => {
+            const stockInfo = getStockForCode(item.code, 'SCREEN');
+            return {
+                code: item.code,
+                count: item.count,
+                actions: Array.from(item.actions),
+                inStock: stockInfo.inStock,
+                stock: stockInfo.stock,
+            };
+        })
         .sort((a, b) => b.count - a.count);
 
     const installedLeds = Object.values(ledMap)
-        .map(item => ({ code: item.code, count: item.count }))
+        .map(item => {
+            const stockInfo = getStockForCode(item.code, 'LED');
+            return {
+                code: item.code,
+                count: item.count,
+                inStock: stockInfo.inStock,
+                stock: stockInfo.stock,
+            };
+        })
         .sort((a, b) => b.count - a.count);
 
     return {

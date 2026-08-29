@@ -245,7 +245,7 @@ export default function MobileNeTakilirPage() {
 
             {/* Selected Record Detail Modal */}
             {selectedRecord && (
-                <div className="modal-overlay" onClick={() => setSelectedRecord(null)}>
+                <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setSelectedRecord(null)}>
                     <div className="modal" style={{ maxWidth: '520px', width: '92vw', maxHeight: '90vh', overflowY: 'auto', padding: 0 }} onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 className="modal-title" style={{ fontSize: '14px', fontWeight: 700, margin: 0, wordBreak: 'break-word' }}>
@@ -253,13 +253,12 @@ export default function MobileNeTakilirPage() {
                             </h3>
                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setSelectedRecord(null)}>✕</button>
                         </div>
-                        <div className="modal-body" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12.5px', wordBreak: 'break-word' }}>
-                            <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-                                <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)' }}>MARKA & MODEL</div>
-                                <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--brand-primary)', fontFamily: 'monospace', wordBreak: 'break-word' }}>
-                                    {selectedRecord.brand} {selectedRecord.model}
-                                </div>
-                                {isValidValue(selectedRecord.tcon) && <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>TCON: {selectedRecord.tcon}</div>}
+                        <div className="modal-body" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12.5px' }}>
+                            <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+                                <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', fontWeight: 700, marginBottom: '4px' }}>CİHAZ BİLGİSİ</div>
+                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--brand-primary)' }}>{selectedRecord.brand} {selectedRecord.model}</div>
+                                {isValidValue(selectedRecord.legacyTicketNo) && <div style={{ fontSize: '11.5px', marginTop: '2px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>Fiş No: #{selectedRecord.legacyTicketNo}</div>}
+                                {isValidValue(selectedRecord.tcon) && <div style={{ fontSize: '11.5px', marginTop: '2px' }}>T-CON: {selectedRecord.tcon}</div>}
                             </div>
 
                             <div style={{ padding: '10px 12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '8px' }}>
@@ -310,7 +309,7 @@ export default function MobileNeTakilirPage() {
 
             {/* Modal: Model Summary */}
             {selectedModelName && (
-                <div className="modal-overlay" onClick={() => { setSelectedModelName(null); setModelSummaryData(null); }}>
+                <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => { setSelectedModelName(null); setModelSummaryData(null); }}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1280px', width: '95vw', maxHeight: '92vh', overflowY: 'auto' }}>
                         <div className="modal-header">
                             <div>
@@ -365,7 +364,18 @@ export default function MobileNeTakilirPage() {
                                                     {modelSummaryData.installedScreens.map((item: any) => (
                                                         <div key={item.code} style={{ fontSize: '11.5px', padding: '5px 6px', background: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-primary)' }}>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'monospace' }}>
-                                                                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{item.code}</span>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                    <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{item.code}</span>
+                                                                    {item.inStock ? (
+                                                                        <span className="badge badge-success" style={{ fontSize: '9.5px', padding: '1px 5px' }}>
+                                                                            ✅ STOKTA VAR ({item.stock} Adet)
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="badge" style={{ fontSize: '9.5px', padding: '1px 5px', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--color-danger)' }}>
+                                                                            ❌ STOKTA YOK
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 <span className="badge badge-success" style={{ fontSize: '10px' }}>{item.count} Kez Takıldı</span>
                                                             </div>
                                                             {item.actions.length > 0 && (
@@ -388,7 +398,18 @@ export default function MobileNeTakilirPage() {
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                     {modelSummaryData.installedLeds.map((item: any) => (
                                                         <div key={item.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', fontFamily: 'monospace', padding: '3px 6px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
-                                                            <span style={{ fontWeight: 600, color: '#d97706' }}>{item.code}</span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <span style={{ fontWeight: 600, color: '#d97706' }}>{item.code}</span>
+                                                                {item.inStock ? (
+                                                                    <span className="badge badge-success" style={{ fontSize: '9.5px', padding: '1px 5px' }}>
+                                                                        ✅ STOKTA VAR ({item.stock} Adet)
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="badge" style={{ fontSize: '9.5px', padding: '1px 5px', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--color-danger)' }}>
+                                                                        ❌ STOKTA YOK
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', fontSize: '10px' }}>{item.count} Kez</span>
                                                         </div>
                                                     ))}

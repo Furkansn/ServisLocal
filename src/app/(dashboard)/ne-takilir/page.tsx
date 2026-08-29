@@ -557,7 +557,7 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
 
             {/* Modal: Record Detail */}
             {selectedRecord && (
-                <div className="modal-overlay" onClick={() => setSelectedRecord(null)}>
+                <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setSelectedRecord(null)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
                         <div className="modal-header">
                             <h3 className="modal-title">💡 {selectedRecord.brand} {selectedRecord.model} — Uyumluluk Detayı</h3>
@@ -660,7 +660,7 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                                                     {modelSummaryData.originalScreens.map((item: any) => (
                                                         <div key={item.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontFamily: 'monospace', padding: '4px 8px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
                                                             <span style={{ fontWeight: 600 }}>{item.code}</span>
-                                                            <span className="badge badge-secondary" style={{ fontSize: '10.5px' }}>{item.count} Kez Çıktı</span>
+                                                            <span className="badge badge-secondary" style={{ fontSize: '10.5px' }}>{item.count} Kez</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -679,7 +679,18 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                                                     {modelSummaryData.installedScreens.map((item: any) => (
                                                         <div key={item.code} style={{ fontSize: '12px', padding: '6px 8px', background: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-primary)' }}>
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'monospace' }}>
-                                                                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{item.code}</span>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{item.code}</span>
+                                                                    {item.inStock ? (
+                                                                        <span className="badge badge-success" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                                                            ✅ STOKTA VAR ({item.stock} Adet)
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="badge" style={{ fontSize: '10px', padding: '1px 6px', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--color-danger)' }}>
+                                                                            ❌ STOKTA YOK
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 <span className="badge badge-success" style={{ fontSize: '10.5px' }}>{item.count} Kez Takıldı</span>
                                                             </div>
                                                             {item.actions.length > 0 && (
@@ -702,7 +713,18 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                     {modelSummaryData.installedLeds.map((item: any) => (
                                                         <div key={item.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontFamily: 'monospace', padding: '4px 8px', background: 'var(--bg-tertiary)', borderRadius: '4px' }}>
-                                                            <span style={{ fontWeight: 600, color: '#d97706' }}>{item.code}</span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <span style={{ fontWeight: 600, color: '#d97706' }}>{item.code}</span>
+                                                                {item.inStock ? (
+                                                                    <span className="badge badge-success" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                                                        ✅ STOKTA VAR ({item.stock} Adet)
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="badge" style={{ fontSize: '10px', padding: '1px 6px', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--color-danger)' }}>
+                                                                        ❌ STOKTA YOK
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', fontSize: '10.5px' }}>{item.count} Kez</span>
                                                         </div>
                                                     ))}
