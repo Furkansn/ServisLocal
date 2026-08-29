@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { AuditAction, TicketStatus } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { syncOperationToCompatibility, deleteOperationFromCompatibility } from '@/actions/compatibility';
 
 // ─── Add Operation ───────────────────────────────────────
 
@@ -26,7 +27,7 @@ export async function addOperation(data: {
         throw new Error('Bu fiş teslim edildiği / tamamlandığı için üzerinde yeni tamir işlemi eklenemez.');
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const operation = await tx.ticketOperation.create({
             data: {
                 ticketId: data.ticketId,
@@ -70,6 +71,10 @@ export async function addOperation(data: {
 
         return operation;
     });
+
+    // Sync to Ne Takılır compatibility database
+    await syncOperationToCompatibility(result.id);
+    return result;
 }
 
 // ─── Complete Repair ─────────────────────────────────────
@@ -214,7 +219,7 @@ export async function updateOperation(data: {
     const oldProductId = existingOp.installedProductId;
     const newProductId = data.installedProductId || null;
 
-    return prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
         // Handle product stock change if installed product changed
         if (oldProductId !== newProductId) {
             // Restore stock for old product if there was one
@@ -266,6 +271,10 @@ export async function updateOperation(data: {
 
         return updated;
     });
+
+    // Sync to Ne Takılır compatibility database
+    await syncOperationToCompatibility(updated.id);
+    return updated;
 }
 
 // ─── Delete Operation ────────────────────────────────────
@@ -283,7 +292,7 @@ export async function deleteOperation(operationId: string) {
         throw new Error('Tamamlanan veya iptal edilen fişin işlemleri silinemez');
     }
 
-    return prisma.$transaction(async (tx) => {
+    const res = await prisma.$transaction(async (tx) => {
         // Restore stock if product was installed
         if (existingOp.installedProductId) {
             await tx.product.update({
@@ -342,4 +351,8 @@ export async function deleteOperation(operationId: string) {
 
         return { success: true };
     });
+
+    // Delete from Ne Takılır compatibility database
+    await deleteOperationFromCompatibility(operationId);
+    return res;
 }

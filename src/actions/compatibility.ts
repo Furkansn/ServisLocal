@@ -312,3 +312,120 @@ export async function getModelCompatibilitySummary(modelName: string) {
         records,
     };
 }
+
+// ─── Auto-Sync Live Repair Operations to Compatibility Database ──
+
+export async function syncOperationToCompatibility(operationId: string) {
+    const db = getPrismaClient();
+    const model = getModel();
+    if (!model) return;
+
+    const op = await db.ticketOperation.findUnique({
+        where: { id: operationId },
+        include: {
+            ticket: {
+                include: {
+                    brand: true,
+                    assignedTechnician: true,
+                    createdBy: true,
+                },
+            },
+            installedProduct: true,
+            performedBy: true,
+        },
+    });
+
+    if (!op || !op.ticket) return;
+
+    const rowId = `live_op_${op.id}`;
+    const dateStr = op.createdAt.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const techName = op.performedBy?.name || op.ticket.assignedTechnician?.name || op.ticket.createdBy?.name || 'Teknisyen';
+
+    let originalScreen: string | null = null;
+    let installedScreen: string | null = null;
+    let screenAction: string | null = null;
+    let installedLed: string | null = null;
+    let ledAction: string | null = null;
+
+    if (op.operationType === 'SCREEN_CHANGE') {
+        originalScreen = op.removedPart || null;
+        installedScreen = op.installedProduct?.name || null;
+        screenAction = op.notes || null;
+    } else if (op.operationType === 'LED_CHANGE') {
+        originalScreen = op.removedPart || null;
+        installedLed = op.installedProduct?.name || null;
+        ledAction = op.notes || null;
+    } else {
+        originalScreen = op.removedPart || null;
+        if (op.installedProduct) {
+            installedScreen = op.installedProduct.name;
+        }
+        screenAction = op.notes || null;
+    }
+
+    const payload = {
+        legacyTicketNo: op.ticket.ticketNo,
+        date: dateStr,
+        technicianName: techName,
+        brand: op.ticket.brand.name,
+        model: op.ticket.model,
+        originalScreen: originalScreen ? originalScreen.toUpperCase().trim() : null,
+        installedScreen: installedScreen ? installedScreen.toUpperCase().trim() : null,
+        screenAction: screenAction ? screenAction.trim() : null,
+        installedLed: installedLed ? installedLed.toUpperCase().trim() : null,
+        ledAction: ledAction ? ledAction.trim() : null,
+        notes: op.notes || op.ticket.notes || null,
+        rowId: rowId,
+    };
+
+    const existing = await model.findFirst({ where: { rowId: rowId } });
+    if (existing) {
+        await model.update({
+            where: { id: existing.id },
+            data: payload,
+        });
+    } else {
+        await model.create({
+            data: payload,
+        });
+    }
+
+    try {
+        revalidatePath('/ne-takilir');
+        revalidatePath('/technician/ne-takilir');
+    } catch (e) {
+        // Ignored when called outside HTTP request context (e.g. CLI scripts)
+    }
+}
+
+export async function deleteOperationFromCompatibility(operationId: string) {
+    const model = getModel();
+    if (!model) return;
+
+    const rowId = `live_op_${operationId}`;
+    const existing = await model.findFirst({ where: { rowId: rowId } });
+    if (existing) {
+        await model.delete({ where: { id: existing.id } });
+        try {
+            revalidatePath('/ne-takilir');
+            revalidatePath('/technician/ne-takilir');
+        } catch (e) {
+            // Ignored outside HTTP request context
+        }
+    }
+}
+
+export async function syncAllExistingRepairsToCompatibility() {
+    const db = getPrismaClient();
+    const ops = await db.ticketOperation.findMany({
+        select: { id: true },
+    });
+
+    let count = 0;
+    for (const op of ops) {
+        await syncOperationToCompatibility(op.id);
+        count++;
+    }
+
+    return { count };
+}
