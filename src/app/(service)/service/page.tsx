@@ -464,7 +464,7 @@ export default function ServicePage() {
                                                         style={{ flex: 1, fontSize: '11.5px', padding: '4px 24px 4px 6px', minHeight: '30px', height: '30px' }}
                                                     >
                                                         <option value="LED_CHANGE">LED Değişimi</option>
-                                                        <option value="LGP_REPAIR">LGP Tamiri / Değişimi</option>
+                                                        <option value="LGP_REPAIR">LGP Değişimi</option>
                                                         <option value="BOARD_REPAIR">Anakart Tamiri</option>
                                                         <option value="SCREEN_CHANGE">Ekran Değişimi</option>
                                                         <option value="OTHER">Diğer / Özel İşlem</option>

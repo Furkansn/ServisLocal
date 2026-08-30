@@ -7,7 +7,7 @@ export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
     SCREEN_LED_CHANGE: 'Ekran + LED Değişimi',
     LED_CHANGE: 'LED Değişimi',
     LED_LGP_CHANGE: 'Led ve LGP Değişimi',
-    LGP_REPAIR: 'LGP Tamir',
+    LGP_REPAIR: 'LGP Değişimi',
     BOARD_REPAIR: 'Kart Tamiri',
     OTHER: 'Diğer',
 };
