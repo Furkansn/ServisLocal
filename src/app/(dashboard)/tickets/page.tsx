@@ -250,7 +250,13 @@ export default function TicketsPage() {
                                         {formatDate(ticket.createdAt)}
                                     </td>
                                     <td style={{ fontWeight: 500 }}>
-                                        {Number(ticket.totalAmount) > 0 ? formatCurrency(Number(ticket.totalAmount)) : '-'}
+                                        {Number(ticket.totalAmount) > 0 ? (
+                                            (ticket as any).currency === 'USD' ? (
+                                                <span style={{ color: '#059669', fontWeight: 600 }}>$ {Number(ticket.totalAmount).toLocaleString('tr-TR')}</span>
+                                            ) : (
+                                                formatCurrency(Number(ticket.totalAmount))
+                                            )
+                                        ) : '-'}
                                     </td>
                                 </tr>
                             ))}

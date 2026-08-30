@@ -29,6 +29,7 @@ export default function NewTicketPage() {
     const [hasWarranty, setHasWarranty] = useState(false);
     const [deviceCondition, setDeviceCondition] = useState('');
     const [notes, setNotes] = useState('');
+    const [currency, setCurrency] = useState<'TRY' | 'USD'>('TRY');
     const [repairPrice, setRepairPrice] = useState<string | number>('');
     const [repairItems, setRepairItems] = useState<{ type: string, price: string, customType?: string }[]>([{ type: 'SCREEN_CHANGE', price: '' }]);
 
@@ -155,6 +156,7 @@ export default function NewTicketPage() {
                     hasWarranty,
                     deviceCondition: deviceCondition || undefined,
                     notes: notes || undefined,
+                    currency,
                     repairPrice: repairItems.reduce((acc, item) => {
                         const cleanPrice = item.price.replace(/\./g, '').replace(',', '.');
                         return acc + Number(cleanPrice || 0);
@@ -302,7 +304,54 @@ export default function NewTicketPage() {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label required">Tahmini Tamir Tutarları (₺)</label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                                    <label className="form-label required" style={{ margin: 0 }}>
+                                        Tahmini Tamir Tutarları ({currency === 'USD' ? '$' : '₺'})
+                                    </label>
+                                    <div style={{
+                                        display: 'inline-flex',
+                                        background: 'var(--bg-tertiary)',
+                                        padding: '2px',
+                                        borderRadius: '20px',
+                                        border: '1px solid var(--border-primary)',
+                                        gap: '2px'
+                                    }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrency('TRY')}
+                                            style={{
+                                                padding: '2px 10px',
+                                                borderRadius: '16px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '11px',
+                                                fontWeight: currency === 'TRY' ? 700 : 500,
+                                                background: currency === 'TRY' ? 'var(--brand-primary)' : 'transparent',
+                                                color: currency === 'TRY' ? '#fff' : 'var(--text-secondary)',
+                                                transition: 'all 0.15s ease',
+                                            }}
+                                        >
+                                            ₺ TL
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrency('USD')}
+                                            style={{
+                                                padding: '2px 10px',
+                                                borderRadius: '16px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '11px',
+                                                fontWeight: currency === 'USD' ? 700 : 500,
+                                                background: currency === 'USD' ? '#10b981' : 'transparent',
+                                                color: currency === 'USD' ? '#fff' : 'var(--text-secondary)',
+                                                transition: 'all 0.15s ease',
+                                            }}
+                                        >
+                                            $ USD (Dolar)
+                                        </button>
+                                    </div>
+                                </div>
                                 {repairItems.map((item, index) => (
                                     <div key={index} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
                                         <select
@@ -347,11 +396,20 @@ export default function NewTicketPage() {
                                                     newItems[index].price = formatted;
                                                     setRepairItems(newItems);
                                                 }}
-                                                placeholder=""
+                                                placeholder="0"
                                                 style={{ paddingRight: '2.5rem' }}
                                                 required
                                             />
-                                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>₺</span>
+                                            <span style={{
+                                                position: 'absolute',
+                                                right: '1rem',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                color: currency === 'USD' ? '#10b981' : 'var(--text-tertiary)',
+                                                fontWeight: 700
+                                            }}>
+                                                {currency === 'USD' ? '$' : '₺'}
+                                            </span>
                                         </div>
                                         {repairItems.length > 1 && (
                                             <button
@@ -378,7 +436,9 @@ export default function NewTicketPage() {
                                         ➕ Tür Ekle
                                     </button>
                                     <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                                        Genel Toplam: <strong style={{ color: 'var(--text-primary)' }}>{repairItems.reduce((acc, item) => acc + Number(item.price.replace(/\./g, '') || 0), 0).toLocaleString('tr-TR')} ₺</strong>
+                                        Tahmini Toplam: <strong style={{ color: currency === 'USD' ? '#10b981' : 'var(--text-primary)' }}>
+                                            {currency === 'USD' ? '$' : '₺'}{repairItems.reduce((acc, item) => acc + Number(item.price.replace(/\./g, '') || 0), 0).toLocaleString('tr-TR')}
+                                        </strong>
                                     </div>
                                 </div>
                             </div>

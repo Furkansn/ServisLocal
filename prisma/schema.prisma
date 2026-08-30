@@ -237,6 +237,7 @@ model RepairTicket {
   notes                String?
   repairPrice          Decimal      @default(0) @db.Decimal(12, 2)
   repairItems          Json?        @default("[]")
+  currency             String       @default("TRY")
   totalAmount          Decimal      @default(0) @db.Decimal(12, 2)
   paidAmount           Decimal      @default(0) @db.Decimal(12, 2)
   closedWithoutPayment Boolean      @default(false)

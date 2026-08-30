@@ -32,8 +32,9 @@ export async function createTicket(data: {
     hasWarranty: boolean;
     deviceCondition?: string;
     notes?: string;
+    currency?: string;
     repairPrice?: number;
-    repairItems?: { type: string, price: number }[];
+    repairItems?: { type: string, price: number, customType?: string }[];
 }) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
@@ -58,6 +59,7 @@ export async function createTicket(data: {
                 hasWarranty: data.hasWarranty,
                 deviceCondition: data.deviceCondition?.trim() || null,
                 notes: data.notes || null,
+                currency: data.currency || 'TRY',
                 repairPrice: data.repairPrice || 0,
                 repairItems: data.repairItems ? data.repairItems : [],
                 totalAmount: data.repairPrice || 0,
@@ -663,4 +665,82 @@ export async function addRepairItemToTicket(ticketId: string, itemType: string, 
         paidAmount: Number(updated.paidAmount),
         repairItems: items,
     };
+}
+
+// ─── Update Currency & Prices (USD to TRY Conversion) ────
+
+export async function updateTicketCurrencyAndPrices(data: {
+    ticketId: string;
+    currency: 'TRY' | 'USD';
+    repairPrice: number;
+    repairItems: { type: string; price: number; customType?: string }[];
+    conversionNote?: string;
+}) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Yetkisiz işlem: Lütfen giriş yapınız' };
+
+        const ticket = await prisma.repairTicket.findUnique({
+            where: { id: data.ticketId },
+            include: { accessories: true }
+        });
+        if (!ticket) return { success: false, error: 'Fiş bulunamadı' };
+
+        // Accessories are always in TRY
+        const accessoriesTotal = ticket.accessories.reduce((acc, a) => acc + Number(a.totalPrice), 0);
+        const newTotalAmount = Number(data.repairPrice) + accessoriesTotal;
+
+        const updated = await prisma.$transaction(async (tx) => {
+            const updatedTicket = await tx.repairTicket.update({
+                where: { id: data.ticketId },
+                data: {
+                    currency: data.currency,
+                    repairPrice: data.repairPrice,
+                    repairItems: data.repairItems as any,
+                    totalAmount: newTotalAmount,
+                },
+            });
+
+            const noteText = data.conversionNote
+                ? data.conversionNote
+                : `Fiyat / Para Birimi güncellendi (${data.currency === 'USD' ? '$' : '₺'}${data.repairPrice})`;
+
+            await tx.statusHistory.create({
+                data: {
+                    ticketId: data.ticketId,
+                    toStatus: ticket.status,
+                    changedById: session.user.id,
+                    notes: noteText,
+                }
+            });
+
+            await tx.auditLog.create({
+                data: {
+                    ticketId: data.ticketId,
+                    entityType: 'RepairTicket',
+                    entityId: data.ticketId,
+                    action: AuditAction.UPDATE,
+                    field: 'currency',
+                    newValue: `${data.currency} - ${data.repairPrice}`,
+                    changedById: session.user.id,
+                }
+            });
+
+            return updatedTicket;
+        });
+
+        revalidatePath(`/tickets/${data.ticketId}`);
+        revalidatePath('/service');
+        return {
+            success: true,
+            ticket: {
+                ...updated,
+                repairPrice: Number(updated.repairPrice),
+                totalAmount: Number(updated.totalAmount),
+                paidAmount: Number(updated.paidAmount),
+            }
+        };
+    } catch (err: any) {
+        return { success: false, error: err.message || 'Fiyat güncellenirken bir hata oluştu' };
+    }
 }

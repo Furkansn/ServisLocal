@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { getTicketById, changeTicketStatus, addOperationToRepairItems, removeOperationFromRepairItems, updateTicketNotes, updateTicketDeviceCondition, getTicketAuditLogs } from '@/actions/tickets';
+import { getTicketById, changeTicketStatus, addOperationToRepairItems, removeOperationFromRepairItems, updateTicketNotes, updateTicketDeviceCondition, updateTicketCurrencyAndPrices, getTicketAuditLogs } from '@/actions/tickets';
 import { addPayment, deletePayment, closeTicket, closeWithoutPayment } from '@/actions/payments';
 import { createServiceRecord } from '@/actions/service-records';
 import { getProductsByCategory, addAccessoryToTicket, removeAccessoryFromTicket } from '@/actions/products';
@@ -49,6 +49,120 @@ export default function TicketDetailPage() {
     const [isEditingDeviceCondition, setIsEditingDeviceCondition] = useState(false);
     const [deviceConditionInput, setDeviceConditionInput] = useState('');
     const [isSavingDeviceCondition, setIsSavingDeviceCondition] = useState(false);
+
+    // Currency conversion state
+    const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+    const [targetCurrency, setTargetCurrency] = useState<'TRY' | 'USD'>('TRY');
+    const [usdExchangeRate, setUsdExchangeRate] = useState<string>('');
+    const [convertingItems, setConvertingItems] = useState<{ type: string; price: string; customType?: string }[]>([]);
+    const [isSavingCurrency, setIsSavingCurrency] = useState(false);
+    const [currencyError, setCurrencyError] = useState('');
+
+    const openCurrencyModal = () => {
+        const currentCurrency = ((ticket as any)?.currency || 'TRY') as 'TRY' | 'USD';
+        const nextTarget = currentCurrency === 'USD' ? 'TRY' : 'USD';
+        setTargetCurrency(nextTarget);
+        setUsdExchangeRate('');
+        setCurrencyError('');
+
+        const parsedItems: any[] = (ticket as any)?.repairItems
+            ? (typeof (ticket as any).repairItems === 'string'
+                ? (() => { try { return JSON.parse((ticket as any).repairItems); } catch (e) { return []; } })()
+                : Array.isArray((ticket as any).repairItems) ? (ticket as any).repairItems : [])
+            : [];
+
+        if (parsedItems.length > 0) {
+            setConvertingItems(parsedItems.map(i => ({
+                type: i.type,
+                price: String(i.price || ''),
+                customType: i.customType
+            })));
+        } else {
+            setConvertingItems([{
+                type: ticket?.requestType || 'SCREEN_CHANGE',
+                price: String(ticket?.repairPrice || '')
+            }]);
+        }
+        setShowCurrencyModal(true);
+    };
+
+    const handleApplyExchangeRate = () => {
+        const rate = parseFloat(usdExchangeRate.replace(',', '.'));
+        if (!rate || isNaN(rate) || rate <= 0) {
+            setCurrencyError('Lütfen geçerli bir kur değeri giriniz (Örn: 38.50)');
+            return;
+        }
+        setCurrencyError('');
+
+        const parsedItems: any[] = (ticket as any)?.repairItems
+            ? (typeof (ticket as any).repairItems === 'string'
+                ? (() => { try { return JSON.parse((ticket as any).repairItems); } catch (e) { return []; } })()
+                : Array.isArray((ticket as any).repairItems) ? (ticket as any).repairItems : [])
+            : [];
+
+        const sourceItems = parsedItems.length > 0 ? parsedItems : [{ type: ticket?.requestType || 'SCREEN_CHANGE', price: ticket?.repairPrice || 0 }];
+
+        const updated = sourceItems.map((item: any) => {
+            const originalPrice = Number(String(item.price).replace(/\./g, '').replace(',', '.') || 0);
+            let convertedPrice = 0;
+            if (targetCurrency === 'TRY') {
+                convertedPrice = Math.round(originalPrice * rate);
+            } else {
+                convertedPrice = Number((originalPrice / rate).toFixed(2));
+            }
+            return {
+                type: item.type,
+                price: convertedPrice ? convertedPrice.toLocaleString('tr-TR') : '0',
+                customType: item.customType
+            };
+        });
+        setConvertingItems(updated);
+    };
+
+    const handleSaveCurrencyAndPrices = async () => {
+        if (!ticket) return;
+        setIsSavingCurrency(true);
+        setCurrencyError('');
+
+        try {
+            const totalPrice = convertingItems.reduce((acc, item) => {
+                const clean = String(item.price).replace(/\./g, '').replace(',', '.');
+                return acc + Number(clean || 0);
+            }, 0);
+
+            const itemsToSave = convertingItems.map(item => {
+                const clean = String(item.price).replace(/\./g, '').replace(',', '.');
+                return {
+                    type: item.type,
+                    price: Number(clean || 0),
+                    customType: item.customType
+                };
+            });
+
+            const currentCurr = (ticket as any)?.currency || 'TRY';
+            const note = `Fiyat / Para Birimi güncellendi (${currentCurr} -> ${targetCurrency}: ${targetCurrency === 'USD' ? '$' : '₺'}${totalPrice})`;
+
+            const res = await updateTicketCurrencyAndPrices({
+                ticketId,
+                currency: targetCurrency,
+                repairPrice: totalPrice,
+                repairItems: itemsToSave,
+                conversionNote: note,
+            });
+
+            if (res && !res.success && res.error) {
+                setCurrencyError(res.error);
+                return;
+            }
+
+            setShowCurrencyModal(false);
+            loadTicket();
+        } catch (err: any) {
+            setCurrencyError(err.message || 'Fiyat güncellenirken bir hata oluştu');
+        } finally {
+            setIsSavingCurrency(false);
+        }
+    };
 
     const handleSaveDeviceCondition = async () => {
         setIsSavingDeviceCondition(true);
@@ -802,24 +916,97 @@ export default function TicketDetailPage() {
 
                     {/* Financial Summary */}
                     <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-                        <h3 className="card-title" style={{ marginBottom: 'var(--space-3)' }}>💰 Finansal Özet</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                            <h3 className="card-title" style={{ margin: 0 }}>💰 Finansal Özet</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {((ticket as any)?.currency === 'USD') ? (
+                                    <span style={{
+                                        background: '#ecfdf5',
+                                        color: '#065f46',
+                                        border: '1px solid #a7f3d0',
+                                        padding: '2px 8px',
+                                        borderRadius: '12px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}>
+                                        💵 $ USD Fişi
+                                    </span>
+                                ) : (
+                                    <span style={{
+                                        background: 'var(--bg-tertiary)',
+                                        color: 'var(--text-secondary)',
+                                        border: '1px solid var(--border-primary)',
+                                        padding: '2px 8px',
+                                        borderRadius: '12px',
+                                        fontSize: '11px',
+                                        fontWeight: 700
+                                    }}>
+                                        ₺ TL
+                                    </span>
+                                )}
+
+                                {!readOnly && (
+                                    <button
+                                        type="button"
+                                        className={`btn ${((ticket as any)?.currency === 'USD') ? 'btn-primary' : 'btn-secondary'} btn-xs`}
+                                        style={{
+                                            fontSize: '11px',
+                                            padding: '2px 8px',
+                                            background: ((ticket as any)?.currency === 'USD') ? '#10b981' : undefined,
+                                            borderColor: ((ticket as any)?.currency === 'USD') ? '#10b981' : undefined,
+                                        }}
+                                        onClick={openCurrencyModal}
+                                    >
+                                        {((ticket as any)?.currency === 'USD') ? '🔄 TL Fiyatına Çevir' : '✏️ Fiyatı / Kuru Düzenle'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {((ticket as any)?.currency === 'USD') && (
+                            <div style={{
+                                padding: '8px 12px',
+                                background: 'rgba(16, 185, 129, 0.08)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                color: '#047857',
+                                marginBottom: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}>
+                                <span style={{ fontSize: '16px' }}>💵</span>
+                                <div>
+                                    Bu fiş <strong>${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')} USD</strong> olarak belirlenmiştir. Cihaz teslim edilirken yukarıdaki <strong>TL Fiyatına Çevir</strong> butonuyla güncel kurdan TL tutarına dönüştürebilirsiniz.
+                                </div>
+                            </div>
+                        )}
+
                         {(((ticket as any).repairItems && typeof (ticket as any).repairItems === 'string' ? JSON.parse((ticket as any).repairItems) : (ticket as any).repairItems) as any[])?.length > 0 ? (
                             (((ticket as any).repairItems && typeof (ticket as any).repairItems === 'string' ? JSON.parse((ticket as any).repairItems) : (ticket as any).repairItems) as any[]).map((item, idx) => (
                                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>{REQUEST_TYPE_LABELS[item.type as keyof typeof REQUEST_TYPE_LABELS] || item.type || 'Tamir Tutarı'}</span>
-                                    <span style={{ fontWeight: 500 }}>{formatCurrency(Number(item.price))}</span>
+                                    <span style={{ fontWeight: 600, color: ((ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
+                                        {((ticket as any)?.currency === 'USD') ? `$ ${Number(item.price).toLocaleString('tr-TR')}` : formatCurrency(Number(item.price))}
+                                    </span>
                                 </div>
                             ))
                         ) : (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
                                 <span style={{ color: 'var(--text-secondary)' }}>Tamir Ücreti</span>
-                                <span style={{ fontWeight: 500 }}>{formatCurrency(Number(ticket.repairPrice || 0))}</span>
+                                <span style={{ fontWeight: 600, color: ((ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
+                                    {((ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')}` : formatCurrency(Number(ticket.repairPrice || 0))}
+                                </span>
                             </div>
                         )}
 
                         {ticket.accessories.length > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-                                <span style={{ color: 'var(--text-secondary)' }}>Aksesuarlar</span>
+                                <span style={{ color: 'var(--text-secondary)' }}>Aksesuarlar (₺)</span>
                                 <span style={{ fontWeight: 500 }}>
                                     {formatCurrency(ticket.accessories.reduce((acc, item) => acc + Number(item.totalPrice), 0))}
                                 </span>
@@ -828,16 +1015,18 @@ export default function TicketDetailPage() {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-primary)' }}>
                             <span style={{ fontWeight: 600 }}>Genel Toplam</span>
-                            <span style={{ fontWeight: 700 }}>{formatCurrency(Number(ticket.totalAmount))}</span>
+                            <span style={{ fontWeight: 700, color: ((ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
+                                {((ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')}` : formatCurrency(Number(ticket.totalAmount))}
+                            </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
                             <span style={{ color: 'var(--text-secondary)' }}>Ödenen</span>
                             <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(Number(ticket.paidAmount))}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-primary)' }}>
-                            <span style={{ fontWeight: 600 }}>Kalan</span>
+                            <span style={{ fontWeight: 600 }}>Kalan Borç</span>
                             <span style={{ fontWeight: 700, color: remaining > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                                {formatCurrency(remaining)}
+                                {((ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')} (TL'ye Çevrilmeli)` : formatCurrency(remaining)}
                             </span>
                         </div>
                         <div className="payment-bar">
@@ -1426,6 +1615,192 @@ export default function TicketDetailPage() {
                         <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
                             <button className="btn btn-secondary" onClick={() => setShowOpModal(false)}>İptal</button>
                             <button className="btn btn-primary" onClick={handleAddOpPrice}>➕ Fişe ve Fiyata Ekle</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Currency Conversion Modal */}
+            {showCurrencyModal && ticket && (
+                <div className="modal-overlay" onClick={() => setShowCurrencyModal(false)} style={{ zIndex: 9999 }}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">💵 Fiyat & Para Birimi Güncelle</h3>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setShowCurrencyModal(false)}>✕</button>
+                        </div>
+                        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                                Bu fişin tamir işlemlerinin para birimini ve tutarlarını güncelleyebilirsiniz. Dolar ile fiyat verilen fişleri teslimat günü TL tutarına çevirebilirsiniz.
+                            </p>
+
+                            {currencyError && (
+                                <div style={{ padding: '8px 12px', background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '12px' }}>
+                                    ⚠️ {currencyError}
+                                </div>
+                            )}
+
+                            {/* Target Currency Selector (Sliding Segmented Button) */}
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label" style={{ marginBottom: '6px' }}>Hedef Para Birimi</label>
+                                <div style={{
+                                    display: 'flex',
+                                    background: 'var(--bg-tertiary)',
+                                    padding: '3px',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border-primary)',
+                                    gap: '4px'
+                                }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTargetCurrency('TRY')}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '13px',
+                                            fontWeight: targetCurrency === 'TRY' ? 700 : 500,
+                                            background: targetCurrency === 'TRY' ? 'var(--brand-primary)' : 'transparent',
+                                            color: targetCurrency === 'TRY' ? '#fff' : 'var(--text-secondary)',
+                                            transition: 'all 0.15s ease',
+                                        }}
+                                    >
+                                        ₺ Türk Lirası (TRY)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTargetCurrency('USD')}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '13px',
+                                            fontWeight: targetCurrency === 'USD' ? 700 : 500,
+                                            background: targetCurrency === 'USD' ? '#10b981' : 'transparent',
+                                            color: targetCurrency === 'USD' ? '#fff' : 'var(--text-secondary)',
+                                            transition: 'all 0.15s ease',
+                                        }}
+                                    >
+                                        $ Amerikan Doları (USD)
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Dolar Kuru ile Otomatik Hesaplama (Opsiyonel) */}
+                            <div style={{
+                                padding: '12px',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-primary)',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                            }}>
+                                <label className="form-label" style={{ margin: 0, fontSize: '12px' }}>
+                                    ⚡ Dolar Kuru ile Otomatik Dönüştür (Opsiyonel)
+                                </label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Örn: 38.50"
+                                        value={usdExchangeRate}
+                                        onChange={(e) => setUsdExchangeRate(e.target.value)}
+                                        style={{ flex: 1, fontSize: '13px' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={handleApplyExchangeRate}
+                                    >
+                                        Kuru Uygula
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Repair Items Pricing */}
+                            <div>
+                                <label className="form-label" style={{ marginBottom: '8px' }}>
+                                    Tamir Kalemleri ({targetCurrency === 'USD' ? '$ USD' : '₺ TL'})
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {convertingItems.map((item, idx) => (
+                                        <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <div style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>
+                                                {REQUEST_TYPE_LABELS[item.type as keyof typeof REQUEST_TYPE_LABELS] || item.customType || item.type || 'Tamir İşlemi'}
+                                            </div>
+                                            <div style={{ position: 'relative', width: '160px' }}>
+                                                <input
+                                                    type="text"
+                                                    className="form-input"
+                                                    value={item.price}
+                                                    onChange={(e) => {
+                                                        const raw = e.target.value.replace(/\D/g, '');
+                                                        const updated = [...convertingItems];
+                                                        updated[idx].price = raw ? Number(raw).toLocaleString('tr-TR') : '';
+                                                        setConvertingItems(updated);
+                                                    }}
+                                                    placeholder="0"
+                                                    style={{ paddingRight: '2rem', textAlign: 'right', fontWeight: 600 }}
+                                                />
+                                                <span style={{
+                                                    position: 'absolute',
+                                                    right: '0.8rem',
+                                                    top: '50%',
+                                                    transform: 'translateY(-50%)',
+                                                    color: targetCurrency === 'USD' ? '#10b981' : 'var(--text-tertiary)',
+                                                    fontWeight: 700
+                                                }}>
+                                                    {targetCurrency === 'USD' ? '$' : '₺'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Total Summary */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '10px 14px',
+                                background: 'var(--bg-tertiary)',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-primary)'
+                            }}>
+                                <span style={{ fontWeight: 600 }}>Yeni Tamir Toplamı:</span>
+                                <span style={{ fontSize: '16px', fontWeight: 800, color: targetCurrency === 'USD' ? '#10b981' : 'var(--brand-primary)' }}>
+                                    {targetCurrency === 'USD' ? '$ ' : '₺ '}
+                                    {convertingItems.reduce((acc, item) => acc + Number(String(item.price).replace(/\./g, '') || 0), 0).toLocaleString('tr-TR')}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setShowCurrencyModal(false)}
+                                disabled={isSavingCurrency}
+                            >
+                                İptal
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={handleSaveCurrencyAndPrices}
+                                disabled={isSavingCurrency}
+                                style={{
+                                    background: targetCurrency === 'USD' ? '#10b981' : undefined,
+                                    borderColor: targetCurrency === 'USD' ? '#10b981' : undefined,
+                                }}
+                            >
+                                {isSavingCurrency ? 'Kaydediliyor...' : '💾 Fiyatı ve Para Birimini Kaydet'}
+                            </button>
                         </div>
                     </div>
                 </div>

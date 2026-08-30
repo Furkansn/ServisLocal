@@ -78,6 +78,11 @@ export default function TicketPrintPage() {
         const pickupRecord = ticket.serviceRecords?.find((sr: any) => sr.type === 'PICKUP');
         const pickupDate = pickupRecord ? formatDate(pickupRecord.scheduledDate) : formatDate(ticket.createdAt);
 
+        const formatAmount = (num: number) => {
+            if (ticket.currency === 'USD') return `$ ${num.toLocaleString('tr-TR')}`;
+            return formatCurrency(num);
+        };
+
         const replacements: Record<string, string> = {
             ticketNo: ticket.ticketNo,
             customerName: customerName,
@@ -91,7 +96,7 @@ export default function TicketPrintPage() {
             deviceCondition: ticket.deviceCondition || '',
             brand: ticket.brand?.name || '',
             model: ticket.model || '',
-            totalAmount: formatCurrency(Number(ticket.totalAmount)),
+            totalAmount: formatAmount(Number(ticket.totalAmount)),
             status: STATUS_LABELS[ticket.status as keyof typeof STATUS_LABELS] || ticket.status,
         };
 
@@ -180,9 +185,9 @@ export default function TicketPrintPage() {
                             {el.columns?.map((col: any) => {
                                 let val = '';
                                 if (col.key === 'name') val = item.name;
-                                if (col.key === 'price') val = formatCurrency(item.price);
+                                if (col.key === 'price') val = ticket.currency === 'USD' ? `$ ${item.price.toLocaleString('tr-TR')}` : formatCurrency(item.price);
                                 if (col.key === 'qty') val = String(item.quantity);
-                                if (col.key === 'total') val = formatCurrency(item.price * item.quantity);
+                                if (col.key === 'total') val = ticket.currency === 'USD' ? `$ ${(item.price * item.quantity).toLocaleString('tr-TR')}` : formatCurrency(item.price * item.quantity);
                                 
                                 return (
                                     <td 
@@ -616,10 +621,12 @@ export default function TicketPrintPage() {
                                 {fallbackItems.map((item, idx) => (
                                     <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                         <td style={{ padding: '8px 12px', color: '#374151' }}>{item.name}</td>
-                                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151' }}>{formatCurrency(item.price)}</td>
+                                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#374151' }}>
+                                            {ticket.currency === 'USD' ? `$ ${item.price.toLocaleString('tr-TR')}` : formatCurrency(item.price)}
+                                        </td>
                                         <td style={{ padding: '8px 12px', textAlign: 'center', color: '#374151' }}>{item.quantity}</td>
                                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>
-                                            {formatCurrency(item.price * item.quantity)}
+                                            {ticket.currency === 'USD' ? `$ ${(item.price * item.quantity).toLocaleString('tr-TR')}` : formatCurrency(item.price * item.quantity)}
                                         </td>
                                     </tr>
                                 ))}
@@ -645,14 +652,14 @@ export default function TicketPrintPage() {
                                     <td colSpan={2}></td>
                                     <td style={{ textAlign: 'right', padding: '12px 12px 8px 12px', fontWeight: 600, color: '#4b5563' }}>Ara Toplam</td>
                                     <td style={{ textAlign: 'right', padding: '12px 12px 8px 12px', fontWeight: 600, color: '#374151' }}>
-                                        {formatCurrency(subtotal)}
+                                        {ticket.currency === 'USD' ? `$ ${subtotal.toLocaleString('tr-TR')}` : formatCurrency(subtotal)}
                                     </td>
                                 </tr>
                                 <tr style={{ background: '#EFF6FF' }}>
                                     <td colSpan={2}></td>
                                     <td style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 800, color: '#1e40af' }}>Toplam Fiyat</td>
                                     <td style={{ textAlign: 'right', padding: '10px 12px', fontWeight: 800, color: '#1e40af', fontSize: '14px' }}>
-                                        {formatCurrency(grandTotal)}
+                                        {ticket.currency === 'USD' ? `$ ${grandTotal.toLocaleString('tr-TR')}` : formatCurrency(grandTotal)}
                                     </td>
                                 </tr>
                             </tbody>
