@@ -53,65 +53,81 @@ export async function getCustomerWithTickets(id: string) {
 }
 
 export async function createCustomer(formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Yetkisiz işlem: Lütfen giriş yapınız' };
 
-    const data = {
-        name: formData.get('name') as string,
-        phone: formData.get('phone') as string,
-        taxId: (formData.get('taxId') as string) || undefined,
-        address: (formData.get('address') as string) || undefined,
-        city: formData.get('city') as string,
-        district: formData.get('district') as string,
-    };
+        const data = {
+            name: ((formData.get('name') as string) || '').trim(),
+            phone: ((formData.get('phone') as string) || '').trim(),
+            taxId: (formData.get('taxId') as string)?.trim() || undefined,
+            address: (formData.get('address') as string)?.trim() || undefined,
+            city: ((formData.get('city') as string) || '').trim(),
+            district: ((formData.get('district') as string) || '').trim(),
+        };
 
-    const parsed = customerSchema.parse(data);
+        const parsed = customerSchema.safeParse(data);
+        if (!parsed.success) {
+            const firstError = parsed.error.issues[0]?.message || 'Geçersiz müşteri bilgileri';
+            return { success: false, error: firstError };
+        }
 
-    const customer = await prisma.customer.create({ data: parsed });
+        const customer = await prisma.customer.create({ data: parsed.data });
 
-    await createAuditLog({
-        entityType: 'Customer',
-        entityId: customer.id,
-        action: AuditAction.CREATE,
-        changedById: session.user.id,
-    });
+        await createAuditLog({
+            entityType: 'Customer',
+            entityId: customer.id,
+            action: AuditAction.CREATE,
+            changedById: session.user.id,
+        });
 
-    return customer;
+        return { success: true, ...customer, id: customer.id };
+    } catch (err: any) {
+        return { success: false, error: err.message || 'Müşteri oluşturulurken bir hata oluştu' };
+    }
 }
 
 export async function updateCustomer(id: string, formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Yetkisiz işlem: Lütfen giriş yapınız' };
 
-    const existing = await prisma.customer.findUnique({ where: { id } });
-    if (!existing) throw new Error('Müşteri bulunamadı');
+        const existing = await prisma.customer.findUnique({ where: { id } });
+        if (!existing) return { success: false, error: 'Müşteri bulunamadı' };
 
-    const data = {
-        name: formData.get('name') as string,
-        phone: formData.get('phone') as string,
-        taxId: (formData.get('taxId') as string) || undefined,
-        address: (formData.get('address') as string) || undefined,
-        city: formData.get('city') as string,
-        district: formData.get('district') as string,
-    };
+        const data = {
+            name: ((formData.get('name') as string) || '').trim(),
+            phone: ((formData.get('phone') as string) || '').trim(),
+            taxId: (formData.get('taxId') as string)?.trim() || undefined,
+            address: (formData.get('address') as string)?.trim() || undefined,
+            city: ((formData.get('city') as string) || '').trim(),
+            district: ((formData.get('district') as string) || '').trim(),
+        };
 
-    const parsed = customerSchema.parse(data);
+        const parsed = customerSchema.safeParse(data);
+        if (!parsed.success) {
+            const firstError = parsed.error.issues[0]?.message || 'Geçersiz müşteri bilgileri';
+            return { success: false, error: firstError };
+        }
 
-    const changes = diffFields(existing, parsed, ['name', 'phone', 'taxId', 'address', 'city', 'district']);
+        const changes = diffFields(existing, parsed.data, ['name', 'phone', 'taxId', 'address', 'city', 'district']);
 
-    const customer = await prisma.customer.update({
-        where: { id },
-        data: parsed,
-    });
-
-    if (changes.length > 0) {
-        await logFieldChanges({
-            entityType: 'Customer',
-            entityId: id,
-            changedById: session.user.id,
-            changes,
+        const customer = await prisma.customer.update({
+            where: { id },
+            data: parsed.data,
         });
-    }
 
-    return customer;
+        if (changes.length > 0) {
+            await logFieldChanges({
+                entityType: 'Customer',
+                entityId: id,
+                changedById: session.user.id,
+                changes,
+            });
+        }
+
+        return { success: true, ...customer, id: customer.id };
+    } catch (err: any) {
+        return { success: false, error: err.message || 'Müşteri güncellenirken bir hata oluştu' };
+    }
 }

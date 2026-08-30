@@ -80,42 +80,48 @@ export async function addOperation(data: {
 // ─── Complete Repair ─────────────────────────────────────
 
 export async function completeRepair(ticketId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Yetkisiz işlem: Lütfen giriş yapınız' };
 
-    const ticket = await prisma.repairTicket.findUnique({
-        where: { id: ticketId },
-        include: { _count: { select: { operations: true } } },
-    });
-
-    if (!ticket) throw new Error('Fiş bulunamadı');
-    if (ticket._count.operations === 0) {
-        throw new Error('En az bir işlem girilmelidir');
-    }
-
-    return prisma.$transaction(async (tx) => {
-        const updated = await tx.repairTicket.update({
+        const ticket = await prisma.repairTicket.findUnique({
             where: { id: ticketId },
-            data: { status: TicketStatus.TAMIR_TAMAMLANDI },
+            include: { _count: { select: { operations: true } } },
         });
 
-        await tx.statusHistory.create({
-            data: {
-                ticketId,
-                fromStatus: ticket.status,
-                toStatus: TicketStatus.TAMIR_TAMAMLANDI,
-                changedById: session.user.id,
-                notes: 'Tamir tamamlandı - Teslimat bekliyor',
-            },
+        if (!ticket) return { success: false, error: 'Fiş bulunamadı' };
+        if (ticket._count.operations === 0) {
+            return { success: false, error: 'En az bir tamir işlemi (LED, Ekran vb.) girilmelidir' };
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            const updated = await tx.repairTicket.update({
+                where: { id: ticketId },
+                data: { status: TicketStatus.TAMIR_TAMAMLANDI },
+            });
+
+            await tx.statusHistory.create({
+                data: {
+                    ticketId,
+                    fromStatus: ticket.status,
+                    toStatus: TicketStatus.TAMIR_TAMAMLANDI,
+                    changedById: session.user.id,
+                    notes: 'Tamir tamamlandı - Teslimat bekliyor',
+                },
+            });
+
+            return {
+                ...updated,
+                repairPrice: Number(updated.repairPrice),
+                totalAmount: Number(updated.totalAmount),
+                paidAmount: Number(updated.paidAmount),
+            };
         });
 
-        return {
-            ...updated,
-            repairPrice: Number(updated.repairPrice),
-            totalAmount: Number(updated.totalAmount),
-            paidAmount: Number(updated.paidAmount),
-        };
-    });
+        return { success: true, ...result };
+    } catch (err: any) {
+        return { success: false, error: err.message || 'Tamir tamamlanırken bir hata oluştu' };
+    }
 }
 
 // ─── Get Technician's Active Repairs ─────────────────────

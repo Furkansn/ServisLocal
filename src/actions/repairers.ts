@@ -53,63 +53,81 @@ export async function getRepairerWithTickets(id: string) {
 }
 
 export async function createRepairer(formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Yetkisiz işlem: Lütfen giriş yapınız' };
 
-    const data = {
-        name: formData.get('name') as string,
-        phone: formData.get('phone') as string,
-        taxId: formData.get('taxId') as string,
-        address: (formData.get('address') as string) || undefined,
-        city: formData.get('city') as string,
-        district: formData.get('district') as string,
-    };
+        const data = {
+            name: ((formData.get('name') as string) || '').trim(),
+            phone: ((formData.get('phone') as string) || '').trim(),
+            taxId: ((formData.get('taxId') as string) || '').trim(),
+            address: (formData.get('address') as string)?.trim() || undefined,
+            city: ((formData.get('city') as string) || '').trim(),
+            district: ((formData.get('district') as string) || '').trim(),
+        };
 
-    const parsed = repairerSchema.parse(data);
-    const repairer = await prisma.repairer.create({ data: parsed });
+        const parsed = repairerSchema.safeParse(data);
+        if (!parsed.success) {
+            const firstError = parsed.error.issues[0]?.message || 'Geçersiz tamirci bilgileri';
+            return { success: false, error: firstError };
+        }
 
-    await createAuditLog({
-        entityType: 'Repairer',
-        entityId: repairer.id,
-        action: AuditAction.CREATE,
-        changedById: session.user.id,
-    });
+        const repairer = await prisma.repairer.create({ data: parsed.data });
 
-    return repairer;
+        await createAuditLog({
+            entityType: 'Repairer',
+            entityId: repairer.id,
+            action: AuditAction.CREATE,
+            changedById: session.user.id,
+        });
+
+        return { success: true, ...repairer, id: repairer.id };
+    } catch (err: any) {
+        return { success: false, error: err.message || 'Tamirci oluşturulurken bir hata oluştu' };
+    }
 }
 
 export async function updateRepairer(id: string, formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Yetkisiz işlem: Lütfen giriş yapınız' };
 
-    const existing = await prisma.repairer.findUnique({ where: { id } });
-    if (!existing) throw new Error('Tamirci bulunamadı');
+        const existing = await prisma.repairer.findUnique({ where: { id } });
+        if (!existing) return { success: false, error: 'Tamirci bulunamadı' };
 
-    const data = {
-        name: formData.get('name') as string,
-        phone: formData.get('phone') as string,
-        taxId: formData.get('taxId') as string,
-        address: (formData.get('address') as string) || undefined,
-        city: formData.get('city') as string,
-        district: formData.get('district') as string,
-    };
+        const data = {
+            name: ((formData.get('name') as string) || '').trim(),
+            phone: ((formData.get('phone') as string) || '').trim(),
+            taxId: ((formData.get('taxId') as string) || '').trim(),
+            address: (formData.get('address') as string)?.trim() || undefined,
+            city: ((formData.get('city') as string) || '').trim(),
+            district: ((formData.get('district') as string) || '').trim(),
+        };
 
-    const parsed = repairerSchema.parse(data);
-    const changes = diffFields(existing, parsed, ['name', 'phone', 'taxId', 'address', 'city', 'district']);
+        const parsed = repairerSchema.safeParse(data);
+        if (!parsed.success) {
+            const firstError = parsed.error.issues[0]?.message || 'Geçersiz tamirci bilgileri';
+            return { success: false, error: firstError };
+        }
 
-    const repairer = await prisma.repairer.update({
-        where: { id },
-        data: parsed,
-    });
+        const changes = diffFields(existing, parsed.data, ['name', 'phone', 'taxId', 'address', 'city', 'district']);
 
-    if (changes.length > 0) {
-        await logFieldChanges({
-            entityType: 'Repairer',
-            entityId: id,
-            changedById: session.user.id,
-            changes,
+        const repairer = await prisma.repairer.update({
+            where: { id },
+            data: parsed.data,
         });
-    }
 
-    return repairer;
+        if (changes.length > 0) {
+            await logFieldChanges({
+                entityType: 'Repairer',
+                entityId: id,
+                changedById: session.user.id,
+                changes,
+            });
+        }
+
+        return { success: true, ...repairer, id: repairer.id };
+    } catch (err: any) {
+        return { success: false, error: err.message || 'Tamirci güncellenirken bir hata oluştu' };
+    }
 }

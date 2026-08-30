@@ -222,12 +222,23 @@ export default function TechnicianPage() {
     };
 
     const handleComplete = async (ticketId: string) => {
+        const targetRepair = repairs.find(r => r.id === ticketId);
+        if (targetRepair && (!targetRepair.operations || targetRepair.operations.length === 0)) {
+            alert('⚠️ Bu fişi tamamlamadan önce lütfen en az bir tamir işlemi (LED, Ekran vb.) ekleyiniz!');
+            return;
+        }
         if (!confirm('Tamiri tamamlamak istediğinize emin misiniz?')) return;
         try {
-            await completeRepair(ticketId);
+            const res = await completeRepair(ticketId);
+            if (res && !res.success && res.error) {
+                alert('⚠️ ' + res.error);
+                return;
+            }
             setActiveId(null);
             load();
-        } catch (err: any) { alert(err.message); }
+        } catch (err: any) {
+            alert(err.message || 'Tamir tamamlanırken bir hata oluştu.');
+        }
     };
 
     const openActionModal = async (record: WorkOrder) => {

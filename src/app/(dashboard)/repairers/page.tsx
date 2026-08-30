@@ -75,30 +75,54 @@ export default function RepairersPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const cleanName = formData.name.trim();
+        if (!cleanName || cleanName.length < 2) {
+            alert('⚠️ Lütfen geçerli bir Firma / Tamirci Adı giriniz (En az 2 karakter olmalıdır).');
+            return;
+        }
+
         if (!isPhoneComplete(formData.phone)) {
-            alert('Lütfen 11 haneli geçerli bir telefon numarası giriniz (Örn: 0532 123 45 67)');
+            alert('⚠️ Lütfen 11 haneli geçerli bir telefon numarası giriniz (Örn: 0532 123 45 67)');
+            return;
+        }
+
+        if (!formData.taxId.trim()) {
+            alert('⚠️ Lütfen Vergi Kimlik Numarası (VKN) giriniz.');
+            return;
+        }
+
+        if (!formData.city || !formData.district) {
+            alert('⚠️ Lütfen İl ve İlçe seçiniz.');
             return;
         }
 
         try {
             const fd = new FormData();
-            fd.append('name', formData.name);
+            fd.append('name', cleanName);
             fd.append('phone', formData.phone);
-            fd.append('taxId', formData.taxId);
-            fd.append('city', formData.city);
-            fd.append('district', formData.district);
-            if (formData.address) fd.append('address', formData.address);
+            fd.append('taxId', formData.taxId.trim());
+            fd.append('city', formData.city.trim());
+            fd.append('district', formData.district.trim());
+            if (formData.address) fd.append('address', formData.address.trim());
 
+            let res: any;
             if (editing) {
-                await updateRepairer(editing.id, fd);
+                res = await updateRepairer(editing.id, fd);
             } else {
-                await createRepairer(fd);
+                res = await createRepairer(fd);
             }
+
+            if (res && res.error) {
+                alert('⚠️ ' + res.error);
+                return;
+            }
+
             setShowForm(false);
             setEditing(null);
             load();
         } catch (err: any) {
-            alert(err.message);
+            alert(err.message || 'Tamirci kaydedilirken bir hata oluştu');
         }
     };
 

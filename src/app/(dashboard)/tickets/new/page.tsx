@@ -124,6 +124,23 @@ export default function NewTicketPage() {
         e.preventDefault();
         setError('');
 
+        if (customerType === 'INDIVIDUAL' && !customerId) {
+            setError('⚠️ Lütfen bir müşteri seçiniz veya yeni müşteri ekleyiniz.');
+            return;
+        }
+        if (customerType === 'REPAIRER' && !repairerId) {
+            setError('⚠️ Lütfen bir tamirci seçiniz veya yeni tamirci ekleyiniz.');
+            return;
+        }
+        if (!brandId) {
+            setError('⚠️ Lütfen cihaz markasını seçiniz.');
+            return;
+        }
+        if (!model.trim()) {
+            setError('⚠️ Lütfen cihaz modelini giriniz.');
+            return;
+        }
+
         startTransition(async () => {
             try {
                 const ticket = await createTicket({
@@ -133,8 +150,8 @@ export default function NewTicketPage() {
                     customerId: customerId || undefined,
                     repairerId: repairerId || undefined,
                     brandId,
-                    model,
-                    serialNo: serialNo || undefined,
+                    model: model.trim(),
+                    serialNo: serialNo.trim() || undefined,
                     hasWarranty,
                     deviceCondition: deviceCondition || undefined,
                     notes: notes || undefined,
@@ -149,7 +166,7 @@ export default function NewTicketPage() {
                 });
                 router.push(`/tickets/${ticket.id}`);
             } catch (err: any) {
-                setError(err.message || 'Bir hata oluştu');
+                setError(err.message || 'Fiş oluşturulurken bir hata oluştu');
             }
         });
     };
@@ -170,34 +187,56 @@ export default function NewTicketPage() {
 
     const handleCreateCustomer = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isPhoneComplete(newCustomer.phone)) {
-            alert('Lütfen 11 haneli geçerli bir telefon numarası giriniz (Örn: 0532 123 45 67)');
+
+        const cleanName = newCustomer.name.trim();
+        if (!cleanName || cleanName.length < 2) {
+            alert('⚠️ Lütfen geçerli bir isim / firma adı giriniz (En az 2 karakter olmalıdır).');
             return;
         }
+
+        if (!isPhoneComplete(newCustomer.phone)) {
+            alert('⚠️ Lütfen 11 haneli geçerli bir telefon numarası giriniz (Örn: 0532 123 45 67)');
+            return;
+        }
+
+        if (!newCustomer.city || !newCustomer.district) {
+            alert('⚠️ Lütfen İl ve İlçe seçiniz.');
+            return;
+        }
+
         setIsCreatingCustomer(true);
         try {
             const formData = new FormData();
-            formData.append('name', newCustomer.name);
+            formData.append('name', cleanName);
             formData.append('phone', newCustomer.phone);
-            formData.append('city', newCustomer.city);
-            formData.append('district', newCustomer.district);
-            if (newCustomer.address) formData.append('address', newCustomer.address);
+            formData.append('city', newCustomer.city.trim());
+            formData.append('district', newCustomer.district.trim());
+            if (newCustomer.address) formData.append('address', newCustomer.address.trim());
             
             if (newCustomer.type === 'INDIVIDUAL') {
-                const customer = await createCustomer(formData);
+                const res: any = await createCustomer(formData);
+                if (res && res.error) {
+                    alert('⚠️ ' + res.error);
+                    return;
+                }
                 setCustomerType('INDIVIDUAL');
-                setCustomerId(customer.id);
-                setSelectedCustomer(customer);
+                setCustomerId(res.id);
+                setSelectedCustomer(res);
             } else {
-                const repairer = await createRepairer(formData);
+                formData.append('taxId', '1111111111'); // Default VKN for quick modal creation if needed
+                const res: any = await createRepairer(formData);
+                if (res && res.error) {
+                    alert('⚠️ ' + res.error);
+                    return;
+                }
                 setCustomerType('REPAIRER');
-                setRepairerId(repairer.id);
-                setSelectedRepairer(repairer);
+                setRepairerId(res.id);
+                setSelectedRepairer(res);
             }
             setShowNewCustomerModal(false);
             setNewCustomer({ type: 'INDIVIDUAL', name: '', phone: '0', city: 'İstanbul', district: 'Sultanbeyli', address: '' });
         } catch (err: any) {
-            alert(err.message);
+            alert(err.message || 'Müşteri eklenirken hata oluştu');
         } finally {
             setIsCreatingCustomer(false);
         }
