@@ -171,8 +171,9 @@ export default function CustomersPage() {
                                         name="name"
                                         className="form-input"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase('tr-TR') })}
                                         placeholder="Ad Soyad"
+                                        style={{ textTransform: 'uppercase' }}
                                         required
                                     />
                                 </div>

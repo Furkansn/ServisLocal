@@ -599,6 +599,7 @@ export default function NewTicketPage() {
                                     value={model}
                                     onChange={(e) => setModel(e.target.value.toLocaleUpperCase('tr-TR'))}
                                     placeholder="Cihaz modeli"
+                                    style={{ textTransform: 'uppercase' }}
                                     required
                                 />
                             </div>
@@ -609,8 +610,9 @@ export default function NewTicketPage() {
                                     type="text"
                                     className="form-input"
                                     value={serialNo}
-                                    onChange={(e) => setSerialNo(e.target.value)}
+                                    onChange={(e) => setSerialNo(e.target.value.toLocaleUpperCase('tr-TR'))}
                                     placeholder="Seri numarası (opsiyonel)"
+                                    style={{ textTransform: 'uppercase' }}
                                 />
                             </div>
                         </div>
@@ -680,7 +682,9 @@ export default function NewTicketPage() {
                                         type="text"
                                         className="form-input"
                                         value={newCustomer.name}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value.toLocaleUpperCase('tr-TR') })}
+                                        placeholder="Ad Soyad / Firma Adı"
+                                        style={{ textTransform: 'uppercase' }}
                                         required
                                     />
                                 </div>

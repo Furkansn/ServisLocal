@@ -148,8 +148,9 @@ export default function RepairersPage() {
                                         name="name"
                                         className="form-input"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase('tr-TR') })}
                                         placeholder="Firma / Tamirci Adı"
+                                        style={{ textTransform: 'uppercase' }}
                                         required
                                     />
                                 </div>

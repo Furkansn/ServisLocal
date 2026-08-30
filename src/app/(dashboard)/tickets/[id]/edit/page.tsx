@@ -541,6 +541,7 @@ export default function EditTicketPage() {
                                     value={model}
                                     onChange={(e) => setModel(e.target.value.toLocaleUpperCase('tr-TR'))}
                                     placeholder="Cihaz modeli"
+                                    style={{ textTransform: 'uppercase' }}
                                     required
                                 />
                             </div>
@@ -551,8 +552,9 @@ export default function EditTicketPage() {
                                     type="text"
                                     className="form-input"
                                     value={serialNo}
-                                    onChange={(e) => setSerialNo(e.target.value)}
+                                    onChange={(e) => setSerialNo(e.target.value.toLocaleUpperCase('tr-TR'))}
                                     placeholder="Seri numarası (opsiyonel)"
+                                    style={{ textTransform: 'uppercase' }}
                                 />
                             </div>
                         </div>
