@@ -6,6 +6,7 @@ export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
     SCREEN_CHANGE: 'Ekran Değişimi',
     SCREEN_LED_CHANGE: 'Ekran + LED Değişimi',
     LED_CHANGE: 'LED Değişimi',
+    LED_LGP_CHANGE: 'Led ve LGP Değişimi',
     LGP_REPAIR: 'LGP Tamir',
     BOARD_REPAIR: 'Kart Tamiri',
     OTHER: 'Diğer',
@@ -101,6 +102,46 @@ export function getLocalDateString(date?: Date | string): string {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+// ─── Phone Number Format & Validation ───────────────────
+
+export function formatPhoneNumber(val: string): string {
+    if (!val) return '0';
+    let digits = val.replace(/\D/g, '');
+
+    // If starts with 90 and has extra digits, strip leading 9
+    if (digits.startsWith('90') && digits.length >= 11) {
+        digits = '0' + digits.slice(2);
+    }
+
+    // Ensure it starts with 0
+    if (!digits.startsWith('0')) {
+        digits = '0' + digits;
+    }
+
+    // Cap at 11 digits (0XXX XXX XX XX)
+    digits = digits.slice(0, 11);
+
+    // Format: 0XXX XXX XX XX
+    let formatted = digits.slice(0, 4);
+    if (digits.length > 4) {
+        formatted += ' ' + digits.slice(4, 7);
+    }
+    if (digits.length > 7) {
+        formatted += ' ' + digits.slice(7, 9);
+    }
+    if (digits.length > 9) {
+        formatted += ' ' + digits.slice(9, 11);
+    }
+
+    return formatted;
+}
+
+export function isPhoneComplete(val: string): boolean {
+    if (!val) return false;
+    const digits = val.replace(/\D/g, '');
+    return digits.length === 11 && digits.startsWith('0');
 }
 
 // ─── Default Values ──────────────────────────────────────

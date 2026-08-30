@@ -7,7 +7,9 @@ import { getCustomers, createCustomer } from '@/actions/customers';
 import { getRepairers, createRepairer } from '@/actions/repairers';
 import { getBrands, createBrand } from '@/actions/brands';
 import { getPersonnelByRole } from '@/actions/personnel';
-import { REQUEST_TYPE_LABELS, PRIORITY_LABELS, CUSTOMER_TYPE_LABELS } from '@/lib/constants';
+import { REQUEST_TYPE_LABELS, PRIORITY_LABELS, CUSTOMER_TYPE_LABELS, formatPhoneNumber, isPhoneComplete } from '@/lib/constants';
+import { CITIES_LIST, getDistrictsByCity } from '@/lib/turkey-locations';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import { RequestType, Priority, Role } from '@prisma/client';
 
 export default function NewTicketPage() {
@@ -48,7 +50,7 @@ export default function NewTicketPage() {
 
     // New customer state
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
-    const [newCustomer, setNewCustomer] = useState({ type: 'INDIVIDUAL', name: '', phone: '', city: '', district: '', address: '' });
+    const [newCustomer, setNewCustomer] = useState({ type: 'INDIVIDUAL', name: '', phone: '0', city: 'İstanbul', district: 'Sultanbeyli', address: '' });
     const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
 
@@ -94,10 +96,29 @@ export default function NewTicketPage() {
                 { type: 'SCREEN_CHANGE', price: '' },
                 { type: 'LED_CHANGE', price: '' }
             ]);
+        } else if (requestType === 'LED_LGP_CHANGE') {
+            setRepairItems([
+                { type: 'LED_CHANGE', price: '' },
+                { type: 'LGP_REPAIR', price: '' }
+            ]);
         } else {
             setRepairItems([{ type: requestType, price: '' }]);
         }
     }, [requestType]);
+
+    const handleCustomerCityChange = (newCity: string) => {
+        const districts = getDistrictsByCity(newCity);
+        const currentStillValid = districts.includes(newCustomer.district);
+        let newDistrict = newCustomer.district;
+        if (!currentStillValid) {
+            if (newCity === 'İstanbul') {
+                newDistrict = 'Sultanbeyli';
+            } else {
+                newDistrict = districts.length > 0 ? districts[0] : '';
+            }
+        }
+        setNewCustomer(prev => ({ ...prev, city: newCity, district: newDistrict }));
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -149,6 +170,10 @@ export default function NewTicketPage() {
 
     const handleCreateCustomer = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!isPhoneComplete(newCustomer.phone)) {
+            alert('Lütfen 11 haneli geçerli bir telefon numarası giriniz (Örn: 0532 123 45 67)');
+            return;
+        }
         setIsCreatingCustomer(true);
         try {
             const formData = new FormData();
@@ -170,7 +195,7 @@ export default function NewTicketPage() {
                 setSelectedRepairer(repairer);
             }
             setShowNewCustomerModal(false);
-            setNewCustomer({ type: 'INDIVIDUAL', name: '', phone: '', city: '', district: '', address: '' });
+            setNewCustomer({ type: 'INDIVIDUAL', name: '', phone: '0', city: 'İstanbul', district: 'Sultanbeyli', address: '' });
         } catch (err: any) {
             alert(err.message);
         } finally {
@@ -383,7 +408,7 @@ export default function NewTicketPage() {
                                                 style={{ flex: 1 }}
                                             />
                                             <button type="button" className="btn btn-secondary" onClick={() => {
-                                                setNewCustomer(prev => ({ ...prev, type: 'INDIVIDUAL' }));
+                                                setNewCustomer({ type: 'INDIVIDUAL', name: '', phone: '0', city: 'İstanbul', district: 'Sultanbeyli', address: '' });
                                                 setShowNewCustomerModal(true);
                                             }}>
                                                 ➕ Yeni Ekle
@@ -462,7 +487,7 @@ export default function NewTicketPage() {
                                                 style={{ flex: 1 }}
                                             />
                                             <button type="button" className="btn btn-secondary" onClick={() => {
-                                                setNewCustomer(prev => ({ ...prev, type: 'REPAIRER' }));
+                                                setNewCustomer({ type: 'REPAIRER', name: '', phone: '0', city: 'İstanbul', district: 'Sultanbeyli', address: '' });
                                                 setShowNewCustomerModal(true);
                                             }}>
                                                 ➕ Yeni Ekle
@@ -664,10 +689,16 @@ export default function NewTicketPage() {
                                     <input
                                         type="tel"
                                         className="form-input"
+                                        placeholder="05XX XXX XX XX"
                                         value={newCustomer.phone}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, phone: formatPhoneNumber(e.target.value) })}
                                         required
                                     />
+                                    {newCustomer.phone && newCustomer.phone.replace(/\D/g, '').length < 11 && (
+                                        <div style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px' }}>
+                                            ⚠️ Telefon numarası eksik (11 hane olmalı: 05XX XXX XX XX)
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="form-group">
                                     <label className={`form-label ${newCustomer.type === 'INDIVIDUAL' ? 'required' : ''}`}>Adres</label>
@@ -682,22 +713,23 @@ export default function NewTicketPage() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                                     <div className="form-group">
                                         <label className="form-label required">İl</label>
-                                        <input
-                                            type="text"
-                                            className="form-input"
+                                        <SearchableSelect
+                                            options={CITIES_LIST}
                                             value={newCustomer.city}
-                                            onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                                            onChange={handleCustomerCityChange}
+                                            placeholder="İl seçin veya arayın..."
                                             required
                                         />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label required">İlçe</label>
-                                        <input
-                                            type="text"
-                                            className="form-input"
+                                        <SearchableSelect
+                                            options={getDistrictsByCity(newCustomer.city)}
                                             value={newCustomer.district}
-                                            onChange={(e) => setNewCustomer({ ...newCustomer, district: e.target.value })}
+                                            onChange={(newDistrict) => setNewCustomer(prev => ({ ...prev, district: newDistrict }))}
+                                            placeholder="İlçe seçin veya arayın..."
                                             required
+                                            disabled={!newCustomer.city}
                                         />
                                     </div>
                                 </div>

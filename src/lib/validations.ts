@@ -4,29 +4,41 @@ import { z } from 'zod';
 
 export const customerSchema = z.object({
     name: z.string().min(2, 'Ad Soyad en az 2 karakter olmalı'),
-    phone: z.string().min(10, 'Geçerli bir telefon numarası girin'),
+    phone: z.string().refine(
+        (val) => {
+            const digits = val.replace(/\D/g, '');
+            return digits.length === 11 || digits.length === 10;
+        },
+        { message: 'Telefon numarası 11 haneli olmalıdır (Örn: 0532 123 45 67)' }
+    ),
     taxId: z.string().optional(),
     address: z.string().optional(),
-    city: z.string().min(1, 'İl seçiniz'),
-    district: z.string().min(1, 'İlçe seçiniz'),
+    city: z.string().min(1, 'İl giriniz'),
+    district: z.string().min(1, 'İlçe giriniz'),
 });
 
 // ─── Repairer Validations ────────────────────────────────
 
 export const repairerSchema = z.object({
     name: z.string().min(2, 'Ad Soyad en az 2 karakter olmalı'),
-    phone: z.string().min(10, 'Geçerli bir telefon numarası girin'),
+    phone: z.string().refine(
+        (val) => {
+            const digits = val.replace(/\D/g, '');
+            return digits.length === 11 || digits.length === 10;
+        },
+        { message: 'Telefon numarası 11 haneli olmalıdır (Örn: 0532 123 45 67)' }
+    ),
     taxId: z.string().min(1, 'VKN zorunludur'),
     address: z.string().optional(),
-    city: z.string().min(1, 'İl seçiniz'),
-    district: z.string().min(1, 'İlçe seçiniz'),
+    city: z.string().min(1, 'İl giriniz'),
+    district: z.string().min(1, 'İlçe giriniz'),
 });
 
 // ─── Ticket Validations ──────────────────────────────────
 
 export const createTicketSchema = z.object({
     requestType: z.enum([
-        'SCREEN_CHANGE', 'SCREEN_LED_CHANGE', 'LED_CHANGE',
+        'SCREEN_CHANGE', 'SCREEN_LED_CHANGE', 'LED_CHANGE', 'LED_LGP_CHANGE',
         'LGP_REPAIR', 'BOARD_REPAIR', 'OTHER'
     ]),
     priority: z.enum(['STANDARD', 'PRIORITY', 'URGENT']).default('STANDARD'),

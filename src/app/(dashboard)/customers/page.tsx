@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { getCustomers, createCustomer, updateCustomer } from '@/actions/customers';
+import { formatPhoneNumber, isPhoneComplete } from '@/lib/constants';
+import { CITIES_LIST, getDistrictsByCity } from '@/lib/turkey-locations';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 
 type Customer = Awaited<ReturnType<typeof getCustomers>>[0];
 
@@ -11,6 +14,14 @@ export default function CustomersPage() {
     const [isPending, startTransition] = useTransition();
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState<Customer | null>(null);
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '0',
+        taxId: '',
+        city: 'İstanbul',
+        district: 'Sultanbeyli',
+        address: '',
+    });
 
     const loadCustomers = () => {
         startTransition(async () => {
@@ -26,12 +37,66 @@ export default function CustomersPage() {
 
     useEffect(() => { loadCustomers(); }, []);
 
-    const handleSubmit = async (formData: FormData) => {
-        try {
-            if (editing) {
-                await updateCustomer(editing.id, formData);
+    const openNewModal = () => {
+        setEditing(null);
+        setFormData({
+            name: '',
+            phone: '0',
+            taxId: '',
+            city: 'İstanbul',
+            district: 'Sultanbeyli',
+            address: '',
+        });
+        setShowForm(true);
+    };
+
+    const openEditModal = (c: Customer) => {
+        setEditing(c);
+        setFormData({
+            name: c.name,
+            phone: formatPhoneNumber(c.phone),
+            taxId: c.taxId || '',
+            city: c.city || 'İstanbul',
+            district: c.district || (c.city === 'İstanbul' || !c.city ? 'Sultanbeyli' : ''),
+            address: c.address || '',
+        });
+        setShowForm(true);
+    };
+
+    const handleCityChange = (newCity: string) => {
+        const districts = getDistrictsByCity(newCity);
+        const currentStillValid = districts.includes(formData.district);
+        let newDistrict = formData.district;
+        if (!currentStillValid) {
+            if (newCity === 'İstanbul') {
+                newDistrict = 'Sultanbeyli';
             } else {
-                await createCustomer(formData);
+                newDistrict = districts.length > 0 ? districts[0] : '';
+            }
+        }
+        setFormData(prev => ({ ...prev, city: newCity, district: newDistrict }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!isPhoneComplete(formData.phone)) {
+            alert('Lütfen 11 haneli geçerli bir telefon numarası giriniz (Örn: 0532 123 45 67)');
+            return;
+        }
+
+        try {
+            const fd = new FormData();
+            fd.append('name', formData.name);
+            fd.append('phone', formData.phone);
+            if (formData.taxId) fd.append('taxId', formData.taxId);
+            fd.append('city', formData.city);
+            fd.append('district', formData.district);
+            if (formData.address) fd.append('address', formData.address);
+
+            if (editing) {
+                await updateCustomer(editing.id, fd);
+            } else {
+                await createCustomer(fd);
             }
             setShowForm(false);
             setEditing(null);
@@ -48,7 +113,7 @@ export default function CustomersPage() {
                     <h1 className="page-title">Müşteriler</h1>
                     <p className="page-subtitle">{customers.length} kayıt</p>
                 </div>
-                <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+                <button className="btn btn-primary" onClick={openNewModal}>
                     ➕ Yeni Müşteri
                 </button>
             </div>
@@ -82,7 +147,7 @@ export default function CustomersPage() {
                                 <td>{c.taxId || '-'}</td>
                                 <td>{c.city} / {c.district}</td>
                                 <td>
-                                    <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setEditing(c); setShowForm(true); }}>✏️</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); openEditModal(c); }}>✏️</button>
                                 </td>
                             </tr>
                         ))}
@@ -98,33 +163,79 @@ export default function CustomersPage() {
                             <h3 className="modal-title">{editing ? '✏️ Müşteri Düzenle' : '➕ Yeni Müşteri'}</h3>
                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowForm(false)}>✕</button>
                         </div>
-                        <form action={handleSubmit}>
+                        <form onSubmit={handleSubmit}>
                             <div className="modal-body">
                                 <div className="form-group">
                                     <label className="form-label required">Ad Soyad</label>
-                                    <input name="name" className="form-input" defaultValue={editing?.name || ''} required />
+                                    <input
+                                        name="name"
+                                        className="form-input"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="Ad Soyad"
+                                        required
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label required">Telefon</label>
-                                    <input name="phone" className="form-input" defaultValue={editing?.phone || ''} required />
+                                    <input
+                                        name="phone"
+                                        type="tel"
+                                        className="form-input"
+                                        placeholder="05XX XXX XX XX"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                                        required
+                                    />
+                                    {formData.phone && formData.phone.replace(/\D/g, '').length < 11 && (
+                                        <div style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px' }}>
+                                            ⚠️ Telefon numarası eksik (11 hane olmalı: 05XX XXX XX XX)
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">VKN</label>
-                                    <input name="taxId" className="form-input" defaultValue={editing?.taxId || ''} />
+                                    <input
+                                        name="taxId"
+                                        className="form-input"
+                                        value={formData.taxId}
+                                        onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
+                                        placeholder="VKN (Opsiyonel)"
+                                    />
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                                     <div className="form-group">
                                         <label className="form-label required">İl</label>
-                                        <input name="city" className="form-input" defaultValue={editing?.city || ''} required />
+                                        <SearchableSelect
+                                            options={CITIES_LIST}
+                                            value={formData.city}
+                                            onChange={handleCityChange}
+                                            placeholder="İl seçin veya arayın..."
+                                            required
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label required">İlçe</label>
-                                        <input name="district" className="form-input" defaultValue={editing?.district || ''} required />
+                                        <SearchableSelect
+                                            options={getDistrictsByCity(formData.city)}
+                                            value={formData.district}
+                                            onChange={(newDistrict) => setFormData(prev => ({ ...prev, district: newDistrict }))}
+                                            placeholder="İlçe seçin veya arayın..."
+                                            required
+                                            disabled={!formData.city}
+                                        />
                                     </div>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Adres</label>
-                                    <textarea name="address" className="form-textarea" defaultValue={editing?.address || ''} rows={2} />
+                                    <textarea
+                                        name="address"
+                                        className="form-textarea"
+                                        value={formData.address}
+                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                        placeholder="Açık adres..."
+                                        rows={2}
+                                    />
                                 </div>
                             </div>
                             <div className="modal-footer">
