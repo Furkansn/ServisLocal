@@ -147,7 +147,7 @@ export default function ProductsPage() {
         setSyncing(true);
         setSyncResult(null);
         try {
-            const res = await syncAllExternalProducts();
+            const res = await syncAllExternalProducts({ fullSync: true });
             if (res.success) {
                 setSyncResult({
                     success: true,

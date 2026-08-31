@@ -61,9 +61,11 @@ async function runInChunks<T>(items: T[], chunkSize: number, fn: (item: T) => Pr
 }
 
 /**
- * Sync all LED products from Company A and EKRAN products from Company B.
+ * Sync LED products from Company A and EKRAN products from Company B.
+ * Supports incremental delta sync using `updatedSince` (only fetches products changed since last sync).
+ * Pass `{ fullSync: true }` to force a complete re-sync of all products.
  */
-export async function syncAllExternalProducts() {
+export async function syncAllExternalProducts(options?: { fullSync?: boolean }) {
     try {
         const baseUrl = await getRemoteApiBaseUrl();
         const usdRate = await getUsdTryRate();
@@ -72,14 +74,29 @@ export async function syncAllExternalProducts() {
             'x-api-key': SERVISPLUS_SYNC_API_KEY,
         };
 
+        // Determine if this is an incremental delta sync
+        let updatedSinceParam = '';
+        if (!options?.fullSync) {
+            const lastSynced = await prisma.product.findFirst({
+                where: { externalSource: { not: null }, lastSyncAt: { not: null } },
+                orderBy: { lastSyncAt: 'desc' },
+                select: { lastSyncAt: true },
+            });
+            if (lastSynced?.lastSyncAt) {
+                // Buffer by 2 minutes to catch any simultaneous updates safely
+                const bufferTime = new Date(lastSynced.lastSyncAt.getTime() - 2 * 60 * 1000);
+                updatedSinceParam = `&updatedSince=${encodeURIComponent(bufferTime.toISOString())}`;
+            }
+        }
+
         // 1. Fetch Company A (LED) and Company B (EKRAN) in parallel
         const [resA, resB] = await Promise.all([
             fetch(
-                `${baseUrl}/api/servisplus?companyId=${INTEGRATION_CONFIG.COMPANY_A.id}&productGroup=${INTEGRATION_CONFIG.COMPANY_A.productGroup}`,
+                `${baseUrl}/api/servisplus?companyId=${INTEGRATION_CONFIG.COMPANY_A.id}&productGroup=${INTEGRATION_CONFIG.COMPANY_A.productGroup}${updatedSinceParam}`,
                 { headers, cache: 'no-store' }
             ),
             fetch(
-                `${baseUrl}/api/servisplus?companyId=${INTEGRATION_CONFIG.COMPANY_B.id}&productGroup=${INTEGRATION_CONFIG.COMPANY_B.productGroup}`,
+                `${baseUrl}/api/servisplus?companyId=${INTEGRATION_CONFIG.COMPANY_B.id}&productGroup=${INTEGRATION_CONFIG.COMPANY_B.productGroup}${updatedSinceParam}`,
                 { headers, cache: 'no-store' }
             ),
         ]);
@@ -94,6 +111,17 @@ export async function syncAllExternalProducts() {
         if (resB.ok) {
             const dataB = await resB.json();
             productsB = Array.isArray(dataB?.products) ? dataB.products : [];
+        }
+
+        // If incremental sync and no products changed, return immediately in ~20ms
+        if (updatedSinceParam && productsA.length === 0 && productsB.length === 0) {
+            return {
+                success: true,
+                isDelta: true,
+                updatedCount: 0,
+                usdRate,
+                lastSyncAt: new Date(),
+            };
         }
 
         // 2. Fetch all existing integrated products in ONE fast query
