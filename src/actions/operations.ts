@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth';
 import { AuditAction, TicketStatus } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { syncOperationToCompatibility, deleteOperationFromCompatibility } from '@/actions/compatibility';
-import { createRemoteSaleForProduct, cancelRemoteSale } from '@/actions/integration';
+import { createRemoteSaleForProduct, updateRemoteSaleForProduct, cancelRemoteSale } from '@/actions/integration';
 
 // ─── Add Operation ───────────────────────────────────────
 
@@ -31,15 +31,17 @@ export async function addOperation(data: {
     let remoteSaleId: string | undefined = undefined;
     let remoteSource: string | undefined = undefined;
 
-    // If installed product has external integration, create remote sale
+    // If installed product has external integration, create remote sale with title
     if (data.installedProductId) {
         const prod = await prisma.product.findUnique({ where: { id: data.installedProductId } });
         if (prod?.externalSource) {
             remoteSource = prod.externalSource;
+            const saleTitle = `Servis Fişi ${ticket.ticketNo}${ticket.model ? ` - ${ticket.model}` : ''}`;
             const remoteRes = await createRemoteSaleForProduct({
                 productId: prod.id,
                 quantity: 1,
                 ticketNo: ticket.ticketNo,
+                title: saleTitle,
             });
             if (remoteRes.success && remoteRes.saleId) {
                 remoteSaleId = remoteRes.saleId;
@@ -247,6 +249,71 @@ export async function updateOperation(data: {
     const oldProductId = existingOp.installedProductId;
     const newProductId = data.installedProductId || null;
 
+    let finalRemoteSaleId = existingOp.remoteSaleId;
+    let finalRemoteSource = existingOp.remoteSource;
+
+    // Handle remote sale lifecycle if installed product changed
+    if (oldProductId !== newProductId) {
+        const ticket = existingOp.ticket;
+        const saleTitle = `Servis Fişi ${ticket.ticketNo}${ticket.model ? ` - ${ticket.model}` : ''}`;
+
+        const oldProduct = oldProductId ? await prisma.product.findUnique({ where: { id: oldProductId } }) : null;
+        const newProduct = newProductId ? await prisma.product.findUnique({ where: { id: newProductId } }) : null;
+
+        // Case 1: Existing remote sale exists, and new product is from the SAME external company -> UPDATE_SALE
+        if (existingOp.remoteSaleId && newProduct?.externalSource && oldProduct?.externalCompanyId === newProduct?.externalCompanyId) {
+            finalRemoteSource = newProduct.externalSource;
+            const updateRes = await updateRemoteSaleForProduct({
+                saleId: existingOp.remoteSaleId,
+                productId: newProduct.id,
+                quantity: 1,
+                ticketNo: ticket.ticketNo,
+                title: saleTitle,
+            });
+
+            // If update sale failed on remote side, fallback to cancel old + create new
+            if (!updateRes.success) {
+                await cancelRemoteSale({ saleId: existingOp.remoteSaleId });
+                const createRes = await createRemoteSaleForProduct({
+                    productId: newProduct.id,
+                    quantity: 1,
+                    ticketNo: ticket.ticketNo,
+                    title: saleTitle,
+                });
+                finalRemoteSaleId = createRes.saleId || null;
+            }
+        }
+        // Case 2: Existing remote sale exists, but new product is from DIFFERENT company or removed -> CANCEL_SALE on old
+        else if (existingOp.remoteSaleId) {
+            await cancelRemoteSale({ saleId: existingOp.remoteSaleId });
+            finalRemoteSaleId = null;
+            finalRemoteSource = null;
+
+            // If new product has remote integration with a different company, create new sale
+            if (newProduct?.externalSource) {
+                finalRemoteSource = newProduct.externalSource;
+                const createRes = await createRemoteSaleForProduct({
+                    productId: newProduct.id,
+                    quantity: 1,
+                    ticketNo: ticket.ticketNo,
+                    title: saleTitle,
+                });
+                finalRemoteSaleId = createRes.saleId || null;
+            }
+        }
+        // Case 3: No previous remote sale, but new product has remote integration -> CREATE_SALE
+        else if (newProduct?.externalSource) {
+            finalRemoteSource = newProduct.externalSource;
+            const createRes = await createRemoteSaleForProduct({
+                productId: newProduct.id,
+                quantity: 1,
+                ticketNo: ticket.ticketNo,
+                title: saleTitle,
+            });
+            finalRemoteSaleId = createRes.saleId || null;
+        }
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
         // Handle product stock change if installed product changed
         if (oldProductId !== newProductId) {
@@ -280,6 +347,8 @@ export async function updateOperation(data: {
                 removedPart: data.removedPart || null,
                 installedProductId: newProductId,
                 notes: data.notes || null,
+                remoteSaleId: finalRemoteSaleId,
+                remoteSource: finalRemoteSource,
                 ...(data.performedById ? { performedById: data.performedById } : {}),
             },
         });

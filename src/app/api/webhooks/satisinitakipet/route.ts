@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
                 const cost = product.cost !== null && product.cost !== undefined ? Number(product.cost) : null;
                 const stock = Number(product.stock || 0);
                 const sku = product.ledCode || product.ledStCode || product.code || null;
-                const isActive = event !== 'PRODUCT_DELETED' && product.isActive !== false;
+                const isLedGroup = (product.productGroup || '').trim().toUpperCase() === 'LED';
+                const isActive = event !== 'PRODUCT_DELETED' && product.isActive !== false && isLedGroup;
 
                 const existing = await prisma.product.findFirst({
                     where: {
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
                     revalidatePath('/tickets');
                 } catch { }
 
-                return NextResponse.json({ success: true, updated: product.id, source: 'COMPANY_A_LED' });
+                return NextResponse.json({ success: true, updated: product.id, source: 'COMPANY_A_LED', isActive });
             }
 
             // 2. Firma B (EKRAN - USD)
@@ -120,7 +121,8 @@ export async function POST(req: NextRequest) {
                 const tlCost = rawUsdCost !== null ? Math.round(rawUsdCost * usdRate * 100) / 100 : null;
                 const stock = Number(product.stock || 0);
                 const sku = product.inch ? `${product.inch}"` : (product.code || null);
-                const isActive = event !== 'PRODUCT_DELETED' && product.isActive !== false;
+                const isScreenGroup = (product.productGroup || '').trim().toUpperCase() === 'EKRAN';
+                const isActive = event !== 'PRODUCT_DELETED' && product.isActive !== false && isScreenGroup;
 
                 const existing = await prisma.product.findFirst({
                     where: {

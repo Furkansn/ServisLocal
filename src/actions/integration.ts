@@ -279,10 +279,12 @@ export async function createRemoteSaleForProduct({
     productId,
     quantity = 1,
     ticketNo,
+    title,
 }: {
     productId: string;
     quantity?: number;
     ticketNo: string;
+    title?: string;
 }): Promise<{ success: boolean; saleId?: string; error?: string }> {
     try {
         const product = await prisma.product.findUnique({ where: { id: productId } });
@@ -308,6 +310,7 @@ export async function createRemoteSaleForProduct({
                 customerId,
                 productId: product.externalId,
                 quantity,
+                title: title || `Servis Fişi ${ticketNo}`,
                 notes: `ServisPlus Fiş ${ticketNo} tamirinde kullanıldı`,
             }),
         });
@@ -326,6 +329,63 @@ export async function createRemoteSaleForProduct({
         return { success: true, saleId: data.saleId };
     } catch (err: any) {
         console.error('createRemoteSaleForProduct exception:', err);
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * Call remote SatisiniTakipEt API to update an existing sale when an integrated product is changed in a ticket operation.
+ */
+export async function updateRemoteSaleForProduct({
+    saleId,
+    productId,
+    quantity = 1,
+    ticketNo,
+    title,
+}: {
+    saleId: string;
+    productId: string;
+    quantity?: number;
+    ticketNo: string;
+    title?: string;
+}): Promise<{ success: boolean; error?: string }> {
+    if (!saleId) return { success: false, error: 'Satış ID bulunamadı' };
+
+    try {
+        const product = await prisma.product.findUnique({ where: { id: productId } });
+        if (!product || !product.externalId || !product.externalCompanyId) {
+            return { success: true };
+        }
+
+        const baseUrl = await getRemoteApiBaseUrl();
+
+        const res = await fetch(`${baseUrl}/api/servisplus`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': SERVISPLUS_SYNC_API_KEY,
+            },
+            body: JSON.stringify({
+                action: 'UPDATE_SALE',
+                saleId,
+                companyId: product.externalCompanyId,
+                productId: product.externalId,
+                quantity,
+                title: title || `Servis Fişi ${ticketNo}`,
+                notes: `ServisPlus Fiş ${ticketNo} tamirinde güncellendi`,
+            }),
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error('Remote sale update failed:', res.status, errText);
+            return { success: false, error: `Dış sistem satışı güncelleyemedi (${res.status}): ${errText}` };
+        }
+
+        const data = await res.json();
+        return { success: !!data?.success, error: data?.error };
+    } catch (err: any) {
+        console.error('updateRemoteSaleForProduct exception:', err);
         return { success: false, error: err.message };
     }
 }
