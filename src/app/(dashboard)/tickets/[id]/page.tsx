@@ -918,55 +918,57 @@ export default function TicketDetailPage() {
                     <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
                             <h3 className="card-title" style={{ margin: 0 }}>💰 Finansal Özet</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {((ticket as any)?.currency === 'USD') ? (
-                                    <span style={{
-                                        background: '#ecfdf5',
-                                        color: '#065f46',
-                                        border: '1px solid #a7f3d0',
-                                        padding: '2px 8px',
-                                        borderRadius: '12px',
-                                        fontSize: '11px',
-                                        fontWeight: 700,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                    }}>
-                                        💵 $ USD Fişi
-                                    </span>
-                                ) : (
-                                    <span style={{
-                                        background: 'var(--bg-tertiary)',
-                                        color: 'var(--text-secondary)',
-                                        border: '1px solid var(--border-primary)',
-                                        padding: '2px 8px',
-                                        borderRadius: '12px',
-                                        fontSize: '11px',
-                                        fontWeight: 700
-                                    }}>
-                                        ₺ TL
-                                    </span>
-                                )}
-
-                                {!readOnly && (
-                                    <button
-                                        type="button"
-                                        className={`btn ${((ticket as any)?.currency === 'USD') ? 'btn-primary' : 'btn-secondary'} btn-xs`}
-                                        style={{
-                                            fontSize: '11px',
+                            {ticket.customerType === 'REPAIRER' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {((ticket as any)?.currency === 'USD') ? (
+                                        <span style={{
+                                            background: '#ecfdf5',
+                                            color: '#065f46',
+                                            border: '1px solid #a7f3d0',
                                             padding: '2px 8px',
-                                            background: ((ticket as any)?.currency === 'USD') ? '#10b981' : undefined,
-                                            borderColor: ((ticket as any)?.currency === 'USD') ? '#10b981' : undefined,
-                                        }}
-                                        onClick={openCurrencyModal}
-                                    >
-                                        {((ticket as any)?.currency === 'USD') ? '🔄 TL Fiyatına Çevir' : '✏️ Fiyatı / Kuru Düzenle'}
-                                    </button>
-                                )}
-                            </div>
+                                            borderRadius: '12px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}>
+                                            💵 $ USD Fişi
+                                        </span>
+                                    ) : (
+                                        <span style={{
+                                            background: 'var(--bg-tertiary)',
+                                            color: 'var(--text-secondary)',
+                                            border: '1px solid var(--border-primary)',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            fontSize: '11px',
+                                            fontWeight: 700
+                                        }}>
+                                            ₺ TL
+                                        </span>
+                                    )}
+
+                                    {!readOnly && (
+                                        <button
+                                            type="button"
+                                            className={`btn ${((ticket as any)?.currency === 'USD') ? 'btn-primary' : 'btn-secondary'} btn-xs`}
+                                            style={{
+                                                fontSize: '11px',
+                                                padding: '2px 8px',
+                                                background: ((ticket as any)?.currency === 'USD') ? '#10b981' : undefined,
+                                                borderColor: ((ticket as any)?.currency === 'USD') ? '#10b981' : undefined,
+                                            }}
+                                            onClick={openCurrencyModal}
+                                        >
+                                            {((ticket as any)?.currency === 'USD') ? '🔄 TL Fiyatına Çevir' : '✏️ Fiyatı / Kuru Düzenle'}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        {((ticket as any)?.currency === 'USD') && (
+                        {ticket.customerType === 'REPAIRER' && ((ticket as any)?.currency === 'USD') && (
                             <div style={{
                                 padding: '8px 12px',
                                 background: 'rgba(16, 185, 129, 0.08)',
@@ -990,16 +992,16 @@ export default function TicketDetailPage() {
                             (((ticket as any).repairItems && typeof (ticket as any).repairItems === 'string' ? JSON.parse((ticket as any).repairItems) : (ticket as any).repairItems) as any[]).map((item, idx) => (
                                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
                                     <span style={{ color: 'var(--text-secondary)' }}>{REQUEST_TYPE_LABELS[item.type as keyof typeof REQUEST_TYPE_LABELS] || item.type || 'Tamir Tutarı'}</span>
-                                    <span style={{ fontWeight: 600, color: ((ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
-                                        {((ticket as any)?.currency === 'USD') ? `$ ${Number(item.price).toLocaleString('tr-TR')}` : formatCurrency(Number(item.price))}
+                                    <span style={{ fontWeight: 600, color: (ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
+                                        {(ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD') ? `$ ${Number(item.price).toLocaleString('tr-TR')}` : formatCurrency(Number(item.price))}
                                     </span>
                                 </div>
                             ))
                         ) : (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
                                 <span style={{ color: 'var(--text-secondary)' }}>Tamir Ücreti</span>
-                                <span style={{ fontWeight: 600, color: ((ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
-                                    {((ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')}` : formatCurrency(Number(ticket.repairPrice || 0))}
+                                <span style={{ fontWeight: 600, color: (ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
+                                    {(ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')}` : formatCurrency(Number(ticket.repairPrice || 0))}
                                 </span>
                             </div>
                         )}
@@ -1015,8 +1017,8 @@ export default function TicketDetailPage() {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-primary)' }}>
                             <span style={{ fontWeight: 600 }}>Genel Toplam</span>
-                            <span style={{ fontWeight: 700, color: ((ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
-                                {((ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')}` : formatCurrency(Number(ticket.totalAmount))}
+                            <span style={{ fontWeight: 700, color: (ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD') ? '#10b981' : 'inherit' }}>
+                                {(ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')}` : formatCurrency(Number(ticket.totalAmount))}
                             </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
@@ -1026,7 +1028,7 @@ export default function TicketDetailPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-primary)' }}>
                             <span style={{ fontWeight: 600 }}>Kalan Borç</span>
                             <span style={{ fontWeight: 700, color: remaining > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                                {((ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')} (TL'ye Çevrilmeli)` : formatCurrency(remaining)}
+                                {(ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD') ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')} (TL'ye Çevrilmeli)` : formatCurrency(remaining)}
                             </span>
                         </div>
                         <div className="payment-bar">

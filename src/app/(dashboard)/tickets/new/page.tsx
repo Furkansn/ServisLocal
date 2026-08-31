@@ -222,6 +222,7 @@ export default function NewTicketPage() {
                     return;
                 }
                 setCustomerType('INDIVIDUAL');
+                setCurrency('TRY');
                 setCustomerId(res.id);
                 setSelectedCustomer(res);
             } else {
@@ -304,54 +305,58 @@ export default function NewTicketPage() {
                             </div>
 
                             <div className="form-group">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-                                    <label className="form-label required" style={{ margin: 0 }}>
-                                        Tahmini Tamir Tutarları ({currency === 'USD' ? '$' : '₺'})
-                                    </label>
-                                    <div style={{
-                                        display: 'inline-flex',
-                                        background: 'var(--bg-tertiary)',
-                                        padding: '2px',
-                                        borderRadius: '20px',
-                                        border: '1px solid var(--border-primary)',
-                                        gap: '2px'
-                                    }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => setCurrency('TRY')}
-                                            style={{
-                                                padding: '2px 10px',
-                                                borderRadius: '16px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '11px',
-                                                fontWeight: currency === 'TRY' ? 700 : 500,
-                                                background: currency === 'TRY' ? 'var(--brand-primary)' : 'transparent',
-                                                color: currency === 'TRY' ? '#fff' : 'var(--text-secondary)',
-                                                transition: 'all 0.15s ease',
-                                            }}
-                                        >
-                                            ₺ TL
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setCurrency('USD')}
-                                            style={{
-                                                padding: '2px 10px',
-                                                borderRadius: '16px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '11px',
-                                                fontWeight: currency === 'USD' ? 700 : 500,
-                                                background: currency === 'USD' ? '#10b981' : 'transparent',
-                                                color: currency === 'USD' ? '#fff' : 'var(--text-secondary)',
-                                                transition: 'all 0.15s ease',
-                                            }}
-                                        >
-                                            $ USD (Dolar)
-                                        </button>
+                                {customerType === 'REPAIRER' ? (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                                        <label className="form-label required" style={{ margin: 0 }}>
+                                            Tahmini Tamir Tutarları ({currency === 'USD' ? '$ USD' : '₺ TL'})
+                                        </label>
+                                        <div style={{
+                                            display: 'inline-flex',
+                                            background: 'var(--bg-tertiary)',
+                                            padding: '2px',
+                                            borderRadius: '20px',
+                                            border: '1px solid var(--border-primary)',
+                                            gap: '2px'
+                                        }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrency('TRY')}
+                                                style={{
+                                                    padding: '2px 10px',
+                                                    borderRadius: '16px',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    fontSize: '11px',
+                                                    fontWeight: currency === 'TRY' ? 700 : 500,
+                                                    background: currency === 'TRY' ? 'var(--brand-primary)' : 'transparent',
+                                                    color: currency === 'TRY' ? '#fff' : 'var(--text-secondary)',
+                                                    transition: 'all 0.15s ease',
+                                                }}
+                                            >
+                                                ₺ TL
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrency('USD')}
+                                                style={{
+                                                    padding: '2px 10px',
+                                                    borderRadius: '16px',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    fontSize: '11px',
+                                                    fontWeight: currency === 'USD' ? 700 : 500,
+                                                    background: currency === 'USD' ? '#10b981' : 'transparent',
+                                                    color: currency === 'USD' ? '#fff' : 'var(--text-secondary)',
+                                                    transition: 'all 0.15s ease',
+                                                }}
+                                            >
+                                                $ USD (Dolar)
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <label className="form-label required">Tahmini Tamir Tutarları (₺)</label>
+                                )}
                                 {repairItems.map((item, index) => (
                                     <div key={index} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
                                         <select
@@ -484,7 +489,10 @@ export default function NewTicketPage() {
                                     <button
                                         type="button"
                                         className={`btn btn-sm ${customerType === 'INDIVIDUAL' ? 'btn-primary' : 'btn-secondary'}`}
-                                        onClick={() => setCustomerType('INDIVIDUAL')}
+                                        onClick={() => {
+                                            setCustomerType('INDIVIDUAL');
+                                            setCurrency('TRY');
+                                        }}
                                     >Şahıs</button>
                                     <button
                                         type="button"
