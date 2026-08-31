@@ -37,6 +37,7 @@ export const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
     SCREEN: 'Ekran',
     LED: 'LED',
     LGP: 'LGP',
+    OTHER: 'Diğer',
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {

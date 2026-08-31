@@ -61,6 +61,10 @@ export async function createProduct(data: {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
 
+    if (data.category === ProductCategory.SCREEN || data.category === ProductCategory.LED) {
+        throw new Error('EKRAN ve LED ürünleri manuel eklenemez. Bu ürünler Zero entegrasyonu ile Satış Takip üzerinden otomatik senkronize edilmektedir.');
+    }
+
     const product = await prisma.product.create({
         data: {
             name: data.name,

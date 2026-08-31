@@ -87,6 +87,7 @@ enum ProductCategory {
   SCREEN
   LED
   LGP
+  OTHER
 }
 
 enum PaymentMethod {

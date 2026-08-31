@@ -7,7 +7,8 @@ import { PRODUCT_CATEGORY_LABELS, formatCurrency } from '@/lib/constants';
 
 type Product = Awaited<ReturnType<typeof getProducts>>[0];
 
-const CATEGORIES = ['ALL', 'SCREEN', 'LED', 'LGP', 'ACCESSORY'];
+const FILTER_CATEGORIES = ['ALL', 'SCREEN', 'LED', 'LGP', 'ACCESSORY', 'OTHER'];
+const MANUAL_CATEGORIES = ['ACCESSORY', 'LGP', 'OTHER'];
 const PAGE_SIZE = 20;
 
 type SortField = 'name' | 'externalSource' | 'sku' | 'category' | 'price' | 'cost' | 'stock';
@@ -332,7 +333,7 @@ export default function ProductsPage() {
 
                 {/* Category Pills */}
                 <div className="filter-bar" style={{ margin: 0 }}>
-                    {CATEGORIES.map((c) => (
+                    {FILTER_CATEGORIES.map((c) => (
                         <button
                             key={c}
                             className={`filter-pill ${categoryFilter === c ? 'active' : ''}`}
@@ -570,11 +571,32 @@ export default function ProductsPage() {
                                 <div className="form-group"><label className="form-label">SKU</label><input name="sku" className="form-input" defaultValue={editing?.sku || ''} /></div>
                                 <div className="form-group">
                                     <label className="form-label required">Kategori</label>
-                                    <select name="category" className="form-select" defaultValue={editing?.category || 'SCREEN'} required>
-                                        {CATEGORIES.filter(c => c !== 'ALL').map((c) => (
-                                            <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c as keyof typeof PRODUCT_CATEGORY_LABELS]}</option>
-                                        ))}
-                                    </select>
+                                    {editing?.externalSource ? (
+                                        <>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                disabled
+                                                value={`${PRODUCT_CATEGORY_LABELS[editing.category as keyof typeof PRODUCT_CATEGORY_LABELS] || editing.category} (🔗 ${editing.externalSource === 'COMPANY_A_LED' ? 'Zero - LED' : 'Zero - Ekran'} Entegrasyonlu)`}
+                                                style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                                            />
+                                            <input type="hidden" name="category" value={editing.category} />
+                                            <div style={{ fontSize: '11px', color: 'var(--brand-primary)', marginTop: '4px' }}>
+                                                ℹ️ Bu ürün Zero entegrasyonuyla yönetilmektedir. Fiyat/stok bilgileri Satış Takip üzerinden güncellenir.
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <select name="category" className="form-select" defaultValue={editing?.category || 'ACCESSORY'} required>
+                                                {MANUAL_CATEGORIES.map((c) => (
+                                                    <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c as keyof typeof PRODUCT_CATEGORY_LABELS]}</option>
+                                                ))}
+                                            </select>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                                                ℹ️ EKRAN ve LED ürünleri Zero entegrasyonu ile otomatik yönetilmektedir.
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
                                     <div className="form-group"><label className="form-label required">Fiyat (₺)</label><input name="price" type="number" step="0.01" className="form-input" defaultValue={editing ? Number(editing.price) : ''} required /></div>
