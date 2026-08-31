@@ -3,8 +3,9 @@
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { productSchema } from '@/lib/validations';
-import { TicketStatus, AuditAction } from '@prisma/client';
+import { TicketStatus, AuditAction, ProductCategory } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { getSearchVariants } from '@/lib/search';
 
 export async function getProducts(filters?: { category?: string; search?: string }) {
     const where: any = { isActive: true };
@@ -14,9 +15,14 @@ export async function getProducts(filters?: { category?: string; search?: string
     }
 
     if (filters?.search) {
+        const variants = getSearchVariants(filters.search);
         where.OR = [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { sku: { contains: filters.search, mode: 'insensitive' } },
+            ...variants.flatMap(v => [
+                { name: { contains: v, mode: 'insensitive' as const } },
+                { name: { contains: v } },
+                { sku: { contains: v, mode: 'insensitive' as const } },
+                { sku: { contains: v } },
+            ]),
         ];
     }
 
@@ -29,6 +35,8 @@ export async function getProducts(filters?: { category?: string; search?: string
         ...p,
         price: Number(p.price),
         cost: p.cost ? Number(p.cost) : null,
+        originalPrice: p.originalPrice ? Number(p.originalPrice) : null,
+        originalCost: p.originalCost ? Number(p.originalCost) : null,
     }));
 }
 
@@ -166,13 +174,23 @@ export async function addAccessoryToTicket(data: {
 // ─── Get products by category for technician ─────────────
 
 export async function getProductsByCategory(category: string, includeOutOfStock?: boolean) {
+    const catMap: Record<string, ProductCategory> = {
+        AKSESUAR: ProductCategory.ACCESSORY,
+        ACCESSORY: ProductCategory.ACCESSORY,
+        SCREEN: ProductCategory.SCREEN,
+        EKRAN: ProductCategory.SCREEN,
+        LED: ProductCategory.LED,
+        LGP: ProductCategory.LGP,
+    };
+    const mappedCategory = catMap[category] || (category as ProductCategory);
+
     const where: any = {
-        category,
+        category: mappedCategory,
         isActive: true,
     };
 
-    // For SCREEN: hide out of stock
-    if (!includeOutOfStock && category === 'SCREEN') {
+    // Hide out of stock products for technician selection unless explicitly requested
+    if (!includeOutOfStock) {
         where.stock = { gt: 0 };
     }
 

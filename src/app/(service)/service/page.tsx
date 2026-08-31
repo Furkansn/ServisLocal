@@ -89,7 +89,7 @@ export default function ServicePage() {
     useEffect(() => {
         load();
         getAccounts().then(setAccounts).catch(() => { });
-        getProductsByCategory('AKSESUAR').then(setAccessories).catch(() => { });
+        getProductsByCategory('ACCESSORY').then(setAccessories).catch(() => { });
     }, []);
 
     const moveOrder = (id: string, direction: 'up' | 'down') => {

@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth';
 import { AuditAction, TicketStatus } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { syncOperationToCompatibility, deleteOperationFromCompatibility } from '@/actions/compatibility';
+import { createRemoteSaleForProduct, cancelRemoteSale } from '@/actions/integration';
 
 // ─── Add Operation ───────────────────────────────────────
 
@@ -27,6 +28,25 @@ export async function addOperation(data: {
         throw new Error('Bu fiş teslim edildiği / tamamlandığı için üzerinde yeni tamir işlemi eklenemez.');
     }
 
+    let remoteSaleId: string | undefined = undefined;
+    let remoteSource: string | undefined = undefined;
+
+    // If installed product has external integration, create remote sale
+    if (data.installedProductId) {
+        const prod = await prisma.product.findUnique({ where: { id: data.installedProductId } });
+        if (prod?.externalSource) {
+            remoteSource = prod.externalSource;
+            const remoteRes = await createRemoteSaleForProduct({
+                productId: prod.id,
+                quantity: 1,
+                ticketNo: ticket.ticketNo,
+            });
+            if (remoteRes.success && remoteRes.saleId) {
+                remoteSaleId = remoteRes.saleId;
+            }
+        }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
         const operation = await tx.ticketOperation.create({
             data: {
@@ -36,6 +56,8 @@ export async function addOperation(data: {
                 installedProductId: data.installedProductId || null,
                 notes: data.notes || null,
                 performedById: data.performedById || session.user.id,
+                remoteSaleId: remoteSaleId || null,
+                remoteSource: remoteSource || null,
             },
         });
 
@@ -357,6 +379,11 @@ export async function deleteOperation(operationId: string) {
 
         return { success: true };
     });
+
+    // If there was a remote sale on SatisiniTakipEt, cancel it to restore stock
+    if (existingOp.remoteSaleId) {
+        await cancelRemoteSale({ saleId: existingOp.remoteSaleId });
+    }
 
     // Delete from Ne Takılır compatibility database
     await deleteOperationFromCompatibility(operationId);

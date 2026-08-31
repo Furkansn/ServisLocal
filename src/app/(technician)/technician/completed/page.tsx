@@ -56,18 +56,20 @@ export default function CompletedRepairsPage() {
 
     useEffect(() => {
         getProductsByCategory('SCREEN').then(setScreens);
-        getProductsByCategory('LED', true).then(setLeds);
-        getProductsByCategory('LGP', true).then(setLgps);
+        getProductsByCategory('LED').then(setLeds);
+        getProductsByCategory('LGP').then(setLgps);
         getProductsByCategory('ACCESSORY').then(setAccessories);
         getPersonnel().then(list => setTechnicians(list.filter(p => p.isActive))).catch(console.error);
     }, []);
 
-    // Product search helper
+    // Product search helper (Hide stock <= 0)
     const getAvailableProducts = () => {
-        if (opType === 'SCREEN_CHANGE') return screens;
-        if (opType === 'LED_CHANGE') return leds;
-        if (opType === 'LGP_CHANGE') return lgps;
-        return [...screens, ...leds, ...lgps, ...accessories];
+        let prods: any[] = [];
+        if (opType === 'SCREEN_CHANGE') prods = screens;
+        else if (opType === 'LED_CHANGE') prods = leds;
+        else if (opType === 'LGP_CHANGE') prods = lgps;
+        else prods = [...screens, ...leds, ...lgps, ...accessories];
+        return prods.filter(p => p.stock > 0);
     };
 
     const availableProducts = getAvailableProducts();
@@ -565,20 +567,36 @@ export default function CompletedRepairsPage() {
                                     <>
                                         <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setIsProdDropdownOpen(false)} />
                                         <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 100, maxHeight: '180px', overflowY: 'auto', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '6px' }}>
-                                            {filteredProducts.map((p) => (
-                                                <div
-                                                    key={p.id}
-                                                    onClick={() => {
-                                                        setInstalled(p.id);
-                                                        setProdSearchQuery('');
-                                                        setIsProdDropdownOpen(false);
-                                                    }}
-                                                    style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border-primary)' }}
-                                                >
-                                                    <span>{p.name}</span>
-                                                    <span style={{ fontSize: '10.5px', color: p.stock > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>Stok: {p.stock}</span>
-                                                </div>
-                                            ))}
+                                            {filteredProducts.map((p) => {
+                                                const isLimitedStock = p.stock <= 2;
+                                                return (
+                                                    <div
+                                                        key={p.id}
+                                                        onClick={() => {
+                                                            setInstalled(p.id);
+                                                            setProdSearchQuery('');
+                                                            setIsProdDropdownOpen(false);
+                                                        }}
+                                                        style={{ padding: '8px 10px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', borderBottom: '1px solid var(--border-primary)' }}
+                                                    >
+                                                        <span>{p.name}</span>
+                                                        <span style={{
+                                                            fontSize: '10.5px',
+                                                            padding: '2px 8px',
+                                                            borderRadius: '4px',
+                                                            fontWeight: 700,
+                                                            background: isLimitedStock ? 'rgba(234, 179, 8, 0.18)' : 'rgba(34, 197, 94, 0.15)',
+                                                            color: isLimitedStock ? '#ca8a04' : 'var(--color-success)',
+                                                            border: isLimitedStock ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '3px',
+                                                        }}>
+                                                            {isLimitedStock ? `⚠️ Sınırlı: ${p.stock} adet` : `Stok: ${p.stock}`}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </>
                                 )}

@@ -315,6 +315,8 @@ model TicketOperation {
   installedProductId String?
   notes              String?
   performedById      String
+  remoteSaleId       String?
+  remoteSource       String?
   createdAt          DateTime      @default(now())
 
   ticket           RepairTicket @relation(fields: [ticketId], references: [id])
@@ -325,16 +327,23 @@ model TicketOperation {
 }
 
 model Product {
-  id        String          @id @default(uuid())
-  name      String
-  sku       String?
-  category  ProductCategory
-  price     Decimal         @db.Decimal(12, 2)
-  cost      Decimal?        @db.Decimal(12, 2)
-  stock     Int             @default(0)
-  isActive  Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id                 String          @id @default(uuid())
+  name               String
+  sku                String?
+  category           ProductCategory
+  price              Decimal         @db.Decimal(12, 2)
+  cost               Decimal?        @db.Decimal(12, 2)
+  stock              Int             @default(0)
+  isActive           Boolean         @default(true)
+  externalId         String?
+  externalCompanyId  String?
+  externalSource     String?
+  originalCurrency   String?
+  originalPrice      Decimal?        @db.Decimal(12, 2)
+  originalCost       Decimal?        @db.Decimal(12, 2)
+  lastSyncAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   operations  TicketOperation[]
   accessories TicketAccessory[]
