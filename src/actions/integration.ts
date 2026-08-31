@@ -298,6 +298,8 @@ export async function createRemoteSaleForProduct({
 
         const baseUrl = await getRemoteApiBaseUrl();
 
+        const unitPrice = Number(product.originalPrice ?? product.price ?? 0);
+
         const res = await fetch(`${baseUrl}/api/servisplus`, {
             method: 'POST',
             headers: {
@@ -310,6 +312,7 @@ export async function createRemoteSaleForProduct({
                 customerId,
                 productId: product.externalId,
                 quantity,
+                unitPrice,
                 title: title || `Servis Fişi ${ticketNo}`,
                 notes: `ServisPlus Fiş ${ticketNo} tamirinde kullanıldı`,
             }),
@@ -357,6 +360,7 @@ export async function updateRemoteSaleForProduct({
             return { success: true };
         }
 
+        const unitPrice = Number(product.originalPrice ?? product.price ?? 0);
         const baseUrl = await getRemoteApiBaseUrl();
 
         const res = await fetch(`${baseUrl}/api/servisplus`, {
@@ -371,6 +375,7 @@ export async function updateRemoteSaleForProduct({
                 companyId: product.externalCompanyId,
                 productId: product.externalId,
                 quantity,
+                unitPrice,
                 title: title || `Servis Fişi ${ticketNo}`,
                 notes: `ServisPlus Fiş ${ticketNo} tamirinde güncellendi`,
             }),
