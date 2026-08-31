@@ -5,16 +5,26 @@ import { auth } from '@/lib/auth';
 import { customerSchema } from '@/lib/validations';
 import { createAuditLog, logFieldChanges, diffFields } from '@/lib/audit';
 import { AuditAction } from '@prisma/client';
+import { getSearchVariants } from '@/lib/search';
 
 export async function getCustomers(search?: string) {
-    const where = search
-        ? {
-            OR: [
-                { name: { contains: search, mode: 'insensitive' as const } },
-                { phone: { contains: search } },
-            ],
-        }
-        : {};
+    if (!search || !search.trim()) {
+        return prisma.customer.findMany({
+            orderBy: { name: 'asc' },
+            take: 50,
+        });
+    }
+
+    const trimmed = search.trim();
+    const variants = getSearchVariants(trimmed);
+
+    const where = {
+        OR: [
+            ...variants.map(v => ({ name: { contains: v, mode: 'insensitive' as const } })),
+            ...variants.map(v => ({ name: { contains: v } })),
+            { phone: { contains: trimmed } },
+        ],
+    };
 
     return prisma.customer.findMany({
         where,

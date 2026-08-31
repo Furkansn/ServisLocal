@@ -119,6 +119,9 @@ export async function addAccessoryToTicket(data: {
     if (ticket.status === TicketStatus.TAMAMLANDI && !isManager) {
         throw new Error('Bu fiş tamamlandığı (kapatıldığı) için sadece Servis Müdürü tarafından düzenleme yapılabilir.');
     }
+    if (ticket.customerType === 'REPAIRER' && (ticket as any).currency === 'USD') {
+        throw new Error('Fiş Dolar ($) cinsindedir. Aksesuar satışı yapabilmek için lütfen önce fişi güncel kurdan TL tutarına çeviriniz.');
+    }
 
     const product = await prisma.product.findUnique({ where: { id: data.productId } });
     if (!product) throw new Error('Ürün bulunamadı');

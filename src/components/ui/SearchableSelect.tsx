@@ -13,6 +13,15 @@ interface SearchableSelectProps {
     id?: string;
 }
 
+const normalizeTr = (s: string) => s
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g, 'i')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c');
+
 export default function SearchableSelect({
     options,
     value,
@@ -38,9 +47,9 @@ export default function SearchableSelect({
         function handleClickOutside(event: MouseEvent) {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
-                // If typed term matches an option exactly (case-insensitive), select it; otherwise revert or keep
+                const normSearch = normalizeTr(searchTerm.trim());
                 const found = options.find(
-                    o => o.toLocaleLowerCase('tr-TR') === searchTerm.trim().toLocaleLowerCase('tr-TR')
+                    o => normalizeTr(o) === normSearch || o.toLocaleLowerCase('tr-TR') === searchTerm.trim().toLocaleLowerCase('tr-TR')
                 );
                 if (found) {
                     onChange(found);
@@ -63,9 +72,11 @@ export default function SearchableSelect({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [options, searchTerm, value, onChange]);
 
-    // Filter options using Turkish locale
+    // Filter options using Turkish locale and normalized comparison
+    const normSearch = normalizeTr(searchTerm.trim());
     const filteredOptions = options.filter(opt =>
-        opt.toLocaleLowerCase('tr-TR').includes(searchTerm.trim().toLocaleLowerCase('tr-TR'))
+        opt.toLocaleLowerCase('tr-TR').includes(searchTerm.trim().toLocaleLowerCase('tr-TR')) ||
+        normalizeTr(opt).includes(normSearch)
     );
 
     const handleSelect = (opt: string) => {

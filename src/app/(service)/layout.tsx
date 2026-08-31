@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { SessionProvider, useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -20,6 +21,27 @@ function MobileHeaderNav({ title, icon }: { title: string; icon: string }) {
     const { data: session } = useSession();
     const userRoles: string[] = (session?.user as any)?.roles || [];
     const pathname = usePathname();
+    const [theme, setTheme] = useState('dark');
+
+    useEffect(() => {
+        const stored = localStorage.getItem('theme');
+        if (stored === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            setTheme('light');
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        if (theme === 'light') {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'dark');
+            setTheme('dark');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            localStorage.setItem('theme', 'light');
+            setTheme('light');
+        }
+    };
 
     const hasService = userRoles.includes('SERVICE_STAFF');
     const hasTechnician = userRoles.includes('TECHNICIAN');
@@ -32,36 +54,49 @@ function MobileHeaderNav({ title, icon }: { title: string; icon: string }) {
                 <h1 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{title}</h1>
             </div>
 
-            {/* Role Switcher Pills if user has multiple roles */}
-            {((hasService && hasTechnician) || hasOperator) && (
-                <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '3px', borderRadius: '20px', border: '1px solid var(--border-color)', gap: '2px' }}>
-                    <Link
-                        href="/service"
-                        className={`btn btn-xs ${pathname.startsWith('/service') ? 'btn-primary' : 'btn-ghost'}`}
-                        style={{ borderRadius: '16px', fontSize: '11px', padding: '3px 8px' }}
-                    >
-                        🚚 Saha
-                    </Link>
-                    <Link
-                        href="/technician"
-                        className={`btn btn-xs ${pathname.startsWith('/technician') ? 'btn-primary' : 'btn-ghost'}`}
-                        style={{ borderRadius: '16px', fontSize: '11px', padding: '3px 8px' }}
-                    >
-                        🔧 Atölye
-                    </Link>
-                    {hasOperator && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Theme Switcher Button */}
+                <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    onClick={toggleTheme}
+                    style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '16px', border: '1px solid var(--border-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    title={theme === 'light' ? 'Koyu Moda Geç' : 'Aydınlık Moda Geç'}
+                >
+                    {theme === 'light' ? '🌙 Koyu' : '☀️ Aydınlık'}
+                </button>
+
+                {/* Role Switcher Pills if user has multiple roles */}
+                {((hasService && hasTechnician) || hasOperator) && (
+                    <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '3px', borderRadius: '20px', border: '1px solid var(--border-color)', gap: '2px' }}>
                         <Link
-                            href="/"
-                            className="btn btn-ghost btn-xs"
+                            href="/service"
+                            className={`btn btn-xs ${pathname.startsWith('/service') ? 'btn-primary' : 'btn-ghost'}`}
                             style={{ borderRadius: '16px', fontSize: '11px', padding: '3px 8px' }}
                         >
-                            📊 Panel
+                            🚚 Saha
                         </Link>
-                    )}
-                </div>
-            )}
+                        <Link
+                            href="/technician"
+                            className={`btn btn-xs ${pathname.startsWith('/technician') ? 'btn-primary' : 'btn-ghost'}`}
+                            style={{ borderRadius: '16px', fontSize: '11px', padding: '3px 8px' }}
+                        >
+                            🔧 Atölye
+                        </Link>
+                        {hasOperator && (
+                            <Link
+                                href="/"
+                                className="btn btn-ghost btn-xs"
+                                style={{ borderRadius: '16px', fontSize: '11px', padding: '3px 8px' }}
+                            >
+                                📊 Panel
+                            </Link>
+                        )}
+                    </div>
+                )}
 
-            <button className="btn btn-ghost btn-sm" style={{ padding: '4px' }} onClick={() => signOut({ callbackUrl: '/login' })} title="Çıkış Yap">🚪</button>
+                <button className="btn btn-ghost btn-sm" style={{ padding: '4px' }} onClick={() => signOut({ callbackUrl: '/login' })} title="Çıkış Yap">🚪</button>
+            </div>
         </header>
     );
 }

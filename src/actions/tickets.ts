@@ -7,6 +7,7 @@ import { canTransition } from '@/lib/state-machine';
 import { formatTicketNo } from '@/lib/constants';
 import { AuditAction, TicketStatus, Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { getSearchVariants } from '@/lib/search';
 
 // ─── Generate Ticket Number ──────────────────────────────
 
@@ -135,11 +136,18 @@ export async function getTickets(filters?: {
     }
 
     if (filters?.search) {
+        const variants = getSearchVariants(filters.search);
         where.OR = [
-            { ticketNo: { contains: filters.search, mode: 'insensitive' } },
-            { customer: { name: { contains: filters.search, mode: 'insensitive' } } },
-            { repairer: { name: { contains: filters.search, mode: 'insensitive' } } },
-            { model: { contains: filters.search, mode: 'insensitive' } },
+            ...variants.flatMap(v => [
+                { ticketNo: { contains: v, mode: 'insensitive' as const } },
+                { ticketNo: { contains: v } },
+                { customer: { name: { contains: v, mode: 'insensitive' as const } } },
+                { customer: { name: { contains: v } } },
+                { repairer: { name: { contains: v, mode: 'insensitive' as const } } },
+                { repairer: { name: { contains: v } } },
+                { model: { contains: v, mode: 'insensitive' as const } },
+                { model: { contains: v } },
+            ]),
         ];
     }
 

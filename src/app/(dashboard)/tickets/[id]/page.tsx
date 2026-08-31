@@ -226,8 +226,12 @@ export default function TicketDetailPage() {
     };
 
     const openPaymentModal = () => {
+        if (isUsdRepairer) {
+            alert('⚠️ Fiş tutarı Dolar ($) olarak kayıtlıdır. Ödeme alabilmek için lütfen önce "TL Fiyatına Çevir" butonuyla fiş tutarını TL\'ye çeviriniz.');
+            return;
+        }
         setPayError('');
-        setPayAmount('');
+        setPayAmount(remaining > 0 ? remaining.toString() : '');
         setPayNotes('');
         const defaultMethod = 'CASH';
         handlePayMethodChange(defaultMethod, accounts);
@@ -270,6 +274,33 @@ export default function TicketDetailPage() {
 
     const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
 
+    const currentPhotoIndex = (ticket?.photos && selectedPhoto)
+        ? ticket.photos.findIndex((p: any) => p.id === selectedPhoto.id)
+        : -1;
+
+    const handlePrevPhoto = () => {
+        if (!ticket?.photos || ticket.photos.length === 0) return;
+        const prevIdx = currentPhotoIndex > 0 ? currentPhotoIndex - 1 : ticket.photos.length - 1;
+        setSelectedPhoto(ticket.photos[prevIdx]);
+    };
+
+    const handleNextPhoto = () => {
+        if (!ticket?.photos || ticket.photos.length === 0) return;
+        const nextIdx = currentPhotoIndex < ticket.photos.length - 1 ? currentPhotoIndex + 1 : 0;
+        setSelectedPhoto(ticket.photos[nextIdx]);
+    };
+
+    useEffect(() => {
+        if (!selectedPhoto || !ticket?.photos || ticket.photos.length <= 1) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') handlePrevPhoto();
+            else if (e.key === 'ArrowRight') handleNextPhoto();
+            else if (e.key === 'Escape') setSelectedPhoto(null);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedPhoto, ticket?.photos, currentPhotoIndex]);
+
     const handleDownload = (url: string, filename: string) => {
         const link = document.createElement('a');
         link.href = url;
@@ -295,6 +326,7 @@ export default function TicketDetailPage() {
     const remaining = Number(ticket.totalAmount) - Number(ticket.paidAmount);
     const customerName = ticket.customer?.name || ticket.repairer?.name || '-';
     const customerPhone = ticket.customer?.phone || ticket.repairer?.phone || '';
+    const isUsdRepairer = ticket.customerType === 'REPAIRER' && (ticket as any)?.currency === 'USD';
 
     const handleStatusChange = async (newStatus: TicketStatus) => {
         try {
@@ -306,6 +338,10 @@ export default function TicketDetailPage() {
     };
 
     const handleAddAccessory = async () => {
+        if (isUsdRepairer) {
+            setAcsError('Fiş Dolar ($) cinsindedir. Aksesuar satışı yapabilmek için lütfen önce "TL Fiyatına Çevir" butonuyla fiş tutarını TL\'ye çeviriniz.');
+            return;
+        }
         setAcsError('');
         if (!selectedAcs) return setAcsError('Aksesuar seçiniz');
         if (acsQty <= 0) return setAcsError('Geçerli bir miktar girin');
@@ -329,6 +365,10 @@ export default function TicketDetailPage() {
     };
 
     const handleAddPayment = async () => {
+        if (isUsdRepairer) {
+            setPayError('Fiş Dolar ($) cinsindedir. Ödeme alabilmek için lütfen önce "TL Fiyatına Çevir" butonuyla fiş tutarını TL\'ye çeviriniz.');
+            return;
+        }
         setPayError('');
         const amount = parseFloat(payAmount);
         if (!amount || amount <= 0) {
@@ -822,36 +862,6 @@ export default function TicketDetailPage() {
                             })()}
                         </div>
                     )}
-
-                    {/* Status History */}
-                    <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-                        <h3 className="card-title" style={{ marginBottom: 'var(--space-3)' }}>📜 Statü Geçmişi</h3>
-                        {ticket.statusHistory.map((sh) => (
-                            <div key={sh.id} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 'var(--space-3)',
-                                padding: 'var(--space-2) 0',
-                                borderBottom: '1px solid var(--border-primary)',
-                                fontSize: 'var(--font-size-sm)',
-                            }}>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', minWidth: '120px' }}>
-                                    {formatDateTime(sh.createdAt)}
-                                </span>
-                                {sh.fromStatus && (
-                                    <>
-                                        <span className="badge badge-neutral" style={{ fontSize: '10px' }}>{STATUS_LABELS[sh.fromStatus]}</span>
-                                        <span>→</span>
-                                    </>
-                                )}
-                                <span className="badge" style={{ background: `${STATUS_COLORS[sh.toStatus]}20`, color: STATUS_COLORS[sh.toStatus], fontSize: '10px' }}>
-                                    {STATUS_LABELS[sh.toStatus]}
-                                </span>
-                                <span style={{ color: 'var(--text-tertiary)' }}>{sh.changedBy.name}</span>
-                                {sh.notes && <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>{sh.notes}</span>}
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
                 {/* Sidebar Actions */}
@@ -874,8 +884,6 @@ export default function TicketDetailPage() {
                                     </div>
                                 </div>
                             </div>
-
-
 
                             {/* Status transitions */}
                             {nextStatuses.length > 0 && (
@@ -909,7 +917,24 @@ export default function TicketDetailPage() {
                             </div>
 
                             <div className="form-group" style={{ marginBottom: 0, marginTop: 'var(--space-2)' }}>
-                                <button className="btn btn-secondary btn-block" onClick={() => setShowAccessory(true)}>🛍 Aksesuar Satışı Ekle</button>
+                                <button
+                                    className="btn btn-secondary btn-block"
+                                    disabled={isUsdRepairer}
+                                    onClick={() => {
+                                        if (isUsdRepairer) {
+                                            alert('⚠️ Fiş tutarı Dolar ($) olarak kayıtlıdır. Aksesuar satışı ekleyebilmek için lütfen önce Finansal Özet kısmındaki "TL Fiyatına Çevir" butonuyla fişi TL\'ye çeviriniz.');
+                                            return;
+                                        }
+                                        setShowAccessory(true);
+                                    }}
+                                    title={isUsdRepairer ? 'Aksesuar satışı için önce TL fiyatına çeviriniz' : 'Aksesuar Satışı Ekle'}
+                                    style={{
+                                        opacity: isUsdRepairer ? 0.6 : 1,
+                                        cursor: isUsdRepairer ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    🛍 Aksesuar Satışı Ekle {isUsdRepairer && '(Önce TL\'ye Çevirin)'}
+                                </button>
                             </div>
                         </div>
                     )}
@@ -921,20 +946,41 @@ export default function TicketDetailPage() {
                             {ticket.customerType === 'REPAIRER' && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     {((ticket as any)?.currency === 'USD') ? (
-                                        <span style={{
-                                            background: '#ecfdf5',
-                                            color: '#065f46',
-                                            border: '1px solid #a7f3d0',
-                                            padding: '2px 8px',
-                                            borderRadius: '12px',
-                                            fontSize: '11px',
-                                            fontWeight: 700,
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}>
-                                            💵 $ USD Fişi
-                                        </span>
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                            <span style={{
+                                                background: '#ecfdf5',
+                                                color: '#065f46',
+                                                border: '1px solid #a7f3d0',
+                                                padding: '2px 8px',
+                                                borderRadius: '12px',
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}>
+                                                💵 $ USD Fişi
+                                            </span>
+                                            <span
+                                                style={{
+                                                    cursor: 'help',
+                                                    fontSize: '11px',
+                                                    color: '#047857',
+                                                    background: '#d1fae5',
+                                                    border: '1px solid #6ee7b7',
+                                                    borderRadius: '50%',
+                                                    width: '18px',
+                                                    height: '18px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontWeight: 700,
+                                                }}
+                                                title={`Bu fiş $${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')} USD olarak belirlenmiştir. Cihaz teslim edilirken yukarıdaki 'TL Fiyatına Çevir' butonuyla güncel kurdan TL tutarına dönüştürebilirsiniz.`}
+                                            >
+                                                ℹ
+                                            </span>
+                                        </div>
                                     ) : (
                                         <span style={{
                                             background: 'var(--bg-tertiary)',
@@ -968,23 +1014,21 @@ export default function TicketDetailPage() {
                             )}
                         </div>
 
-                        {ticket.customerType === 'REPAIRER' && ((ticket as any)?.currency === 'USD') && (
+                        {isUsdRepairer && (
                             <div style={{
-                                padding: '8px 12px',
-                                background: 'rgba(16, 185, 129, 0.08)',
-                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                padding: '8px 10px',
+                                background: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
                                 borderRadius: '8px',
-                                fontSize: '12px',
-                                color: '#047857',
+                                fontSize: '11.5px',
+                                color: '#d97706',
                                 marginBottom: '12px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '8px'
+                                gap: '6px'
                             }}>
-                                <span style={{ fontSize: '16px' }}>💵</span>
-                                <div>
-                                    Bu fiş <strong>${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')} USD</strong> olarak belirlenmiştir. Cihaz teslim edilirken yukarıdaki <strong>TL Fiyatına Çevir</strong> butonuyla güncel kurdan TL tutarına dönüştürebilirsiniz.
-                                </div>
+                                <span>⚠️</span>
+                                <span>Fiş <strong>Dolar ($)</strong> cinsindedir. Aksesuar satışı ve ödeme alabilmek için <strong>TL Fiyatına Çevir</strong> butonu ile TL tutarını belirleyiniz.</span>
                             </div>
                         )}
 
@@ -1036,19 +1080,39 @@ export default function TicketDetailPage() {
                         </div>
 
                         {/* Payment actions */}
-                        {!readOnly && ticket.status === TicketStatus.ODEME_BEKLIYOR && (
+                        {!readOnly && (
                             <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                                <button className="btn btn-primary btn-sm btn-block" onClick={openPaymentModal}>
-                                    💳 Ödeme Al
+                                <button
+                                    className="btn btn-primary btn-sm btn-block"
+                                    disabled={isUsdRepairer}
+                                    onClick={() => {
+                                        if (isUsdRepairer) {
+                                            alert('⚠️ Fiş tutarı Dolar ($) olarak kayıtlıdır. Ödeme alabilmek için lütfen önce "TL Fiyatına Çevir" butonuyla fiş tutarını TL\'ye çeviriniz.');
+                                            return;
+                                        }
+                                        openPaymentModal();
+                                    }}
+                                    title={isUsdRepairer ? 'Tamirci fişlerinde Dolar fiyatı TL\'ye çevrilmeden ödeme alınamaz' : 'Ödeme Al'}
+                                    style={{
+                                        opacity: isUsdRepairer ? 0.6 : 1,
+                                        cursor: isUsdRepairer ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    💳 Ödeme Al {isUsdRepairer && '(Önce TL\'ye Çevirin)'}
                                 </button>
-                                {remaining <= 0 && (
-                                    <button className="btn btn-success btn-sm btn-block" onClick={handleCloseTicket}>
-                                        ✅ Fişi Kapat
-                                    </button>
+
+                                {ticket.status === TicketStatus.ODEME_BEKLIYOR && (
+                                    <>
+                                        {remaining <= 0 && !isUsdRepairer && (
+                                            <button className="btn btn-success btn-sm btn-block" onClick={handleCloseTicket}>
+                                                ✅ Fişi Kapat
+                                            </button>
+                                        )}
+                                        <button className="btn btn-ghost btn-sm btn-block" style={{ color: 'var(--color-danger)' }} onClick={handleCloseWithoutPayment}>
+                                            Ödeme Almadan Kapat
+                                        </button>
+                                    </>
                                 )}
-                                <button className="btn btn-ghost btn-sm btn-block" style={{ color: 'var(--color-danger)' }} onClick={handleCloseWithoutPayment}>
-                                    Ödeme Almadan Kapat
-                                </button>
                             </div>
                         )}
 
@@ -1126,6 +1190,7 @@ export default function TicketDetailPage() {
                                     padding: 'var(--space-2) 0',
                                     borderBottom: '1px solid var(--border-primary)',
                                     fontSize: 'var(--font-size-sm)',
+                                    gap: '8px'
                                 }}>
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1159,11 +1224,9 @@ export default function TicketDetailPage() {
                         </div>
                     )}
 
-
-
                     {/* Photos */}
                     {ticket.photos.length > 0 && (
-                        <div className="card">
+                        <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
                             <h3 className="card-title" style={{ marginBottom: 'var(--space-3)' }}>📷 Fotoğraflar</h3>
                             <div className="photo-grid">
                                 {ticket.photos.map((photo) => (
@@ -1177,70 +1240,36 @@ export default function TicketDetailPage() {
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* Right Column - Financial Summary */}
-                <div>
-                    <div className="card">
-                        <h3 className="card-title" style={{ marginBottom: 'var(--space-4)' }}>Hesap Özeti</h3>
-
-                        {(((ticket as any).repairItems && typeof (ticket as any).repairItems === 'string' ? JSON.parse((ticket as any).repairItems) : (ticket as any).repairItems) as any[])?.length > 0 ? (
-                            (((ticket as any).repairItems && typeof (ticket as any).repairItems === 'string' ? JSON.parse((ticket as any).repairItems) : (ticket as any).repairItems) as any[]).map((item, idx) => (
-                                <div key={idx} style={{ marginBottom: 'var(--space-2)', display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>{REQUEST_TYPE_LABELS[item.type as keyof typeof REQUEST_TYPE_LABELS] || item.type || 'Tamir Tutarı'}</span>
-                                    <span style={{ fontWeight: 600 }}>{formatCurrency(Number(item.price))}</span>
-                                </div>
-                            ))
-                        ) : (
-                            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: 'var(--text-secondary)' }}>Tamir Tutarı</span>
-                                <span style={{ fontWeight: 600 }}>{formatCurrency(Number(ticket.repairPrice))}</span>
-                            </div>
-                        )}
-
-                        {ticket.accessories.length > 0 && (
-                            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: 'var(--text-secondary)' }}>Aksesuarlar</span>
-                                <span style={{ fontWeight: 600 }}>
-                                    +{formatCurrency(ticket.accessories.reduce((sum, a) => sum + Number(a.totalPrice), 0))}
+                    {/* Status History (Moved to Far Right Sidebar) */}
+                    <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+                        <h3 className="card-title" style={{ marginBottom: 'var(--space-3)' }}>📜 Statü Geçmişi</h3>
+                        {ticket.statusHistory.map((sh) => (
+                            <div key={sh.id} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--space-3)',
+                                padding: 'var(--space-2) 0',
+                                borderBottom: '1px solid var(--border-primary)',
+                                fontSize: 'var(--font-size-sm)',
+                                flexWrap: 'wrap'
+                            }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', minWidth: '110px' }}>
+                                    {formatDateTime(sh.createdAt)}
                                 </span>
+                                {sh.fromStatus && (
+                                    <>
+                                        <span className="badge badge-neutral" style={{ fontSize: '10px' }}>{STATUS_LABELS[sh.fromStatus]}</span>
+                                        <span>→</span>
+                                    </>
+                                )}
+                                <span className="badge" style={{ background: `${STATUS_COLORS[sh.toStatus]}20`, color: STATUS_COLORS[sh.toStatus], fontSize: '10px' }}>
+                                    {STATUS_LABELS[sh.toStatus]}
+                                </span>
+                                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>{sh.changedBy.name}</span>
+                                {sh.notes && <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '11px', width: '100%', marginTop: '2px' }}>{sh.notes}</span>}
                             </div>
-                        )}
-
-                        <div style={{ borderTop: '1px solid var(--border-primary)', margin: 'var(--space-3) 0' }} />
-
-                        <div style={{ marginBottom: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-lg)' }}>
-                            <span style={{ fontWeight: 600 }}>Genel Toplam</span>
-                            <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>{formatCurrency(Number(ticket.totalAmount))}</span>
-                        </div>
-
-                        <div style={{ marginBottom: 'var(--space-2)', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>Ödenen</span>
-                            <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(Number(ticket.paidAmount))}</span>
-                        </div>
-
-                        <div style={{ marginBottom: 'var(--space-4)', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>Kalan</span>
-                            <span style={{ fontWeight: 700, color: remaining > 0 ? 'var(--color-danger)' : 'var(--text-primary)' }}>
-                                {formatCurrency(remaining)}
-                            </span>
-                        </div>
-
-                        {!readOnly && remaining > 0 && (
-                            <button
-                                className="btn btn-primary btn-full"
-                                onClick={openPaymentModal}
-                            >
-                                💳 Ödeme Al
-                            </button>
-                        )}
-                        <button
-                            className="btn btn-secondary btn-full"
-                            style={{ marginTop: 'var(--space-2)' }}
-                            onClick={() => window.open(`/print/ticket/${ticketId}`, '_blank')}
-                        >
-                            🖨️ Fişi Yazdır / İndir
-                        </button>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -1254,16 +1283,36 @@ export default function TicketDetailPage() {
                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowPayment(false)}>✕</button>
                         </div>
                         <div className="modal-body">
+                            {isUsdRepairer && (
+                                <div style={{
+                                    padding: '10px 12px',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    color: 'var(--color-danger)',
+                                    marginBottom: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span style={{ fontSize: '18px' }}>🚫</span>
+                                    <div>
+                                        <strong>2. AŞAMA KORUMA:</strong> Bu fiş <strong>Tamirci ve Dolar ($)</strong> cinsindedir. Fiş tutarı güncel kurdan TL'ye çevrilmeden ödeme kaydedilemez!
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
                                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>Kalan Tutar</div>
                                 <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: 'var(--color-danger)' }}>
-                                    {formatCurrency(remaining)}
+                                    {isUsdRepairer ? `$ ${Number(ticket.repairPrice || 0).toLocaleString('tr-TR')} (USD)` : formatCurrency(remaining)}
                                 </div>
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label required">Ödeme Yöntemi</label>
-                                <select className="form-select" value={payMethod} onChange={(e) => handlePayMethodChange(e.target.value)}>
+                                <select className="form-select" disabled={isUsdRepairer} value={payMethod} onChange={(e) => handlePayMethodChange(e.target.value)}>
                                     <option value="CASH">Nakit</option>
                                     <option value="BANK_TRANSFER">Havale</option>
                                     <option value="CREDIT_CARD">Kredi Kartı</option>
@@ -1272,7 +1321,7 @@ export default function TicketDetailPage() {
 
                             <div className="form-group">
                                 <label className="form-label">Aktarılacak Kasa / Banka Hesabı</label>
-                                <select className="form-select" value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)}>
+                                <select className="form-select" disabled={isUsdRepairer} value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)}>
                                     {accounts.filter(acc => acc.type === payMethod).length !== 1 && (
                                         <option value="">
                                             {accounts.filter(acc => acc.type === payMethod).length > 1
@@ -1293,6 +1342,7 @@ export default function TicketDetailPage() {
                                 <input
                                     type="number"
                                     className="form-input"
+                                    disabled={isUsdRepairer}
                                     value={payAmount}
                                     onChange={(e) => setPayAmount(e.target.value)}
                                     placeholder="0.00"
@@ -1305,6 +1355,7 @@ export default function TicketDetailPage() {
                                 <label className="form-label">Not</label>
                                 <textarea
                                     className="form-textarea"
+                                    disabled={isUsdRepairer}
                                     value={payNotes}
                                     onChange={(e) => setPayNotes(e.target.value)}
                                     placeholder="Ödeme notu..."
@@ -1326,7 +1377,17 @@ export default function TicketDetailPage() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={() => setShowPayment(false)}>İptal</button>
-                            <button className="btn btn-primary" onClick={handleAddPayment}>Ödemeyi Kaydet</button>
+                            <button
+                                className="btn btn-primary"
+                                disabled={isUsdRepairer}
+                                onClick={handleAddPayment}
+                                style={{
+                                    opacity: isUsdRepairer ? 0.5 : 1,
+                                    cursor: isUsdRepairer ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                Ödemeyi Kaydet
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1485,9 +1546,29 @@ export default function TicketDetailPage() {
                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowAccessory(false)}>✕</button>
                         </div>
                         <div className="modal-body">
+                            {isUsdRepairer && (
+                                <div style={{
+                                    padding: '10px 12px',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    color: 'var(--color-danger)',
+                                    marginBottom: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span style={{ fontSize: '18px' }}>🚫</span>
+                                    <div>
+                                        <strong>2. AŞAMA KORUMA:</strong> Bu fiş <strong>Tamirci ve Dolar ($)</strong> cinsindedir. Fiş tutarı güncel kurdan TL'ye çevrilmeden aksesuar satışı yapılamaz!
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="form-group">
                                 <label className="form-label required">Aksesuar Seçimi</label>
-                                <select className="form-select" value={selectedAcs} onChange={(e) => {
+                                <select className="form-select" disabled={isUsdRepairer} value={selectedAcs} onChange={(e) => {
                                     setSelectedAcs(e.target.value);
                                     const prod = accessories.find(a => a.id === e.target.value);
                                     if (prod) setAcsPrice(prod.price.toString());
@@ -1501,11 +1582,11 @@ export default function TicketDetailPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                                 <div className="form-group">
                                     <label className="form-label required">Miktar</label>
-                                    <input type="number" min="1" className="form-input" value={acsQty} onChange={(e) => setAcsQty(parseInt(e.target.value) || 1)} />
+                                    <input type="number" min="1" disabled={isUsdRepairer} className="form-input" value={acsQty} onChange={(e) => setAcsQty(parseInt(e.target.value) || 1)} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label required">Birim Satış Fiyatı (₺)</label>
-                                    <input type="number" step="0.01" className="form-input" value={acsPrice} onChange={(e) => setAcsPrice(e.target.value)} />
+                                    <input type="number" step="0.01" disabled={isUsdRepairer} className="form-input" value={acsPrice} onChange={(e) => setAcsPrice(e.target.value)} />
                                 </div>
                             </div>
                             {acsError && (
@@ -1516,61 +1597,188 @@ export default function TicketDetailPage() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={() => setShowAccessory(false)}>İptal</button>
-                            <button className="btn btn-primary" onClick={handleAddAccessory}>Aksesuarı Sat</button>
+                            <button
+                                className="btn btn-primary"
+                                disabled={isUsdRepairer}
+                                onClick={handleAddAccessory}
+                                style={{
+                                    opacity: isUsdRepairer ? 0.5 : 1,
+                                    cursor: isUsdRepairer ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                Aksesuarı Sat
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
             {/* Photo Lightbox Modal */}
             {selectedPhoto && (
-                <div className="modal-overlay" onClick={() => setSelectedPhoto(null)} style={{ zIndex: 9999 }}>
-                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '90vh', background: 'transparent', boxShadow: 'none' }}>
-                        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
-                            <button
-                                className="btn btn-ghost btn-icon"
-                                onClick={() => setSelectedPhoto(null)}
-                                style={{ position: 'absolute', top: -40, right: 0, color: '#fff', fontSize: '24px' }}
-                            >
-                                ✕
-                            </button>
-                            <img
-                                src={selectedPhoto.url}
-                                alt={selectedPhoto.type}
-                                style={{
-                                    maxWidth: '100%',
-                                    maxHeight: '75vh',
-                                    borderRadius: 'var(--radius-lg)',
-                                    boxShadow: 'var(--shadow-xl)',
-                                    objectFit: 'contain'
-                                }}
-                            />
-                            <div style={{
-                                background: 'rgba(0,0,0,0.7)',
-                                padding: 'var(--space-3) var(--space-6)',
-                                borderRadius: 'var(--radius-pill)',
+                <div className="modal-overlay" onClick={() => setSelectedPhoto(null)} style={{ zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)' }}>
+                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '95vw', maxHeight: '95vh', background: 'transparent', boxShadow: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                        
+                        {/* Close Button */}
+                        <button
+                            className="btn btn-ghost btn-icon"
+                            onClick={() => setSelectedPhoto(null)}
+                            style={{
+                                position: 'fixed',
+                                top: '20px',
+                                right: '24px',
+                                color: '#fff',
+                                fontSize: '28px',
+                                background: 'rgba(0,0,0,0.5)',
+                                borderRadius: '50%',
+                                width: '44px',
+                                height: '44px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 'var(--space-6)',
-                                color: '#fff'
-                            }}>
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fotoğraf Türü</div>
-                                    <div style={{ fontWeight: 600 }}>{selectedPhoto.type}</div>
-                                </div>
-                                <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.2)' }} />
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Yükleme Tarihi</div>
-                                    <div style={{ fontWeight: 600 }}>{formatDate(selectedPhoto.createdAt)}</div>
-                                </div>
-                                <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.2)' }} />
+                                justifyContent: 'center',
+                                zIndex: 10000,
+                                cursor: 'pointer',
+                                border: '1px solid rgba(255,255,255,0.2)'
+                            }}
+                            title="Kapat (ESC)"
+                        >
+                            ✕
+                        </button>
+
+                        {/* Photo & Navigation Container */}
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: '1000px' }}>
+                            
+                            {/* Previous Button */}
+                            {ticket?.photos && ticket.photos.length > 1 && (
                                 <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => handleDownload(selectedPhoto.url, `ticket-${ticket.ticketNo}-${selectedPhoto.type}.jpg`)}
-                                    style={{ padding: 'var(--space-2) var(--space-4)' }}
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handlePrevPhoto(); }}
+                                    style={{
+                                        position: 'absolute',
+                                        left: '-20px',
+                                        background: 'rgba(0,0,0,0.65)',
+                                        color: '#fff',
+                                        border: '1px solid rgba(255,255,255,0.3)',
+                                        borderRadius: '50%',
+                                        width: '48px',
+                                        height: '48px',
+                                        fontSize: '22px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 10,
+                                        transition: 'all 0.15s ease',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                                    }}
+                                    title="Önceki Fotoğraf (Sol Ok Tuşu)"
                                 >
-                                    📥 İndir
+                                    ◀
                                 </button>
+                            )}
+
+                            {/* Main Photo Image */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '100%' }}>
+                                <img
+                                    src={selectedPhoto.url}
+                                    alt={selectedPhoto.type}
+                                    style={{
+                                        maxWidth: '100%',
+                                        maxHeight: '70vh',
+                                        borderRadius: 'var(--radius-lg)',
+                                        boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
+                                        objectFit: 'contain'
+                                    }}
+                                />
                             </div>
+
+                            {/* Next Button */}
+                            {ticket?.photos && ticket.photos.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleNextPhoto(); }}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '-20px',
+                                        background: 'rgba(0,0,0,0.65)',
+                                        color: '#fff',
+                                        border: '1px solid rgba(255,255,255,0.3)',
+                                        borderRadius: '50%',
+                                        width: '48px',
+                                        height: '48px',
+                                        fontSize: '22px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 10,
+                                        transition: 'all 0.15s ease',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                                    }}
+                                    title="Sonraki Fotoğraf (Sağ Ok Tuşu)"
+                                >
+                                    ▶
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Floating Info & Download Bar */}
+                        <div style={{
+                            background: 'rgba(15, 17, 23, 0.85)',
+                            backdropFilter: 'blur(10px)',
+                            padding: '10px 24px',
+                            borderRadius: '30px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '20px',
+                            color: '#fff',
+                            marginTop: '16px',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                            flexWrap: 'wrap',
+                            justifyContent: 'center'
+                        }}>
+                            {/* Photo Index */}
+                            {ticket?.photos && ticket.photos.length > 1 && (
+                                <>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sıra</div>
+                                        <div style={{ fontWeight: 700, fontSize: '13px', color: '#f59e0b' }}>{currentPhotoIndex + 1} / {ticket.photos.length}</div>
+                                    </div>
+                                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.2)' }} />
+                                </>
+                            )}
+
+                            {/* Photo Type */}
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fotoğraf Türü</div>
+                                <div style={{ fontWeight: 600, fontSize: '13px' }}>{PHOTO_TYPE_LABELS[selectedPhoto.type] || selectedPhoto.type}</div>
+                            </div>
+                            
+                            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.2)' }} />
+
+                            {/* Uploaded By */}
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Yükleyen Personel</div>
+                                <div style={{ fontWeight: 600, fontSize: '13px', color: '#60a5fa' }}>{selectedPhoto.uploadedBy?.name || 'Saha Personeli / Teknisyen'}</div>
+                            </div>
+
+                            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.2)' }} />
+
+                            {/* Upload Date */}
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Yükleme Tarihi</div>
+                                <div style={{ fontWeight: 600, fontSize: '13px' }}>{formatDateTime(selectedPhoto.createdAt)}</div>
+                            </div>
+
+                            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.2)' }} />
+
+                            {/* Download Button */}
+                            <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleDownload(selectedPhoto.url, `ticket-${ticket.ticketNo}-${selectedPhoto.type}.jpg`)}
+                                style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '16px' }}
+                            >
+                                📥 İndir
+                            </button>
                         </div>
                     </div>
                 </div>

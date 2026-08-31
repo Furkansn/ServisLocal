@@ -26,6 +26,9 @@ export async function addPayment(data: {
     if (ticket.status === TicketStatus.TAMAMLANDI && !isManager) {
         throw new Error('Bu fiş tamamlandığı (kapatıldığı) için sadece Servis Müdürü tarafından düzenleme yapılabilir.');
     }
+    if (ticket.customerType === 'REPAIRER' && (ticket as any).currency === 'USD') {
+        throw new Error('Fiş Dolar ($) cinsindedir. Ödeme alabilmek için lütfen önce fişi güncel kurdan TL tutarına çeviriniz.');
+    }
 
     return prisma.$transaction(async (tx) => {
         const isElectronic = data.method !== 'CASH';

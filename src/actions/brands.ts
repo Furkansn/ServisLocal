@@ -1,11 +1,22 @@
 'use server';
 
 import prisma from '@/lib/prisma';
+import { getSearchVariants } from '@/lib/search';
 
 export async function getBrands(search?: string) {
-    const where = search
-        ? { name: { contains: search, mode: 'insensitive' as const } }
-        : {};
+    if (!search || !search.trim()) {
+        return prisma.brand.findMany({
+            orderBy: { name: 'asc' },
+        });
+    }
+
+    const variants = getSearchVariants(search);
+    const where = {
+        OR: [
+            ...variants.map(v => ({ name: { contains: v, mode: 'insensitive' as const } })),
+            ...variants.map(v => ({ name: { contains: v } })),
+        ],
+    };
 
     return prisma.brand.findMany({
         where,
