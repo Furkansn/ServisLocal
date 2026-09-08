@@ -134,10 +134,12 @@ export function formatDateTime(date: Date | string): string {
 
 export function getLocalDateString(date?: Date | string): string {
     const d = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Istanbul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(d);
 }
 
 // ─── Phone Number Format & Validation ───────────────────

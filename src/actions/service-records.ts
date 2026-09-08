@@ -7,7 +7,7 @@ import { getLocalDateString } from '@/lib/constants';
 import { revalidatePath } from 'next/cache';
 
 // ─── Helper: Auto Reschedule Stale Records ────────────────
-async function autoRescheduleStaleRecords() {
+export async function autoRescheduleStaleRecords() {
     const todayStr = getLocalDateString(new Date());
     const targetDate = new Date(`${todayStr}T00:00:00.000Z`);
 

@@ -4,7 +4,8 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { createAuditLog, logFieldChanges, diffFields } from '@/lib/audit';
 import { canTransition } from '@/lib/state-machine';
-import { formatTicketNo } from '@/lib/constants';
+import { formatTicketNo, getLocalDateString } from '@/lib/constants';
+import { autoRescheduleStaleRecords } from '@/actions/service-records';
 import { AuditAction, TicketStatus, Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { getSearchVariants } from '@/lib/search';
@@ -494,8 +495,16 @@ export async function removeOperationFromRepairItems(ticketId: string, operation
 // ─── Get Dashboard Stats ─────────────────────────────────
 
 export async function getDashboardStats() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    try {
+        await autoRescheduleStaleRecords();
+    } catch (e) {
+        console.error('Error auto-rescheduling stale records:', e);
+    }
+
+    const todayStr = getLocalDateString();
+    const targetDate = new Date(`${todayStr}T00:00:00.000Z`);
+    const todayStart = new Date(`${todayStr}T00:00:00.000Z`);
+    const todayEnd = new Date(`${todayStr}T23:59:59.999Z`);
 
     const [
         totalOpen,
@@ -510,7 +519,12 @@ export async function getDashboardStats() {
             where: { status: { notIn: [TicketStatus.TAMAMLANDI, TicketStatus.IPTAL] } },
         }),
         prisma.repairTicket.count({
-            where: { createdAt: { gte: today } },
+            where: {
+                createdAt: {
+                    gte: todayStart,
+                    lte: todayEnd,
+                },
+            },
         }),
         prisma.repairTicket.count({
             where: { status: TicketStatus.SERVIS_ISTENDI },
@@ -525,7 +539,9 @@ export async function getDashboardStats() {
             where: { status: TicketStatus.ODEME_BEKLIYOR },
         }),
         prisma.serviceRecord.count({
-            where: { scheduledDate: { gte: today } },
+            where: {
+                scheduledDate: targetDate,
+            },
         }),
     ]);
 
