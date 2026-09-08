@@ -8,7 +8,7 @@ import { getAccounts } from '@/actions/collections';
 import { compressImage } from '@/lib/image-utils';
 import { addAccessoryToTicket, getProductsByCategory } from '@/actions/products';
 import { updateTicketDeviceCondition, addRepairItemToTicket } from '@/actions/tickets';
-import { REQUEST_TYPE_LABELS, OPERATION_TYPE_LABELS, PAYMENT_METHOD_LABELS, formatCurrency } from '@/lib/constants';
+import { REQUEST_TYPE_LABELS, OPERATION_TYPE_LABELS, PAYMENT_METHOD_LABELS, formatCurrency, parseCurrencyInput } from '@/lib/constants';
 import Link from 'next/link';
 
 type WorkOrder = Awaited<ReturnType<typeof getMyWorkOrders>>[0];
@@ -126,7 +126,8 @@ export default function ServicePage() {
         setActionNotes('');
         setActionError('');
         setPaymentsList([]);
-        setPayAmount('');
+        const rem = Math.max(0, Number((record.ticket as any).remainingAmount ?? (Number((record.ticket as any).totalAmount || 0) - Number((record.ticket as any).paidAmount || 0))));
+        setPayAmount(record.type === 'DELIVERY' && rem > 0 ? rem.toString() : '');
         setPayMethod('CASH');
         const defaultMatching = accounts.filter((acc: any) => acc.type === 'CASH');
         setPayAccountId(defaultMatching.length === 1 ? defaultMatching[0].id : '');
@@ -195,7 +196,9 @@ export default function ServicePage() {
         }
 
         if (actionRecord.type === 'DELIVERY') {
-            const sumPayment = paymentsList.reduce((acc, p) => acc + p.amount, 0) + (Number(payAmount) || 0);
+            const listSum = paymentsList.reduce((acc, p) => acc + p.amount, 0);
+            const singleAmount = paymentsList.length === 0 ? parseCurrencyInput(payAmount) : 0;
+            const sumPayment = listSum + singleAmount;
             if (Math.abs(sumPayment - getRemaining()) > 0.01) {
                 setActionError(`Alınan toplam tutar (${formatCurrency(sumPayment)}) kalan tutara (${formatCurrency(getRemaining())}) eşit olmalıdır!`);
                 return;
@@ -225,14 +228,22 @@ export default function ServicePage() {
 
             // If delivery: save requested payments
             if (actionRecord.type === 'DELIVERY') {
-                const allPayments = [...paymentsList];
-                if (payAmount !== '') {
-                    if ((payMethod === 'BANK_TRANSFER' || payMethod === 'CREDIT_CARD') && !payAccountId) {
-                        throw new Error('Lütfen ödemenin aktarılacağı banka/POS hesabını seçiniz.');
+                const finalPayments = [...paymentsList];
+                if (paymentsList.length === 0 && payAmount !== '') {
+                    const amt = parseCurrencyInput(payAmount);
+                    if (amt > 0) {
+                        if ((payMethod === 'BANK_TRANSFER' || payMethod === 'CREDIT_CARD') && !payAccountId) {
+                            throw new Error('Lütfen ödemenin aktarılacağı banka/POS hesabını seçiniz.');
+                        }
+                        finalPayments.push({
+                            amount: amt,
+                            method: payMethod,
+                            accountId: payAccountId || undefined,
+                            notes: payNotes || undefined,
+                        });
                     }
-                    allPayments.push({ amount: Number(payAmount), method: payMethod, accountId: payAccountId || undefined, notes: payNotes || undefined });
                 }
-                for (const p of allPayments) {
+                for (const p of finalPayments) {
                     if (p.amount > 0) {
                         await addPayment({
                             ticketId,
@@ -844,8 +855,39 @@ export default function ServicePage() {
                                              </div>
                                         ))}
 
+                                        {(() => {
+                                            const listTotal = paymentsList.reduce((acc, p) => acc + p.amount, 0);
+                                            const remToCollect = Math.max(0, getRemaining() - listTotal);
+                                            return (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '10.5px' }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>
+                                                        Kalan: <strong style={{ color: remToCollect > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>{formatCurrency(remToCollect)}</strong>
+                                                    </span>
+                                                    {remToCollect > 0 && paymentsList.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-ghost btn-xs"
+                                                            onClick={() => setPayAmount(remToCollect.toString())}
+                                                            style={{ fontSize: '10px', padding: '1px 5px', color: 'var(--brand-primary)', textDecoration: 'underline' }}
+                                                        >
+                                                            Kalanı Yaz ({formatCurrency(remToCollect)})
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+
                                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                            <input type="number" className="form-input" placeholder="Tutar ₺" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required={paymentsList.length === 0} style={{ flex: 1, minWidth: '70px', fontSize: '10.5px', padding: '2px 4px', height: '26px' }} />
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                className="form-input"
+                                                placeholder="Tutar ₺"
+                                                value={payAmount}
+                                                onChange={(e) => setPayAmount(e.target.value)}
+                                                required={paymentsList.length === 0}
+                                                style={{ flex: 1, minWidth: '70px', fontSize: '10.5px', padding: '2px 4px', height: '26px' }}
+                                            />
                                             <select
                                                 className="form-select"
                                                 value={payMethod}
@@ -863,15 +905,14 @@ export default function ServicePage() {
                                                 type="button"
                                                 className="btn btn-secondary btn-xs"
                                                 onClick={() => {
-                                                    if (!payAmount) return;
+                                                    const parsed = parseCurrencyInput(payAmount);
+                                                    if (!parsed || parsed <= 0) return;
                                                     if ((payMethod === 'BANK_TRANSFER' || payMethod === 'CREDIT_CARD') && !payAccountId) {
                                                         alert('Lütfen ödemenin aktarıldığı banka/POS hesabını seçiniz.');
                                                         return;
                                                     }
-                                                    setPaymentsList(prev => [...prev, { amount: Number(payAmount), method: payMethod, accountId: payAccountId || undefined, notes: payNotes || undefined }]);
-                                                    const currentSum = paymentsList.reduce((acc, p) => acc + p.amount, 0) + Number(payAmount);
-                                                    const rem = getRemaining() - currentSum;
-                                                    setPayAmount(rem > 0 ? rem.toString() : '');
+                                                    setPaymentsList(prev => [...prev, { amount: parsed, method: payMethod, accountId: payAccountId || undefined, notes: payNotes || undefined }]);
+                                                    setPayAmount('');
                                                     setPayNotes('');
                                                     const defMatch = accounts.filter((acc: any) => acc.type === payMethod);
                                                     setPayAccountId(defMatch.length === 1 ? defMatch[0].id : '');

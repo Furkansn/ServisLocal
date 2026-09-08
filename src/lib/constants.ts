@@ -73,6 +73,41 @@ export function formatCurrency(amount: number | string): string {
     }).format(num);
 }
 
+export function parseCurrencyInput(value: string | number): number {
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+    if (!value || typeof value !== 'string') return 0;
+
+    let cleaned = value.trim().replace(/[₺$\s]/g, '');
+    if (!cleaned) return 0;
+
+    if (cleaned.includes('.') && cleaned.includes(',')) {
+        const lastDot = cleaned.lastIndexOf('.');
+        const lastComma = cleaned.lastIndexOf(',');
+        if (lastComma > lastDot) {
+            cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else {
+            cleaned = cleaned.replace(/,/g, '');
+        }
+    } else if (cleaned.includes('.')) {
+        const parts = cleaned.split('.');
+        const isThousands = parts.length > 1 && parts.slice(1).every(p => p.length === 3);
+        if (isThousands) {
+            cleaned = cleaned.replace(/\./g, '');
+        }
+    } else if (cleaned.includes(',')) {
+        const parts = cleaned.split(',');
+        const isThousands = parts.length > 1 && parts.slice(1).every(p => p.length === 3);
+        if (isThousands) {
+            cleaned = cleaned.replace(/,/g, '');
+        } else {
+            cleaned = cleaned.replace(',', '.');
+        }
+    }
+
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+}
+
 // ─── Date Format ─────────────────────────────────────────
 
 export function formatDate(date: Date | string): string {

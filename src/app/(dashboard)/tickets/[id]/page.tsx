@@ -11,7 +11,7 @@ import { getContactNotes, addContactNote } from '@/actions/contact-notes';
 import { getPersonnelByRole } from '@/actions/personnel';
 import { getAccounts } from '@/actions/collections';
 import { STATUS_LABELS, STATUS_COLORS, getNextStatuses, isReadOnly } from '@/lib/state-machine';
-import { CUSTOMER_TYPE_LABELS, SERVICE_RECORD_TYPE_LABELS, REQUEST_TYPE_LABELS, PRIORITY_LABELS, PAYMENT_METHOD_LABELS, OPERATION_TYPE_LABELS, formatDate, formatDateTime, formatCurrency, getLocalDateString } from '@/lib/constants';
+import { CUSTOMER_TYPE_LABELS, SERVICE_RECORD_TYPE_LABELS, REQUEST_TYPE_LABELS, PRIORITY_LABELS, PAYMENT_METHOD_LABELS, OPERATION_TYPE_LABELS, formatDate, formatDateTime, formatCurrency, parseCurrencyInput, getLocalDateString } from '@/lib/constants';
 import { TicketStatus, Role } from '@prisma/client';
 
 type Ticket = Awaited<ReturnType<typeof getTicketById>>;
@@ -214,6 +214,7 @@ export default function TicketDetailPage() {
     const [payAmount, setPayAmount] = useState('');
     const [payNotes, setPayNotes] = useState('');
     const [payError, setPayError] = useState('');
+    const [isSubmittingPay, setIsSubmittingPay] = useState(false);
 
     const handlePayMethodChange = (newMethod: string, currentAccounts: any[] = accounts) => {
         setPayMethod(newMethod);
@@ -370,11 +371,13 @@ export default function TicketDetailPage() {
             return;
         }
         setPayError('');
-        const amount = parseFloat(payAmount);
+        const amount = parseCurrencyInput(payAmount);
         if (!amount || amount <= 0) {
             setPayError('Geçerli bir tutar girin');
             return;
         }
+        if (isSubmittingPay) return;
+        setIsSubmittingPay(true);
         try {
             await addPayment({
                 ticketId,
@@ -390,6 +393,8 @@ export default function TicketDetailPage() {
             loadTicket();
         } catch (err: any) {
             setPayError(err.message);
+        } finally {
+            setIsSubmittingPay(false);
         }
     };
 
@@ -1340,14 +1345,13 @@ export default function TicketDetailPage() {
                             <div className="form-group">
                                 <label className="form-label required">Tutar (₺)</label>
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="decimal"
                                     className="form-input"
                                     disabled={isUsdRepairer}
                                     value={payAmount}
                                     onChange={(e) => setPayAmount(e.target.value)}
                                     placeholder="0.00"
-                                    step="0.01"
-                                    min="0"
                                 />
                             </div>
 
@@ -1379,14 +1383,14 @@ export default function TicketDetailPage() {
                             <button className="btn btn-secondary" onClick={() => setShowPayment(false)}>İptal</button>
                             <button
                                 className="btn btn-primary"
-                                disabled={isUsdRepairer}
+                                disabled={isUsdRepairer || isSubmittingPay}
                                 onClick={handleAddPayment}
                                 style={{
-                                    opacity: isUsdRepairer ? 0.5 : 1,
-                                    cursor: isUsdRepairer ? 'not-allowed' : 'pointer'
+                                    opacity: (isUsdRepairer || isSubmittingPay) ? 0.5 : 1,
+                                    cursor: (isUsdRepairer || isSubmittingPay) ? 'not-allowed' : 'pointer'
                                 }}
                             >
-                                Ödemeyi Kaydet
+                                {isSubmittingPay ? 'Kaydediliyor...' : 'Ödemeyi Kaydet'}
                             </button>
                         </div>
                     </div>
