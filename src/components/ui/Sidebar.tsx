@@ -11,6 +11,7 @@ const OPERATOR_LINKS = [
     { href: '/daily-planning', label: 'Günlük Planlama', icon: '📅' },
     { href: '/tickets', label: 'Tamir Fişleri', icon: '🔧' },
     { href: '/collections', label: 'Tahsilat & Kasa', icon: '💰' },
+    { href: '/reports', label: 'Raporlar', icon: '📈' },
     { href: '/tickets/new', label: 'Yeni Fiş', icon: '➕' },
     { href: '/customers', label: 'Müşteriler', icon: '👥' },
     { href: '/repairers', label: 'Tamirciler', icon: '🏪' },

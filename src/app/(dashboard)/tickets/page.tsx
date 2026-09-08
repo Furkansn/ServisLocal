@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { getTickets } from '@/actions/tickets';
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/state-machine';
-import { CUSTOMER_TYPE_LABELS, REQUEST_TYPE_LABELS, PRIORITY_LABELS, formatDate, formatCurrency } from '@/lib/constants';
+import { CUSTOMER_TYPE_LABELS, REQUEST_TYPE_LABELS, PRIORITY_LABELS, formatDate, formatCurrency, getLocalDateString } from '@/lib/constants';
 
 type Ticket = Awaited<ReturnType<typeof getTickets>>[0];
 
@@ -16,20 +17,46 @@ const STATUS_FILTERS = [
     { value: 'ATOLYEYE_ALINDI', label: 'Atölyeye Alındı' },
     { value: 'TEKNISYENE_VERILDI', label: 'Teknisyene Verildi' },
     { value: 'TAMIR_TAMAMLANDI', label: 'Teslimat Bekliyor' },
+    { value: 'TESLIMAT_SERVIS_ISTENDI', label: 'Teslimat Servis İstendi' },
     { value: 'TESLIM_EDILDI', label: 'Teslim Edildi' },
     { value: 'ODEME_BEKLIYOR', label: 'Ödeme Bekliyor' },
     { value: 'TAMAMLANDI', label: 'Tamamlandı' },
     { value: 'IPTAL', label: 'İptal' },
 ];
 
-export default function TicketsPage() {
+function TicketsContent() {
+    const searchParams = useSearchParams();
+    const statusParam = searchParams.get('status');
+    const dateParam = searchParams.get('date');
+    const startParam = searchParams.get('startDate');
+    const endParam = searchParams.get('endDate');
+
     const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [statusFilter, setStatusFilter] = useState('OPEN');
+    const [statusFilter, setStatusFilter] = useState(statusParam || 'OPEN');
     const [search, setSearch] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState(
+        dateParam === 'today' ? getLocalDateString(new Date()) : (startParam || '')
+    );
+    const [endDate, setEndDate] = useState(
+        dateParam === 'today' ? getLocalDateString(new Date()) : (endParam || '')
+    );
     const [isPending, startTransition] = useTransition();
     const [initialLoading, setInitialLoading] = useState(true);
+
+    // Sync with query params changes
+    useEffect(() => {
+        if (statusParam) {
+            setStatusFilter(statusParam);
+        }
+        if (dateParam === 'today') {
+            const todayStr = getLocalDateString(new Date());
+            setStartDate(todayStr);
+            setEndDate(todayStr);
+        } else {
+            if (startParam) setStartDate(startParam);
+            if (endParam) setEndDate(endParam);
+        }
+    }, [statusParam, dateParam, startParam, endParam]);
 
     const loadTickets = (isFirst = false) => {
         if (isFirst) setInitialLoading(true);
@@ -265,5 +292,18 @@ export default function TicketsPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function TicketsPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '12px' }}>
+                <div className="spinner" />
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Fişler yükleniyor...</span>
+            </div>
+        }>
+            <TicketsContent />
+        </Suspense>
     );
 }

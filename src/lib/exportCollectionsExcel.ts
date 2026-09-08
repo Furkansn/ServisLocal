@@ -591,6 +591,124 @@ export function exportCollectionsToExcel(data: CollectionsExportData, filenamePr
     XLSX.utils.book_append_sheet(wb, wsSettlements, 'Kasa Sıfırlamaları');
 
     // ─────────────────────────────────────────────────────────────
+    // 7. SHEET: KULLANICI / PERSONEL BAZLI DETAYLI TAHSİLAT RAPORU
+    // ─────────────────────────────────────────────────────────────
+    const userMap = new Map<string, {
+        name: string;
+        cashTotal: number;
+        cardTotal: number;
+        transferTotal: number;
+        grandTotal: number;
+        count: number;
+        items: any[];
+    }>();
+
+    payments.forEach((p: any) => {
+        const uName = p.receivedBy?.name || 'Belirtilmemiş / Sistem';
+        if (!userMap.has(uName)) {
+            userMap.set(uName, {
+                name: uName,
+                cashTotal: 0,
+                cardTotal: 0,
+                transferTotal: 0,
+                grandTotal: 0,
+                count: 0,
+                items: [],
+            });
+        }
+        const uEntry = userMap.get(uName)!;
+        const amt = Number(p.amount || 0);
+        uEntry.count += 1;
+        uEntry.grandTotal += amt;
+        if (p.method === 'CASH') uEntry.cashTotal += amt;
+        else if (p.method === 'CREDIT_CARD') uEntry.cardTotal += amt;
+        else if (p.method === 'BANK_TRANSFER') uEntry.transferTotal += amt;
+
+        uEntry.items.push(p);
+    });
+
+    const userSummaryRows: any[] = [];
+    userMap.forEach(u => {
+        userSummaryRows.push([
+            u.name,
+            u.count,
+            u.cashTotal,
+            u.cardTotal,
+            u.transferTotal,
+            u.grandTotal,
+        ]);
+    });
+
+    const userDetailRows: any[] = [];
+    userMap.forEach(u => {
+        u.items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        u.items.forEach(p => {
+            const customerName = p.ticket?.customer?.name || p.ticket?.repairer?.name || '-';
+            const device = [p.ticket?.brand?.name, p.ticket?.model].filter(Boolean).join(' ') || '-';
+            const methodLabel = PAYMENT_METHOD_LABELS[p.method as keyof typeof PAYMENT_METHOD_LABELS] || p.method;
+            const approvalText = p.method !== 'CASH' ? 'Otomatik Onaylı' : p.isApproved ? `Müdür Onaylı (${p.approvedBy?.name || 'Müdür'})` : 'Onay Bekliyor';
+
+            userDetailRows.push([
+                u.name,
+                formatDate(new Date(p.createdAt)),
+                formatDateTime(new Date(p.createdAt)).split(' ')[1] || '',
+                p.ticket?.ticketNo || '-',
+                customerName,
+                device,
+                p.account?.name || '-',
+                methodLabel,
+                Number(p.amount),
+                approvalText,
+                p.notes || '-',
+            ]);
+        });
+        // User subtotal row
+        userDetailRows.push([
+            `[ARA TOPLAM: ${u.name}]`,
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            `${u.count} İşlem`,
+            u.grandTotal,
+            '',
+            '',
+        ]);
+        userDetailRows.push([]);
+    });
+
+    const userSheetData = [
+        ['SERVİSPLUS - PERSONEL / KULLANICI BAZLI TAHSİLAT RAPORU'],
+        [`Dönem: ${periodLabel}`, `Hesap Filtresi: ${accountFilterLabel}`, `Rapor Alınma Tarihi: ${formatDateTime(new Date())}`],
+        [],
+        ['--- PERSONEL ÖZET DAĞILIMI ---'],
+        ['Personel / Kullanıcı', 'Tahsilat Sayısı', 'Nakit (TL)', 'Kredi Kartı (TL)', 'Havale (TL)', 'Toplam Tahsilat (TL)'],
+        ...userSummaryRows,
+        [],
+        ['--- SATIR SATIR KULLANICI İŞLEM DETAYLARI ---'],
+        ['Kullanıcı', 'Tarih', 'Saat', 'Fiş No', 'Müşteri', 'Cihaz', 'Kasa / Hesap', 'Yöntem', 'Tutar (TL)', 'Onay Durumu', 'Not / Açıklama'],
+        ...userDetailRows,
+    ];
+
+    const wsUsers = XLSX.utils.aoa_to_sheet(userSheetData);
+    wsUsers['!cols'] = [
+        { wch: 24 }, // Kullanıcı
+        { wch: 13 }, // Tarih
+        { wch: 9 },  // Saat
+        { wch: 14 }, // Fiş No
+        { wch: 24 }, // Müşteri
+        { wch: 22 }, // Cihaz
+        { wch: 22 }, // Hesap
+        { wch: 16 }, // Yöntem
+        { wch: 18 }, // Tutar
+        { wch: 24 }, // Onay
+        { wch: 30 }, // Not
+    ];
+    XLSX.utils.book_append_sheet(wb, wsUsers, 'Kullanıcı Bazlı Detay');
+
+    // ─────────────────────────────────────────────────────────────
     // Trigger File Download
     // ─────────────────────────────────────────────────────────────
     const cleanPeriod = periodLabel.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\u00C0-\u017F]/g, '');

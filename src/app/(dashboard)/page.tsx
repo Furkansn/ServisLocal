@@ -21,34 +21,61 @@ export default async function DashboardPage() {
 
             {/* Stats Grid */}
             <div className="stats-grid">
-                <div className="stat-card">
-                    <div className="stat-label">Açık Fişler</div>
+                <Link href="/tickets?status=OPEN" className="stat-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}>
+                    <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Açık Fişler</span>
+                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', opacity: 0.8 }}>Görüntüle ↗</span>
+                    </div>
                     <div className="stat-value">{stats.totalOpen}</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-label">Bugün Açılan</div>
+                </Link>
+
+                <Link href="/tickets?status=ALL&date=today" className="stat-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}>
+                    <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Bugün Açılan</span>
+                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', opacity: 0.8 }}>Görüntüle ↗</span>
+                    </div>
                     <div className="stat-value">{stats.todayCreated}</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-label">Teslim Bekleyen</div>
+                </Link>
+
+                <Link href="/tickets?status=SERVIS_ISTENDI" className="stat-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}>
+                    <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Teslim Bekleyen</span>
+                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', opacity: 0.8 }}>Görüntüle ↗</span>
+                    </div>
                     <div className="stat-value">{stats.awaitingPickup}</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-label">Tamirde</div>
+                </Link>
+
+                <Link href="/tickets?status=TEKNISYENE_VERILDI" className="stat-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}>
+                    <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Tamirde</span>
+                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', opacity: 0.8 }}>Görüntüle ↗</span>
+                    </div>
                     <div className="stat-value">{stats.inRepair}</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-label">Tamir Tamamlanan</div>
+                </Link>
+
+                <Link href="/tickets?status=TAMIR_TAMAMLANDI" className="stat-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}>
+                    <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Tamir Tamamlanan</span>
+                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', opacity: 0.8 }}>Görüntüle ↗</span>
+                    </div>
                     <div className="stat-value">{stats.repairCompleted}</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-label">Ödeme Bekleyen</div>
+                </Link>
+
+                <Link href="/tickets?status=ODEME_BEKLIYOR" className="stat-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}>
+                    <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Ödeme Bekleyen</span>
+                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', opacity: 0.8 }}>Görüntüle ↗</span>
+                    </div>
                     <div className="stat-value">{stats.awaitingPayment}</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-label">Bugünkü Servisler</div>
+                </Link>
+
+                <Link href="/daily-planning" className="stat-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}>
+                    <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Bugünkü Servisler</span>
+                        <span style={{ fontSize: '11px', color: 'var(--brand-primary)', opacity: 0.8 }}>Planlama ↗</span>
+                    </div>
                     <div className="stat-value">{stats.todayServiceRecords}</div>
-                </div>
+                </Link>
             </div>
 
             {/* Quick Actions */}

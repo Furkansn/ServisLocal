@@ -34,7 +34,8 @@ export default function CollectionsPage() {
     const [selectedYear, setSelectedYear] = useState(now.getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
     const [selectedAccountId, setSelectedAccountId] = useState('ALL');
-    const [activeTab, setActiveTab] = useState<'PAYMENTS' | 'EXPENSES' | 'SETTLEMENTS' | 'TRANSFERS'>('PAYMENTS');
+    const [activeTab, setActiveTab] = useState<'PAYMENTS' | 'EXPENSES' | 'SETTLEMENTS' | 'TRANSFERS' | 'USERS'>('PAYMENTS');
+    const [selectedUserFilter, setSelectedUserFilter] = useState<string>('ALL');
 
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -610,6 +611,12 @@ export default function CollectionsPage() {
                         >
                             🏛️ Kasa Sıfırlama & Çekimler ({data.settlements.length})
                         </button>
+                        <button
+                            className={`filter-pill ${activeTab === 'USERS' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('USERS')}
+                        >
+                            👤 Personel Bazlı Rapor
+                        </button>
                     </div>
 
                     {/* Tab 1: Payments */}
@@ -853,6 +860,188 @@ export default function CollectionsPage() {
                             )}
                         </div>
                     )}
+
+                    {/* Tab 5: User-Based Detailed Breakdown */}
+                    {activeTab === 'USERS' && (() => {
+                        const userGroups = new Map<string, {
+                            name: string;
+                            cash: number;
+                            card: number;
+                            transfer: number;
+                            total: number;
+                            count: number;
+                            payments: any[];
+                        }>();
+
+                        data.payments.forEach((p: any) => {
+                            const userName = p.receivedBy?.name || 'Belirtilmemiş / Sistem';
+                            if (!userGroups.has(userName)) {
+                                userGroups.set(userName, {
+                                    name: userName,
+                                    cash: 0,
+                                    card: 0,
+                                    transfer: 0,
+                                    total: 0,
+                                    count: 0,
+                                    payments: [],
+                                });
+                            }
+                            const g = userGroups.get(userName)!;
+                            const amt = Number(p.amount || 0);
+                            g.count += 1;
+                            g.total += amt;
+                            if (p.method === 'CASH') g.cash += amt;
+                            else if (p.method === 'CREDIT_CARD') g.card += amt;
+                            else if (p.method === 'BANK_TRANSFER') g.transfer += amt;
+                            g.payments.push(p);
+                        });
+
+                        const usersList = Array.from(userGroups.values()).sort((a, b) => b.total - a.total);
+                        const filteredUsers = selectedUserFilter === 'ALL'
+                            ? usersList
+                            : usersList.filter(u => u.name === selectedUserFilter);
+
+                        return (
+                            <div>
+                                {/* Filter toolbar by user */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Kullanıcı Filtresi:</span>
+                                        <select
+                                            className="form-input"
+                                            value={selectedUserFilter}
+                                            onChange={e => setSelectedUserFilter(e.target.value)}
+                                            style={{ padding: '6px 12px', fontSize: '13px', width: '240px' }}
+                                        >
+                                            <option value="ALL">Tüm Personeller ({usersList.length})</option>
+                                            {usersList.map(u => (
+                                                <option key={u.name} value={u.name}>
+                                                    {u.name} ({u.count} işlem - {formatCurrency(u.total)})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => handleDownloadExcel()}
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                                    >
+                                        📥 Personel Detaylı Excel İndir
+                                    </button>
+                                </div>
+
+                                {/* Summary Cards Per User */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                                    {usersList.map(u => (
+                                        <div
+                                            key={u.name}
+                                            onClick={() => setSelectedUserFilter(selectedUserFilter === u.name ? 'ALL' : u.name)}
+                                            className="card"
+                                            style={{
+                                                padding: '16px',
+                                                cursor: 'pointer',
+                                                border: selectedUserFilter === u.name ? '2px solid var(--brand-primary)' : '1px solid var(--border-primary)',
+                                                background: selectedUserFilter === u.name ? 'var(--bg-secondary)' : 'var(--bg-card)',
+                                                transition: 'all 0.15s ease',
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 700, fontSize: '15px' }}>👤 {u.name}</div>
+                                                <span className="badge" style={{ fontSize: '11px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                                                    {u.count} Tahsilat
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--brand-primary)', marginBottom: '12px' }}>
+                                                {formatCurrency(u.total)}
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)', borderTop: '1px solid var(--border-primary)', paddingTop: '8px' }}>
+                                                <div>💵 Nakit:<br /><strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(u.cash)}</strong></div>
+                                                <div>💳 Kart:<br /><strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(u.card)}</strong></div>
+                                                <div>🏦 Havale:<br /><strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(u.transfer)}</strong></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Detailed Row-by-Row Transactions per User */}
+                                {filteredUsers.length === 0 ? (
+                                    <div className="empty-state">
+                                        <div className="empty-state-icon">👤</div>
+                                        <div className="empty-state-title">Seçilen kullanıcı için tahsilat kaydı bulunamadı</div>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {filteredUsers.map(u => (
+                                            <div key={u.name} className="card" style={{ padding: '0', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    padding: '12px 18px',
+                                                    background: 'var(--bg-secondary)',
+                                                    borderBottom: '1px solid var(--border-primary)',
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                }}>
+                                                    <div style={{ fontWeight: 700, fontSize: '15px' }}>
+                                                        👤 {u.name} ({u.count} Tahsilat)
+                                                    </div>
+                                                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#10b981' }}>
+                                                        Toplam: {formatCurrency(u.total)}
+                                                    </div>
+                                                </div>
+
+                                                <div className="table-container">
+                                                    <table className="table" style={{ fontSize: '13px' }}>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Tarih / Saat</th>
+                                                                <th>Fiş No</th>
+                                                                <th>Müşteri</th>
+                                                                <th>Cihaz</th>
+                                                                <th>Kasa / Hesap</th>
+                                                                <th>Yöntem</th>
+                                                                <th style={{ textAlign: 'right' }}>Tutar</th>
+                                                                <th>Durum</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {u.payments.map((p: any) => (
+                                                                <tr key={p.id}>
+                                                                    <td style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                                                        {formatDateTime(p.createdAt)}
+                                                                    </td>
+                                                                    <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                                                                        <Link href={`/tickets/${p.ticket?.id}`} style={{ color: 'var(--brand-primary)', textDecoration: 'none' }}>
+                                                                            {p.ticket?.ticketNo}
+                                                                        </Link>
+                                                                    </td>
+                                                                    <td>{p.ticket?.customer?.name || p.ticket?.repairer?.name || '-'}</td>
+                                                                    <td>{[p.ticket?.brand?.name, p.ticket?.model].filter(Boolean).join(' ') || '-'}</td>
+                                                                    <td>{p.account?.name || '-'}</td>
+                                                                    <td>
+                                                                        <span className="badge" style={{ fontSize: '11px' }}>
+                                                                            {p.method === 'CASH' ? '💵 Nakit' : p.method === 'CREDIT_CARD' ? '💳 Kredi Kartı' : '🏦 Havale'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '14px', color: '#10b981' }}>
+                                                                        {formatCurrency(p.amount)}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={`badge ${p.isApproved ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '11px' }}>
+                                                                            {p.method !== 'CASH' ? 'Otomatik Onaylı' : p.isApproved ? 'Onaylı' : 'Onay Bekliyor'}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </>
             )}
 

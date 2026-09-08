@@ -19,6 +19,8 @@ export default function DailyPlanningPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [editOrder, setEditOrder] = useState(false);
 
+    const [typeStatusFilter, setTypeStatusFilter] = useState<'ALL' | 'PICKUP' | 'DELIVERY' | 'COMPLETED' | 'IN_PROGRESS'>('ALL');
+
     // Local order state (IDs only)
     const [displayOrder, setDisplayOrder] = useState<string[]>([]);
 
@@ -86,7 +88,15 @@ export default function DailyPlanningPage() {
         setDisplayOrder(next);
     };
 
-    const items = displayOrder.map(id => records.find(r => r.id === id)).filter(Boolean) as ServiceRecord[];
+    const filteredRecords = records.filter(r => {
+        if (typeStatusFilter === 'PICKUP') return r.type === 'PICKUP';
+        if (typeStatusFilter === 'DELIVERY') return r.type === 'DELIVERY';
+        if (typeStatusFilter === 'COMPLETED') return r.status === 'COMPLETED';
+        if (typeStatusFilter === 'IN_PROGRESS') return ['IN_PROGRESS', 'ASSIGNED', 'PLANNED'].includes(r.status);
+        return true;
+    });
+
+    const items = displayOrder.map(id => filteredRecords.find(r => r.id === id)).filter(Boolean) as ServiceRecord[];
 
     const handleSaveOrder = async () => {
         const toUpdate = items.map((r, i) => ({ id: r.id, sortOrder: i }));
@@ -182,6 +192,121 @@ export default function DailyPlanningPage() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* Filter Pills with Counts directly to the left of Dün */}
+                    {(() => {
+                        const pickupCount = records.filter(r => r.type === 'PICKUP').length;
+                        const deliveryCount = records.filter(r => r.type === 'DELIVERY').length;
+                        const completedCount = records.filter(r => r.status === 'COMPLETED').length;
+                        const inProgressCount = records.filter(r => ['IN_PROGRESS', 'ASSIGNED', 'PLANNED'].includes(r.status)).length;
+
+                        return (
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                background: 'var(--bg-secondary)',
+                                padding: '3px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-primary)',
+                                marginRight: '2px',
+                            }}>
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs ${typeStatusFilter === 'ALL' ? 'btn-primary' : 'btn-ghost'}`}
+                                    onClick={() => setTypeStatusFilter('ALL')}
+                                    style={{ padding: '3px 8px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <span>Tümü</span>
+                                    <span style={{
+                                        background: typeStatusFilter === 'ALL' ? 'rgba(255,255,255,0.25)' : 'var(--bg-card)',
+                                        padding: '1px 6px',
+                                        borderRadius: '10px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                    }}>
+                                        {records.length}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs ${typeStatusFilter === 'PICKUP' ? 'btn-primary' : 'btn-ghost'}`}
+                                    onClick={() => setTypeStatusFilter(typeStatusFilter === 'PICKUP' ? 'ALL' : 'PICKUP')}
+                                    title="Teslim Alınacak Cihazlar"
+                                    style={{ padding: '3px 8px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <span>📥 Teslim Alma</span>
+                                    <span style={{
+                                        background: typeStatusFilter === 'PICKUP' ? 'rgba(255,255,255,0.25)' : 'rgba(59, 130, 246, 0.18)',
+                                        color: typeStatusFilter === 'PICKUP' ? '#ffffff' : '#3b82f6',
+                                        padding: '1px 6px',
+                                        borderRadius: '10px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                    }}>
+                                        {pickupCount}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs ${typeStatusFilter === 'DELIVERY' ? 'btn-primary' : 'btn-ghost'}`}
+                                    onClick={() => setTypeStatusFilter(typeStatusFilter === 'DELIVERY' ? 'ALL' : 'DELIVERY')}
+                                    title="Teslim Edilecek Cihazlar"
+                                    style={{ padding: '3px 8px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <span>📤 Teslim Etme</span>
+                                    <span style={{
+                                        background: typeStatusFilter === 'DELIVERY' ? 'rgba(255,255,255,0.25)' : 'rgba(168, 85, 247, 0.18)',
+                                        color: typeStatusFilter === 'DELIVERY' ? '#ffffff' : '#a855f7',
+                                        padding: '1px 6px',
+                                        borderRadius: '10px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                    }}>
+                                        {deliveryCount}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs ${typeStatusFilter === 'COMPLETED' ? 'btn-primary' : 'btn-ghost'}`}
+                                    onClick={() => setTypeStatusFilter(typeStatusFilter === 'COMPLETED' ? 'ALL' : 'COMPLETED')}
+                                    title="Tamamlanan Servisler"
+                                    style={{ padding: '3px 8px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <span>✅ Yapılan</span>
+                                    <span style={{
+                                        background: typeStatusFilter === 'COMPLETED' ? 'rgba(255,255,255,0.25)' : 'rgba(16, 185, 129, 0.18)',
+                                        color: typeStatusFilter === 'COMPLETED' ? '#ffffff' : '#10b981',
+                                        padding: '1px 6px',
+                                        borderRadius: '10px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                    }}>
+                                        {completedCount}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs ${typeStatusFilter === 'IN_PROGRESS' ? 'btn-primary' : 'btn-ghost'}`}
+                                    onClick={() => setTypeStatusFilter(typeStatusFilter === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS')}
+                                    title="Yapılıyor / Bekleyen Servisler"
+                                    style={{ padding: '3px 8px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <span>⏳ Yapılıyor</span>
+                                    <span style={{
+                                        background: typeStatusFilter === 'IN_PROGRESS' ? 'rgba(255,255,255,0.25)' : 'rgba(245, 158, 11, 0.18)',
+                                        color: typeStatusFilter === 'IN_PROGRESS' ? '#ffffff' : '#f59e0b',
+                                        padding: '1px 6px',
+                                        borderRadius: '10px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                    }}>
+                                        {inProgressCount}
+                                    </span>
+                                </button>
+                            </div>
+                        );
+                    })()}
+
                     {[
                         { label: 'Dün', offset: -1 },
                         { label: 'Bugün', offset: 0 },

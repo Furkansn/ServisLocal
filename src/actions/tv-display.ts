@@ -3,7 +3,41 @@
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { TicketStatus, Role } from '@prisma/client';
-import { getLocalDateString } from '@/lib/constants';
+import { REQUEST_TYPE_LABELS, getLocalDateString } from '@/lib/constants';
+
+function formatTicketOperations(ticket: any): string {
+    const rawItems = ticket.repairItems;
+    let items: any[] = [];
+    if (rawItems) {
+        if (typeof rawItems === 'string') {
+            try { items = JSON.parse(rawItems); } catch (e) {}
+        } else if (Array.isArray(rawItems)) {
+            items = rawItems;
+        }
+    }
+
+    if (items.length > 0) {
+        return items.map((i: any) => {
+            const label = REQUEST_TYPE_LABELS[i.type as keyof typeof REQUEST_TYPE_LABELS] || i.customType || i.type;
+            return label;
+        }).join(' + ');
+    }
+
+    if (ticket.requestType) {
+        return REQUEST_TYPE_LABELS[ticket.requestType as keyof typeof REQUEST_TYPE_LABELS] || ticket.requestType;
+    }
+
+    return 'Tamir / Bakım';
+}
+
+function formatCompletedOperations(ticket: any): string {
+    if (ticket.operations && ticket.operations.length > 0) {
+        return ticket.operations.map((op: any) => {
+            return op.label || REQUEST_TYPE_LABELS[op.operationType as keyof typeof REQUEST_TYPE_LABELS] || op.notes || op.operationType;
+        }).join(' + ');
+    }
+    return formatTicketOperations(ticket);
+}
 
 export async function getTvDisplayData() {
     const session = await auth();
@@ -110,6 +144,7 @@ export async function getTvDisplayData() {
         repairPrice: Number(t.repairPrice),
         totalAmount: Number(t.totalAmount),
         paidAmount: Number(t.paidAmount),
+        operationLabel: formatTicketOperations(t),
     }));
 
     const completedTicketsToday = completedTicketsTodayRaw.map(t => ({
@@ -119,7 +154,7 @@ export async function getTvDisplayData() {
         paidAmount: Number(t.paidAmount),
         completedAt: t.operations[0]?.createdAt || t.statusHistory[0]?.createdAt || t.updatedAt,
         technicianName: t.operations[0]?.performedBy?.name || t.assignedTechnician?.name || 'Teknisyen',
-        lastOperationLabel: (t.operations[0] as any)?.label || t.requestType || 'Yapılan İşlem',
+        lastOperationLabel: formatCompletedOperations(t),
     }));
 
     return {
