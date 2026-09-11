@@ -44,6 +44,8 @@ export async function getTvDisplayData() {
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
 
     const todayStr = getLocalDateString(new Date());
+    const todayStart = new Date(`${todayStr}T00:00:00.000+03:00`);
+    const todayEnd = new Date(`${todayStr}T23:59:59.999+03:00`);
 
     // 1. Waiting Tickets: ONLY TEKNISYENE_VERILDI status AND no operations logged yet by technician
     const waitingTicketsRaw = await prisma.repairTicket.findMany({
@@ -65,22 +67,53 @@ export async function getTvDisplayData() {
         ],
     });
 
-    // 2. Completed / Processed Tickets (where technician entered operations OR status is beyond TEKNISYENE_VERILDI)
+    const COMPLETED_STATUSES = [
+        TicketStatus.TAMIR_TAMAMLANDI,
+        TicketStatus.TEST_EDILIYOR,
+        TicketStatus.PARCA_BEKLIYOR,
+        TicketStatus.TESLIMAT_SERVIS_ISTENDI,
+        TicketStatus.TESLIM_EDILDI,
+        TicketStatus.ODEME_BEKLIYOR,
+        TicketStatus.TAMAMLANDI,
+    ];
+
+    // 2. Completed / Processed Tickets (GÜNLÜK: where technician entered operations today OR status moved to completed/tested/etc. today)
     const completedTicketsTodayRaw = await prisma.repairTicket.findMany({
         where: {
             OR: [
-                { operations: { some: {} } },
+                // 1) An operation was performed today
+                {
+                    operations: {
+                        some: {
+                            createdAt: {
+                                gte: todayStart,
+                                lte: todayEnd,
+                            },
+                        },
+                    },
+                },
+                // 2) Status transitioned to completed/tested/etc. today
+                {
+                    statusHistory: {
+                        some: {
+                            createdAt: {
+                                gte: todayStart,
+                                lte: todayEnd,
+                            },
+                            toStatus: {
+                                in: COMPLETED_STATUSES,
+                            },
+                        },
+                    },
+                },
+                // 3) Or ticket has completed status and was updated today
                 {
                     status: {
-                        in: [
-                            TicketStatus.TAMIR_TAMAMLANDI,
-                            TicketStatus.TEST_EDILIYOR,
-                            TicketStatus.PARCA_BEKLIYOR,
-                            TicketStatus.TESLIMAT_SERVIS_ISTENDI,
-                            TicketStatus.TESLIM_EDILDI,
-                            TicketStatus.ODEME_BEKLIYOR,
-                            TicketStatus.TAMAMLANDI,
-                        ],
+                        in: COMPLETED_STATUSES,
+                    },
+                    updatedAt: {
+                        gte: todayStart,
+                        lte: todayEnd,
                     },
                 },
             ],
@@ -96,7 +129,7 @@ export async function getTvDisplayData() {
             },
             statusHistory: {
                 orderBy: { createdAt: 'desc' },
-                take: 1,
+                take: 5,
             },
         },
         orderBy: [
@@ -104,7 +137,34 @@ export async function getTvDisplayData() {
         ],
     });
 
-    // 3. Technicians List and their completed counts
+    // Format completed tickets and extract today's specific timestamp & technician
+    const completedTicketsToday = completedTicketsTodayRaw.map(t => {
+        const todayOp = t.operations.find((op: any) => {
+            const d = new Date(op.createdAt);
+            return d >= todayStart && d <= todayEnd;
+        });
+        const todayHistory = t.statusHistory.find((h: any) => {
+            const d = new Date(h.createdAt);
+            return d >= todayStart && d <= todayEnd;
+        });
+        const completedAt = todayOp?.createdAt || todayHistory?.createdAt || t.operations[0]?.createdAt || t.statusHistory[0]?.createdAt || t.updatedAt;
+        const technicianName = todayOp?.performedBy?.name || t.operations[0]?.performedBy?.name || t.assignedTechnician?.name || 'Teknisyen';
+
+        return {
+            ...t,
+            repairPrice: Number(t.repairPrice),
+            totalAmount: Number(t.totalAmount),
+            paidAmount: Number(t.paidAmount),
+            completedAt,
+            technicianName,
+            lastOperationLabel: formatCompletedOperations(t),
+        };
+    });
+
+    // Sort so the latest processed ticket is first
+    completedTicketsToday.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+
+    // 3. Technicians List and their completed counts (GÜNLÜK)
     const technicians = await prisma.personnel.findMany({
         where: {
             roles: {
@@ -120,9 +180,15 @@ export async function getTvDisplayData() {
         },
     });
 
-    // Count completed repairs per technician
+    // Count completed repairs per technician TODAY
     const technicianStats = technicians.map(tech => {
-        const completedCount = completedTicketsTodayRaw.filter(t => {
+        const completedCount = completedTicketsToday.filter(t => {
+            const didOpToday = t.operations.some((op: any) => {
+                const d = new Date(op.createdAt);
+                return d >= todayStart && d <= todayEnd && op.performedById === tech.id;
+            });
+            if (didOpToday) return true;
+
             const assignedId = t.assignedTechnicianId;
             const opPerformedById = t.operations[0]?.performedById;
             return assignedId === tech.id || opPerformedById === tech.id;
@@ -145,16 +211,6 @@ export async function getTvDisplayData() {
         totalAmount: Number(t.totalAmount),
         paidAmount: Number(t.paidAmount),
         operationLabel: formatTicketOperations(t),
-    }));
-
-    const completedTicketsToday = completedTicketsTodayRaw.map(t => ({
-        ...t,
-        repairPrice: Number(t.repairPrice),
-        totalAmount: Number(t.totalAmount),
-        paidAmount: Number(t.paidAmount),
-        completedAt: t.operations[0]?.createdAt || t.statusHistory[0]?.createdAt || t.updatedAt,
-        technicianName: t.operations[0]?.performedBy?.name || t.assignedTechnician?.name || 'Teknisyen',
-        lastOperationLabel: formatCompletedOperations(t),
     }));
 
     return {
