@@ -12,6 +12,7 @@ import { getPersonnelByRole } from '@/actions/personnel';
 import { getAccounts } from '@/actions/collections';
 import { STATUS_LABELS, STATUS_COLORS, getNextStatuses, isReadOnly } from '@/lib/state-machine';
 import { CUSTOMER_TYPE_LABELS, SERVICE_RECORD_TYPE_LABELS, REQUEST_TYPE_LABELS, PRIORITY_LABELS, PAYMENT_METHOD_LABELS, OPERATION_TYPE_LABELS, formatDate, formatDateTime, formatCurrency, parseCurrencyInput, getLocalDateString } from '@/lib/constants';
+import { getSystemUsdRate } from '@/actions/currency';
 import { TicketStatus, Role } from '@prisma/client';
 
 type Ticket = Awaited<ReturnType<typeof getTicketById>>;
@@ -58,12 +59,22 @@ export default function TicketDetailPage() {
     const [isSavingCurrency, setIsSavingCurrency] = useState(false);
     const [currencyError, setCurrencyError] = useState('');
 
-    const openCurrencyModal = () => {
+    const openCurrencyModal = async () => {
         const currentCurrency = ((ticket as any)?.currency || 'TRY') as 'TRY' | 'USD';
         const nextTarget = currentCurrency === 'USD' ? 'TRY' : 'USD';
         setTargetCurrency(nextTarget);
-        setUsdExchangeRate('');
         setCurrencyError('');
+
+        // Fetch system-wide manual USD rate
+        let activeRate = 48.60;
+        try {
+            const fetchedRate = await getSystemUsdRate();
+            if (fetchedRate > 0) activeRate = fetchedRate;
+        } catch {
+            // Fallback to 48.60
+        }
+
+        setUsdExchangeRate(activeRate.toString());
 
         const parsedItems: any[] = (ticket as any)?.repairItems
             ? (typeof (ticket as any).repairItems === 'string'
@@ -71,18 +82,31 @@ export default function TicketDetailPage() {
                 : Array.isArray((ticket as any).repairItems) ? (ticket as any).repairItems : [])
             : [];
 
-        if (parsedItems.length > 0) {
-            setConvertingItems(parsedItems.map(i => ({
+        const sourceItems = parsedItems.length > 0 ? parsedItems : [{
+            type: ticket?.requestType || 'SCREEN_CHANGE',
+            price: ticket?.repairPrice || 0
+        }];
+
+        // If converting USD to TRY, auto-calculate with active system rate so user sees result immediately
+        if (currentCurrency === 'USD' && nextTarget === 'TRY' && activeRate > 0) {
+            const autoConverted = sourceItems.map((item: any) => {
+                const originalPrice = Number(String(item.price).replace(/\./g, '').replace(',', '.') || 0);
+                const convertedPrice = Math.round(originalPrice * activeRate);
+                return {
+                    type: item.type,
+                    price: convertedPrice ? convertedPrice.toLocaleString('tr-TR') : '0',
+                    customType: item.customType
+                };
+            });
+            setConvertingItems(autoConverted);
+        } else {
+            setConvertingItems(sourceItems.map(i => ({
                 type: i.type,
                 price: String(i.price || ''),
                 customType: i.customType
             })));
-        } else {
-            setConvertingItems([{
-                type: ticket?.requestType || 'SCREEN_CHANGE',
-                price: String(ticket?.repairPrice || '')
-            }]);
         }
+
         setShowCurrencyModal(true);
     };
 

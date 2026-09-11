@@ -8,6 +8,7 @@ import {
     getCompatibilityStats,
     clearAllCompatibilityRecords,
     getModelCompatibilitySummary,
+    searchTVModels,
     CompatibilityImportRecord
 } from '@/actions/compatibility';
 
@@ -61,12 +62,19 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
     const [modelSummaryData, setModelSummaryData] = useState<any | null>(null);
     const [isLoadingModelSummary, setIsLoadingModelSummary] = useState(false);
 
+    // Model Autocomplete State
+    const [modelResults, setModelResults] = useState<string[]>([]);
+    const [showModelDropdown, setShowModelDropdown] = useState(false);
+    const [isSearchingModels, setIsSearchingModels] = useState(false);
+    const modelSearchContainerRef = useRef<HTMLDivElement>(null);
+
     const handleOpenModelSummary = async (modelName: string) => {
         if (!modelName) return;
-        setSelectedModelName(modelName);
+        const cleanName = modelName.trim().toUpperCase();
+        setSelectedModelName(cleanName);
         setIsLoadingModelSummary(true);
         try {
-            const res = await getModelCompatibilitySummary(modelName);
+            const res = await getModelCompatibilitySummary(cleanName);
             setModelSummaryData(res);
         } catch (e) {
             console.error(e);
@@ -74,6 +82,42 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
             setIsLoadingModelSummary(false);
         }
     };
+
+    // TV Model Autocomplete Search
+    useEffect(() => {
+        if (!modelQuery || modelQuery.trim().length < 2) {
+            setModelResults([]);
+            setShowModelDropdown(false);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsSearchingModels(true);
+            try {
+                const results = await searchTVModels(modelQuery);
+                const cleanResults = Array.from(new Set(results.map(r => r.trim().toUpperCase())));
+                setModelResults(cleanResults);
+                setShowModelDropdown(cleanResults.length > 0);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearchingModels(false);
+            }
+        }, 250);
+
+        return () => clearTimeout(timer);
+    }, [modelQuery]);
+
+    // Close model dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (modelSearchContainerRef.current && !modelSearchContainerRef.current.contains(e.target as Node)) {
+                setShowModelDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const loadStats = async () => {
         try {
@@ -312,7 +356,7 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                         </select>
                     </div>
 
-                    <div>
+                    <div ref={modelSearchContainerRef} style={{ position: 'relative' }}>
                         <label style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>
                             📺 Model
                         </label>
@@ -322,7 +366,62 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                             placeholder="Örn: 49NU7100"
                             value={modelQuery}
                             onChange={(e) => { setModelQuery(e.target.value); setPage(1); }}
+                            onFocus={() => { if (modelResults.length > 0) setShowModelDropdown(true); }}
                         />
+                        {showModelDropdown && modelResults.length > 0 && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-primary)',
+                                borderRadius: '8px',
+                                boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                                zIndex: 50,
+                                maxHeight: '240px',
+                                overflowY: 'auto'
+                            }}>
+                                <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 700, color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}>
+                                    EŞLEŞEN MODELLER
+                                </div>
+                                {modelResults.map((m) => (
+                                    <div
+                                        key={m}
+                                        onClick={() => {
+                                            setModelQuery(m);
+                                            setShowModelDropdown(false);
+                                            setPage(1);
+                                        }}
+                                        style={{
+                                            padding: '7px 10px',
+                                            fontSize: '11.5px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            borderBottom: '1px solid var(--border-primary)'
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>📺 {m}</span>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowModelDropdown(false);
+                                                handleOpenModelSummary(m);
+                                            }}
+                                            className="badge badge-primary"
+                                            style={{ fontSize: '10px', padding: '1px 6px', cursor: 'pointer', border: 'none' }}
+                                        >
+                                            💡 Özeti Gör
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -411,7 +510,7 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                                             </span>
                                         </td>
                                         <td>
-                                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.brand || '-'}</span>
+                                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.brand ? String(r.brand).toUpperCase() : '-'}</span>
                                         </td>
                                         <td>
                                             <button
@@ -423,24 +522,24 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                                                 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)', fontFamily: 'monospace', textDecoration: 'underline', padding: '2px 4px' }}
                                                 title={`${r.model} için tüm çıkan ve takılan ekran özetini gör`}
                                             >
-                                                📺 {r.model || '-'}
+                                                📺 {r.model ? String(r.model).toUpperCase() : '-'}
                                             </button>
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 600 }}>
-                                            {isValidValue(r.originalScreen) ? r.originalScreen : '-'}
+                                            {isValidValue(r.originalScreen) ? String(r.originalScreen).toUpperCase() : '-'}
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
-                                            {isValidValue(r.installedScreen) ? r.installedScreen : '-'}
+                                            {isValidValue(r.installedScreen) ? String(r.installedScreen).toUpperCase() : '-'}
                                         </td>
                                         <td>
                                             {isValidValue(r.screenAction) ? (
                                                 <span className="badge badge-success" style={{ fontSize: '11px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }} title={r.screenAction}>
-                                                    {r.screenAction}
+                                                    {String(r.screenAction).toUpperCase()}
                                                 </span>
                                             ) : '-'}
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#d97706' }}>
-                                            {isValidValue(r.installedLed) ? r.installedLed : '-'}
+                                            {isValidValue(r.installedLed) ? String(r.installedLed).toUpperCase() : '-'}
                                         </td>
                                         <td style={{ fontSize: '12px' }}>{isValidValue(r.tcon) ? r.tcon : '-'}</td>
                                         <td style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
@@ -560,14 +659,14 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                 <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setSelectedRecord(null)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
                         <div className="modal-header">
-                            <h3 className="modal-title">💡 {selectedRecord.brand} {selectedRecord.model} — Uyumluluk Detayı</h3>
+                            <h3 className="modal-title">💡 {selectedRecord.brand ? String(selectedRecord.brand).toUpperCase() : ''} {selectedRecord.model ? String(selectedRecord.model).toUpperCase() : ''} — Uyumluluk Detayı</h3>
                             <button className="modal-close" onClick={() => setSelectedRecord(null)}>×</button>
                         </div>
                         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', wordBreak: 'break-word' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>MARKA & MODEL</div>
-                                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--brand-primary)' }}>{selectedRecord.brand} {selectedRecord.model}</div>
+                                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--brand-primary)' }}>{selectedRecord.brand ? String(selectedRecord.brand).toUpperCase() : ''} {selectedRecord.model ? String(selectedRecord.model).toUpperCase() : ''}</div>
                                 </div>
                                 <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>TCON</div>
@@ -629,7 +728,7 @@ export default function NeTakilirDashboardPage({ readOnly = false }: { readOnly?
                         <div className="modal-header">
                             <div>
                                 <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    📺 {selectedModelName} — TV Model Ekran & LED Uyumluluk Özeti
+                                    📺 {selectedModelName.toUpperCase()} — TV Model Ekran & LED Uyumluluk Özeti
                                 </h3>
                                 <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                                     Bu modelde daha önce sökülen ekranlar, takılan uyumlu ekranlar ve geçmiş işlem notları

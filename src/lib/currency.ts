@@ -1,54 +1,58 @@
-/**
- * Live USD to TRY exchange rate service with in-memory caching and safe fallback.
- */
+import fs from 'fs/promises';
+import path from 'path';
+import prisma from '@/lib/prisma';
 
 let cachedRate: { rate: number; timestamp: number } | null = null;
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
-const FALLBACK_USD_TRY = 37.50; // Sensible fallback in case of all network failures
+const CACHE_TTL_MS = 60 * 1000; // 1 minute in-memory cache
+const DEFAULT_USD_RATE = 48.60;
+const STORAGE_PATH = path.join(process.cwd(), 'src/lib/price-list-data.json');
+const TEMPLATE_KEY = 'price_list_v1';
 
+/**
+ * Live USD to TRY exchange rate service.
+ * Always returns the user-configured manual exchange rate from the database/storage.
+ */
 export async function getUsdTryRate(): Promise<number> {
     const now = Date.now();
     if (cachedRate && now - cachedRate.timestamp < CACHE_TTL_MS) {
         return cachedRate.rate;
     }
 
+    // 1. Try reading from database template (price_list_v1)
     try {
-        // Primary provider: Frankfurter (ECB rates)
-        const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY', {
-            next: { revalidate: 900 }
+        const dbTemplate = await prisma.receiptTemplate.findUnique({
+            where: { format: TEMPLATE_KEY },
         });
-        if (res.ok) {
-            const data = await res.json();
-            if (data?.rates?.TRY && typeof data.rates.TRY === 'number') {
-                const rate = Number(data.rates.TRY);
-                cachedRate = { rate, timestamp: now };
-                return rate;
+        if (dbTemplate && dbTemplate.content) {
+            const parsed = typeof dbTemplate.content === 'string'
+                ? JSON.parse(dbTemplate.content)
+                : dbTemplate.content;
+            if (parsed && typeof parsed.usdRate === 'number' && parsed.usdRate > 0) {
+                cachedRate = { rate: parsed.usdRate, timestamp: now };
+                return parsed.usdRate;
             }
         }
     } catch {
-        // try secondary provider
+        // Fallback to local file
     }
 
+    // 2. Try reading from price-list-data.json
     try {
-        // Secondary provider: ExchangeRate-API open endpoint
-        const res2 = await fetch('https://open.er-api.com/v6/latest/USD', {
-            next: { revalidate: 900 }
-        });
-        if (res2.ok) {
-            const data2 = await res2.json();
-            if (data2?.rates?.TRY && typeof data2.rates.TRY === 'number') {
-                const rate = Number(data2.rates.TRY);
-                cachedRate = { rate, timestamp: now };
-                return rate;
-            }
+        const fileData = await fs.readFile(STORAGE_PATH, 'utf-8');
+        const parsed = JSON.parse(fileData);
+        if (parsed && typeof parsed.usdRate === 'number' && parsed.usdRate > 0) {
+            cachedRate = { rate: parsed.usdRate, timestamp: now };
+            return parsed.usdRate;
         }
     } catch {
-        // fallback
+        // Fallback to default
     }
 
-    if (cachedRate) {
-        return cachedRate.rate;
-    }
-
-    return FALLBACK_USD_TRY;
+    cachedRate = { rate: DEFAULT_USD_RATE, timestamp: now };
+    return DEFAULT_USD_RATE;
 }
+
+export function setCachedUsdRate(rate: number) {
+    cachedRate = { rate, timestamp: Date.now() };
+}
+

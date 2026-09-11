@@ -167,6 +167,47 @@ export async function searchCompatibilityRecords(options: {
 
 // ─── Get Stats (Brands & Total Records) ───────────────────
 
+// ─── Search Models (Case-Insensitive & Deduplicated) ───────
+export async function searchTVModels(query: string): Promise<string[]> {
+    if (!query || query.trim().length < 2) return [];
+
+    const cleanQuery = query.trim();
+    const model = getModel();
+    if (!model) return [];
+
+    try {
+        const records = await model.findMany({
+            where: {
+                model: {
+                    contains: cleanQuery,
+                    mode: 'insensitive',
+                },
+            },
+            select: { model: true },
+            take: 60,
+        });
+
+        // Case-insensitive deduplication & canonical uppercase
+        const uniqueModels = new Map<string, string>();
+        for (const r of records) {
+            const raw = r.model?.trim();
+            if (!raw) continue;
+            const upper = raw.toUpperCase();
+            if (!uniqueModels.has(upper)) {
+                // TV models are standardized in uppercase (e.g. 55PUS7805)
+                uniqueModels.set(upper, upper);
+            }
+        }
+
+        return Array.from(uniqueModels.values()).slice(0, 15);
+    } catch (e) {
+        console.warn('Model search query failed:', e);
+        return [];
+    }
+}
+
+// ─── Get Stats (Brands & Total Records) ───────────────────
+
 export async function getCompatibilityStats() {
     const model = getModel();
     if (!model) return { totalCount: 0, brands: [], screenActions: [] };
@@ -178,21 +219,49 @@ export async function getCompatibilityStats() {
             _count: { id: true },
             where: { brand: { not: null } },
             orderBy: { _count: { id: 'desc' } },
-            take: 30,
+            take: 60,
         }),
         model.groupBy({
             by: ['screenAction'],
             _count: { id: true },
             where: { screenAction: { not: null } },
             orderBy: { _count: { id: 'desc' } },
-            take: 20,
+            take: 40,
         }),
     ]);
 
+    // Case-insensitive deduplication of Brands (e.g. "PHILIPS" and "Philips" unified)
+    const brandMap = new Map<string, { brand: string; count: number }>();
+    for (const b of brandsGroup) {
+        const raw = (b.brand || '').trim();
+        if (!raw || raw === '-' || raw.toLowerCase() === 'null' || raw.toLowerCase() === 'undefined') continue;
+        const upper = raw.toUpperCase();
+        if (brandMap.has(upper)) {
+            brandMap.get(upper)!.count += b._count.id;
+        } else {
+            brandMap.set(upper, { brand: upper, count: b._count.id });
+        }
+    }
+    const brands = Array.from(brandMap.values()).sort((a, b) => b.count - a.count).slice(0, 30);
+
+    // Case-insensitive deduplication of Screen Actions (e.g. "ONARIM" and "Onarım" unified)
+    const actionMap = new Map<string, { action: string; count: number }>();
+    for (const a of actionsGroup) {
+        const raw = (a.screenAction || '').trim();
+        if (!raw || raw === '-' || raw.toLowerCase() === 'false' || raw.toLowerCase() === 'true' || raw.toLowerCase() === 'null') continue;
+        const upper = raw.toUpperCase();
+        if (actionMap.has(upper)) {
+            actionMap.get(upper)!.count += a._count.id;
+        } else {
+            actionMap.set(upper, { action: upper, count: a._count.id });
+        }
+    }
+    const screenActions = Array.from(actionMap.values()).sort((a, b) => b.count - a.count).slice(0, 20);
+
     return {
         totalCount,
-        brands: brandsGroup.map((b: any) => ({ brand: b.brand || 'Bilinmiyor', count: b._count.id })),
-        screenActions: actionsGroup.map((a: any) => ({ action: a.screenAction || '-', count: a._count.id })).filter((a: any) => a.action !== '-' && a.action !== 'false' && a.action !== 'true'),
+        brands,
+        screenActions,
     };
 }
 
@@ -225,7 +294,7 @@ export async function getModelCompatibilitySummary(modelName: string) {
     const m = modelName.trim();
     const model = getModel();
 
-    const records = model
+    const rawRecords = model
         ? await model.findMany({
             where: {
                 model: { equals: m, mode: 'insensitive' },
@@ -234,6 +303,17 @@ export async function getModelCompatibilitySummary(modelName: string) {
             take: 200,
         })
         : [];
+
+    // Normalize records to uppercase for consistent display
+    const records = rawRecords.map((r: any) => ({
+        ...r,
+        model: r.model ? String(r.model).trim().toUpperCase() : '',
+        brand: r.brand ? String(r.brand).trim().toUpperCase() : '',
+        originalScreen: r.originalScreen ? String(r.originalScreen).trim().toUpperCase() : '',
+        installedScreen: r.installedScreen ? String(r.installedScreen).trim().toUpperCase() : '',
+        installedLed: r.installedLed ? String(r.installedLed).trim().toUpperCase() : '',
+        screenAction: r.screenAction ? String(r.screenAction).trim().toUpperCase() : '',
+    }));
 
     const normalizeCode = (val: any): string | null => {
         if (!val) return null;
@@ -272,7 +352,7 @@ export async function getModelCompatibilitySummary(modelName: string) {
 
             const action = normalizeCode(r.screenAction);
             if (action) {
-                instMap[key].actions.add(action);
+                instMap[key].actions.add(action.toUpperCase());
             }
         }
 

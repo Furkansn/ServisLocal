@@ -191,10 +191,10 @@ export default function MobileNeTakilirPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
                                 <div style={{ minWidth: 0, flex: 1 }}>
                                     <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600, display: 'block' }}>
-                                        {r.brand || '-'}
+                                        {r.brand ? String(r.brand).toUpperCase() : '-'}
                                     </span>
                                     <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, fontFamily: 'monospace', color: 'var(--brand-primary)', wordBreak: 'break-word' }}>
-                                        {r.model || '-'}
+                                        {r.model ? String(r.model).toUpperCase() : '-'}
                                     </h3>
                                 </div>
                                 {isValidValue(r.screenAction) && (
@@ -211,7 +211,7 @@ export default function MobileNeTakilirPage() {
                                         }}
                                         title={r.screenAction}
                                     >
-                                        {r.screenAction}
+                                        {String(r.screenAction).toUpperCase()}
                                     </span>
                                 )}
                             </div>

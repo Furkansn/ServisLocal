@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition, useMemo } from 'react';
 import { getProducts, createProduct, updateProduct } from '@/actions/products';
 import { syncAllExternalProducts, getIntegrationSummary } from '@/actions/integration';
+import { updateSystemUsdRate } from '@/actions/currency';
 import { PRODUCT_CATEGORY_LABELS, formatCurrency } from '@/lib/constants';
 
 type Product = Awaited<ReturnType<typeof getProducts>>[0];
@@ -23,10 +24,17 @@ export default function ProductsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<SortField>('name');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-
     const [isPending, startTransition] = useTransition();
+
+    // Modal state for manual product
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState<Product | null>(null);
+    const [formName, setFormName] = useState('');
+    const [formCategory, setFormCategory] = useState<'ACCESSORY' | 'LGP' | 'OTHER'>('ACCESSORY');
+    const [formSku, setFormSku] = useState('');
+    const [formPrice, setFormPrice] = useState('');
+    const [formCost, setFormCost] = useState('');
+    const [formStock, setFormStock] = useState('0');
     const [formError, setFormError] = useState('');
 
     // Integration state
@@ -40,13 +48,50 @@ export default function ProductsPage() {
         usdRate: number;
     } | null>(null);
 
+    // Manual USD Rate State
+    const [usdRateInput, setUsdRateInput] = useState<string>('');
+    const [isSavingRate, setIsSavingRate] = useState(false);
+    const [rateSuccessMessage, setRateSuccessMessage] = useState(false);
+
+    const handleSaveUsdRate = async () => {
+        const parsed = parseFloat(usdRateInput.replace(',', '.'));
+        if (isNaN(parsed) || parsed <= 0) {
+            alert('Lütfen geçerli bir dolar kuru giriniz (Örn: 48.60)');
+            return;
+        }
+
+        setIsSavingRate(true);
+        try {
+            const res = await updateSystemUsdRate(parsed);
+            if (res.success) {
+                setIntegrationSummary(prev => prev ? { ...prev, usdRate: res.rate } : null);
+                setUsdRateInput(res.rate.toString());
+                setRateSuccessMessage(true);
+                setTimeout(() => setRateSuccessMessage(false), 2500);
+                // Reload products so updated TRY prices show immediately
+                load();
+            } else {
+                alert(res.error || 'Dolar kuru güncellenirken hata oluştu.');
+            }
+        } catch (e: any) {
+            alert(e?.message || 'Hata oluştu.');
+        } finally {
+            setIsSavingRate(false);
+        }
+    };
+
     const load = () => {
         startTransition(async () => {
             const data = await getProducts({
                 search: search.trim() || undefined,
             });
             setProducts(data);
-            getIntegrationSummary().then(setIntegrationSummary).catch(() => { });
+            getIntegrationSummary().then(sum => {
+                setIntegrationSummary(sum);
+                if (sum?.usdRate) {
+                    setUsdRateInput(prev => prev || sum.usdRate.toString());
+                }
+            }).catch(() => { });
         });
     };
 
@@ -57,6 +102,9 @@ export default function ProductsPage() {
         // Auto-check: if last sync is older than 2 mins, silently sync in background
         getIntegrationSummary().then((sum) => {
             setIntegrationSummary(sum);
+            if (sum?.usdRate) {
+                setUsdRateInput(sum.usdRate.toString());
+            }
             const lastTime = sum?.lastSyncAt ? new Date(sum.lastSyncAt).getTime() : 0;
             if (Date.now() - lastTime > 2 * 60 * 1000) {
                 syncAllExternalProducts().then(() => {
@@ -268,9 +316,60 @@ export default function ProductsPage() {
                         >
                             📺 Zero - Ekran: {integrationSummary.screenCount} Ürün (USD)
                         </span>
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                            💵 Güncel Kur: <strong>$1 = ₺{integrationSummary.usdRate.toFixed(2)}</strong>
-                        </span>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'var(--bg-tertiary)',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-primary)'
+                        }}>
+                            <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '11.5px' }}>
+                                💵 Güncel Kur: <strong>$1 = ₺</strong>
+                            </span>
+                            <input
+                                type="text"
+                                value={usdRateInput}
+                                onChange={(e) => setUsdRateInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveUsdRate(); }}
+                                placeholder="48.60"
+                                style={{
+                                    width: '54px',
+                                    padding: '2px 4px',
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    color: '#000000',
+                                    background: '#ffffff',
+                                    border: '1.5px solid #10b981',
+                                    borderRadius: '4px',
+                                    outline: 'none',
+                                    textAlign: 'center',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                }}
+                                title="Tüm sistemde geçerli olacak manuel dolar kuru. Enter ile kaydedebilirsiniz."
+                            />
+                            <button
+                                type="button"
+                                onClick={handleSaveUsdRate}
+                                disabled={isSavingRate}
+                                className="btn btn-primary btn-xs"
+                                style={{
+                                    fontSize: '11px',
+                                    padding: '2px 8px',
+                                    background: '#10b981',
+                                    borderColor: '#059669',
+                                    fontWeight: 700
+                                }}
+                            >
+                                {isSavingRate ? '...' : 'Kaydet'}
+                            </button>
+                            {rateSuccessMessage && (
+                                <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 700 }}>
+                                    ✓ Kaydedildi
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div style={{ color: 'var(--text-tertiary)' }}>
                         Son Senkronizasyon: {integrationSummary.lastSyncAt ? new Date(integrationSummary.lastSyncAt).toLocaleString('tr-TR') : 'Henüz yapılmadı'}
