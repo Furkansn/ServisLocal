@@ -197,6 +197,13 @@ a:hover {
   margin: 0 auto;
 }
 
+.app-content:has(.price-list-page) {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 10px 16px !important;
+  margin: 0 !important;
+}
+
 /* ─── Sidebar Styles ────────────────────────────────────── */
 .sidebar-logo {
   padding: var(--space-4) var(--space-5);

@@ -129,7 +129,7 @@ export default function PriceListPage() {
     const [modelSummaryData, setModelSummaryData] = useState<any | null>(null);
     const [isLoadingModelSummary, setIsLoadingModelSummary] = useState<boolean>(false);
 
-    // Load initial visibility & view preferences from localStorage
+    // Load initial visibility & view preferences from localStorage and detect large screen
     useEffect(() => {
         try {
             const savedShowCosts = localStorage.getItem('price_list_show_costs');
@@ -141,14 +141,46 @@ export default function PriceListPage() {
                 setViewMode(savedViewMode);
             }
             const savedScreenCols = localStorage.getItem('price_list_screen_cols');
-            if (savedScreenCols && [2, 3, 4].includes(Number(savedScreenCols))) {
+            if (savedScreenCols && [2, 3, 4, 5].includes(Number(savedScreenCols))) {
                 setScreenCols(Number(savedScreenCols));
+            } else if (typeof window !== 'undefined') {
+                // Büyük ekran algılama: Geniş ekranda (>= 1680px) 4 sütun otomatik açılarak boşluklar doldurulur
+                if (window.innerWidth >= 1680) {
+                    setScreenCols(4);
+                } else {
+                    setScreenCols(3);
+                }
             }
             const savedLedCols = localStorage.getItem('price_list_led_cols');
             if (savedLedCols && [1, 2, 3].includes(Number(savedLedCols))) {
                 setLedCols(Number(savedLedCols));
+            } else if (typeof window !== 'undefined') {
+                if (window.innerWidth >= 1680) {
+                    setLedCols(3);
+                }
             }
         } catch (e) {}
+
+        // Büyük ekranlarda tam genişlik sağlamak için .app-content container'ını genişlet
+        const appContent = document.querySelector('.app-content') as HTMLElement | null;
+        if (appContent) {
+            const prevMaxWidth = appContent.style.maxWidth;
+            const prevPadding = appContent.style.padding;
+            const prevMargin = appContent.style.margin;
+            const prevWidth = appContent.style.width;
+
+            appContent.style.maxWidth = '100%';
+            appContent.style.width = '100%';
+            appContent.style.padding = '10px 16px';
+            appContent.style.margin = '0';
+
+            return () => {
+                appContent.style.maxWidth = prevMaxWidth;
+                appContent.style.padding = prevPadding;
+                appContent.style.margin = prevMargin;
+                appContent.style.width = prevWidth;
+            };
+        }
     }, []);
 
     const toggleShowCosts = () => {
@@ -609,7 +641,7 @@ export default function PriceListPage() {
                 <th style={{ width: isCompact ? '20px' : '24px', textAlign: 'center', padding: isCompact ? '4px 1px' : '6px 1px', color: 'var(--text-tertiary)' }}>Sıra</th>
                 <th
                     onClick={() => toggleScreenSort('size')}
-                    style={{ width: isCompact ? '34px' : '42px', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 3px', userSelect: 'none', color: 'var(--text-secondary)' }}
+                    style={{ width: isCompact ? '36px' : '42px', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 3px', userSelect: 'none', color: 'var(--text-secondary)' }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                         <span>Boyut</span>
@@ -627,7 +659,7 @@ export default function PriceListPage() {
                 </th>
                 <th
                     onClick={() => toggleScreenSort('usdPrice')}
-                    style={{ width: isCompact ? '48px' : '60px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#10b981' }}
+                    style={{ width: isCompact ? '52px' : '60px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#10b981' }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
                         <span>DOLAR</span>
@@ -636,7 +668,7 @@ export default function PriceListPage() {
                 </th>
                 <th
                     onClick={() => toggleScreenSort('tamirciPrice')}
-                    style={{ width: isCompact ? '60px' : '75px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#60a5fa' }}
+                    style={{ width: isCompact ? '64px' : '75px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#60a5fa' }}
                     title="Dolar x Manuel Kur"
                 >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
@@ -646,7 +678,7 @@ export default function PriceListPage() {
                 </th>
                 <th
                     onClick={() => toggleScreenSort('customerPriceTL')}
-                    style={{ width: isCompact ? '62px' : '75px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#f87171' }}
+                    style={{ width: isCompact ? '66px' : '75px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#f87171' }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
                         <span>MÜŞTERİ</span>
@@ -707,7 +739,7 @@ export default function PriceListPage() {
                 </td>
 
                 {/* Boyut */}
-                <td style={{ padding: rowPadding, whiteSpace: 'nowrap', width: isCompact ? '34px' : '42px' }}>
+                <td style={{ padding: rowPadding, whiteSpace: 'nowrap', width: isCompact ? '36px' : '42px' }}>
                     {isEditing ? (
                         <input
                             type="text"
@@ -848,7 +880,7 @@ export default function PriceListPage() {
                 </td>
 
                 {/* DOLAR ($) */}
-                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '48px' : '60px' }}>
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '52px' : '60px' }}>
                     {!showCosts ? (
                         <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
                     ) : isEditing ? (
@@ -858,7 +890,7 @@ export default function PriceListPage() {
                             onChange={(e) => updateScreenRow(row.id, 'usdPrice', parseFloat(e.target.value) || 0)}
                             onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
                             style={{
-                                width: isCompact ? '46px' : '58px',
+                                width: isCompact ? '48px' : '58px',
                                 padding: '1px 2px',
                                 fontSize: '11px',
                                 fontWeight: 700,
@@ -881,7 +913,7 @@ export default function PriceListPage() {
                 </td>
 
                 {/* Tamirci (₺) */}
-                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '60px' : '75px' }}>
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '64px' : '75px' }}>
                     {!showCosts ? (
                         <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
                     ) : (
@@ -892,7 +924,7 @@ export default function PriceListPage() {
                 </td>
 
                 {/* MÜŞTERİ (₺) */}
-                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '62px' : '75px' }}>
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '66px' : '75px' }}>
                     {isEditing ? (
                         <input
                             type="number"
@@ -1295,7 +1327,7 @@ export default function PriceListPage() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+        <div className="price-list-page" style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
             {/* ─── Top Control & Search Bar (Kompakt Tek Satır Başlık) ─────────────── */}
             <div style={{
                 background: 'var(--bg-card)',
@@ -1765,19 +1797,6 @@ export default function PriceListPage() {
                             <span style={{ fontWeight: 800, fontSize: '13px', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 ZERO TV SERVİSİ — Ekran Değişimi ({sortedScreens.length} Kalem Model)
                             </span>
-                            <span style={{
-                                fontSize: '11px',
-                                color: '#93c5fd',
-                                background: 'rgba(37, 99, 235, 0.15)',
-                                padding: '2px 8px',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                            }}>
-                                ⚡ Yan yana tam görünüm: Sayfayı aşağı kaydırmadan tüm modeller tek bakışta
-                            </span>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1794,7 +1813,7 @@ export default function PriceListPage() {
                                 <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-tertiary)', padding: '0 4px' }}>
                                     Düzen:
                                 </span>
-                                {[2, 3, 4].map(c => (
+                                {[2, 3, 4, 5].map(c => (
                                     <button
                                         key={c}
                                         type="button"
@@ -1810,9 +1829,9 @@ export default function PriceListPage() {
                                             cursor: 'pointer',
                                             transition: 'all 0.15s ease'
                                         }}
-                                        title={c === 3 ? '3 Sütun (Önerilen: Sıfır Kaydırma)' : `${c} Sütunlu Görünüm`}
+                                        title={c === 3 ? '3 Sütun' : c === 4 ? '4 Sütun (Geniş Ekran)' : `${c} Sütunlu Görünüm`}
                                     >
-                                        {c === 3 ? '3 Sütun (Sıfır Kaydırma ★)' : `${c} Sütun`}
+                                        {c === 3 ? '3 Sütun ★' : c === 4 ? '4 Sütun' : `${c} Sütun`}
                                     </button>
                                 ))}
                             </div>
@@ -1891,19 +1910,6 @@ export default function PriceListPage() {
                             <Lightbulb size={16} style={{ color: '#34d399' }} />
                             <span style={{ fontWeight: 800, fontSize: '13px', color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 LED Değişimi & Tamirci İşçilik ({sortedLeds.length} Kalem)
-                            </span>
-                            <span style={{
-                                fontSize: '11px',
-                                color: '#6ee7b7',
-                                background: 'rgba(16, 185, 129, 0.15)',
-                                padding: '2px 8px',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(16, 185, 129, 0.3)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                            }}>
-                                ⚡ Yan yana tam görünüm: Sayfayı aşağı kaydırmadan tüm modeller tek bakışta
                             </span>
                         </div>
 
