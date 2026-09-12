@@ -14,7 +14,9 @@ import {
     Check,
     Tv,
     Lightbulb,
-    GripVertical
+    GripVertical,
+    Layers,
+    LayoutGrid
 } from 'lucide-react';
 import {
     getPriceListData,
@@ -28,6 +30,17 @@ import {
     LedPriceItem,
     INITIAL_PRICE_LIST
 } from '@/lib/price-list-types';
+
+function splitIntoChunks<T>(array: T[], chunkCount: number): T[][] {
+    if (!array || array.length === 0) return Array.from({ length: chunkCount }, () => []);
+    const safeCount = Math.max(1, chunkCount);
+    const result: T[][] = [];
+    const perChunk = Math.ceil(array.length / safeCount);
+    for (let i = 0; i < safeCount; i++) {
+        result.push(array.slice(i * perChunk, (i + 1) * perChunk));
+    }
+    return result;
+}
 
 function formatCurrencyTL(val: number | undefined | null): string {
     if (val === undefined || val === null || isNaN(val) || val === 0) return '-';
@@ -81,6 +94,12 @@ export default function PriceListPage() {
     // View & Visibility Preferences
     const [showCosts, setShowCosts] = useState<boolean>(true);
     const [tableSearchQuery, setTableSearchQuery] = useState<string>('');
+    // Görünüm Modu: 'ALL' (Tümü - İkisi bir arada) | 'SCREEN' (Sadece Ekran) | 'LED' (Sadece LED)
+    const [viewMode, setViewMode] = useState<'ALL' | 'SCREEN' | 'LED'>('ALL');
+    // Sadece Ekran seçildiğinde kaç sütun yan yana gösterilsin: 2 | 3 | 4 (Varsayılan 3 sütun - kaydırmasız tam görünüm)
+    const [screenCols, setScreenCols] = useState<number>(3);
+    // Sadece LED seçildiğinde kolon sayısı: 1 | 2 (Varsayılan 2 sütun)
+    const [ledCols, setLedCols] = useState<number>(2);
 
     // Sorting states
     const [screenSortCol, setScreenSortCol] = useState<string | null>(null);
@@ -110,12 +129,24 @@ export default function PriceListPage() {
     const [modelSummaryData, setModelSummaryData] = useState<any | null>(null);
     const [isLoadingModelSummary, setIsLoadingModelSummary] = useState<boolean>(false);
 
-    // Load initial visibility preference from localStorage
+    // Load initial visibility & view preferences from localStorage
     useEffect(() => {
         try {
             const savedShowCosts = localStorage.getItem('price_list_show_costs');
             if (savedShowCosts !== null) {
                 setShowCosts(savedShowCosts === 'true');
+            }
+            const savedViewMode = localStorage.getItem('price_list_view_mode');
+            if (savedViewMode === 'ALL' || savedViewMode === 'SCREEN' || savedViewMode === 'LED') {
+                setViewMode(savedViewMode);
+            }
+            const savedScreenCols = localStorage.getItem('price_list_screen_cols');
+            if (savedScreenCols && [2, 3, 4].includes(Number(savedScreenCols))) {
+                setScreenCols(Number(savedScreenCols));
+            }
+            const savedLedCols = localStorage.getItem('price_list_led_cols');
+            if (savedLedCols && [1, 2, 3].includes(Number(savedLedCols))) {
+                setLedCols(Number(savedLedCols));
             }
         } catch (e) {}
     }, []);
@@ -125,6 +156,27 @@ export default function PriceListPage() {
         setShowCosts(next);
         try {
             localStorage.setItem('price_list_show_costs', String(next));
+        } catch (e) {}
+    };
+
+    const handleViewModeChange = (mode: 'ALL' | 'SCREEN' | 'LED') => {
+        setViewMode(mode);
+        try {
+            localStorage.setItem('price_list_view_mode', mode);
+        } catch (e) {}
+    };
+
+    const handleScreenColsChange = (cols: number) => {
+        setScreenCols(cols);
+        try {
+            localStorage.setItem('price_list_screen_cols', String(cols));
+        } catch (e) {}
+    };
+
+    const handleLedColsChange = (cols: number) => {
+        setLedCols(cols);
+        try {
+            localStorage.setItem('price_list_led_cols', String(cols));
         } catch (e) {}
     };
 
@@ -550,6 +602,676 @@ export default function PriceListPage() {
         return 0;
     });
 
+    // ─── Render Helpers for Multi-Column & Standard Views ─────────────────
+    const renderScreenTableHeader = (isCompact: boolean = false) => (
+        <thead>
+            <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)', position: 'sticky', top: 0, zIndex: 10 }}>
+                <th style={{ width: isCompact ? '20px' : '24px', textAlign: 'center', padding: isCompact ? '4px 1px' : '6px 1px', color: 'var(--text-tertiary)' }}>Sıra</th>
+                <th
+                    onClick={() => toggleScreenSort('size')}
+                    style={{ width: isCompact ? '34px' : '42px', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 3px', userSelect: 'none', color: 'var(--text-secondary)' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <span>Boyut</span>
+                        <ArrowUpDown size={8} style={{ opacity: screenSortCol === 'size' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th
+                    onClick={() => toggleScreenSort('description')}
+                    style={{ cursor: 'pointer', padding: isCompact ? '4px 3px' : '6px 4px', userSelect: 'none', color: 'var(--text-secondary)' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <span>Ekran - Çözünürlük</span>
+                        <ArrowUpDown size={8} style={{ opacity: screenSortCol === 'description' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th
+                    onClick={() => toggleScreenSort('usdPrice')}
+                    style={{ width: isCompact ? '48px' : '60px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#10b981' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
+                        <span>DOLAR</span>
+                        <ArrowUpDown size={8} style={{ opacity: screenSortCol === 'usdPrice' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th
+                    onClick={() => toggleScreenSort('tamirciPrice')}
+                    style={{ width: isCompact ? '60px' : '75px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#60a5fa' }}
+                    title="Dolar x Manuel Kur"
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
+                        <span>Tamirci</span>
+                        <ArrowUpDown size={8} style={{ opacity: screenSortCol === 'tamirciPrice' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th
+                    onClick={() => toggleScreenSort('customerPriceTL')}
+                    style={{ width: isCompact ? '62px' : '75px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#f87171' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
+                        <span>MÜŞTERİ</span>
+                        <ArrowUpDown size={8} style={{ opacity: screenSortCol === 'customerPriceTL' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th style={{ width: isCompact ? '20px' : '24px', textAlign: 'center', padding: isCompact ? '4px 1px' : '6px 1px' }}></th>
+            </tr>
+        </thead>
+    );
+
+    const renderScreenRow = (row: ScreenPriceItem, displayIdx: number, originalIdx: number, isCompact: boolean = false) => {
+        const calculatedRepairerTL = Math.round((row.usdPrice || 0) * usdRate);
+        const isEditing = editingScreenId === row.id;
+        const isBeingDragged = draggedScreenIdx === originalIdx;
+        const isOverThis = dragOverScreenIdx === originalIdx;
+        const isDroppingAbove = isOverThis && draggedScreenIdx !== null && draggedScreenIdx > originalIdx;
+        const isDroppingBelow = isOverThis && draggedScreenIdx !== null && draggedScreenIdx < originalIdx;
+
+        const rowPadding = isCompact ? '2.5px 3px' : '4px 4px';
+        const fontSize = isCompact ? '11px' : '12px';
+        const titleFontSize = isCompact ? '11.5px' : '13.5px';
+
+        return (
+            <tr
+                key={row.id}
+                data-editing={isEditing ? 'true' : undefined}
+                draggable={!isEditing}
+                onDragStart={(e) => handleScreenDragStart(e, originalIdx)}
+                onDragOver={(e) => handleScreenDragOver(e, originalIdx)}
+                onDrop={() => handleScreenDrop(originalIdx)}
+                onDragEnd={() => {
+                    setDraggedScreenIdx(null);
+                    setDragOverScreenIdx(null);
+                }}
+                style={{
+                    background: isEditing
+                        ? 'rgba(59, 130, 246, 0.14)'
+                        : isBeingDragged
+                        ? 'rgba(59, 130, 246, 0.15)'
+                        : displayIdx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                    opacity: isBeingDragged ? 0.4 : 1,
+                    transform: isEditing ? 'translateY(-1px) scale(1.004)' : 'none',
+                    boxShadow: isEditing ? '0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1.5px #3b82f6' : 'none',
+                    position: isEditing ? 'relative' : 'static',
+                    zIndex: isEditing ? 15 : 1,
+                    borderTop: isDroppingAbove ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.03)',
+                    borderBottom: isDroppingBelow ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.03)',
+                    cursor: isEditing ? 'default' : 'grab',
+                    transition: 'all 0.15s ease'
+                }}
+            >
+                {/* Reorder & Drag Handle */}
+                <td style={{ textAlign: 'center', padding: isCompact ? '1px 1px' : '3px 1px', width: isCompact ? '20px' : '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Sıralamayı değiştirmek için basılı tutup yukarı/aşağı sürükleyin">
+                        <GripVertical size={isCompact ? 11 : 13} style={{ opacity: 0.45, cursor: 'grab' }} />
+                    </div>
+                </td>
+
+                {/* Boyut */}
+                <td style={{ padding: rowPadding, whiteSpace: 'nowrap', width: isCompact ? '34px' : '42px' }}>
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            value={row.size}
+                            onChange={(e) => updateScreenRow(row.id, 'size', e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
+                            style={{
+                                width: '100%',
+                                padding: '1px 2px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                color: '#000000',
+                                background: '#ffffff',
+                                border: '1.5px solid #3b82f6',
+                                borderRadius: '3px',
+                                outline: 'none'
+                            }}
+                        />
+                    ) : (
+                        <span
+                            onClick={() => setEditingScreenId(row.id)}
+                            style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: isCompact ? '11.5px' : '13px', cursor: 'pointer' }}
+                            title="Düzenlemek için tıkla"
+                        >
+                            {row.size}&quot;
+                        </span>
+                    )}
+                </td>
+
+                {/* Ekran - Çözünürlük */}
+                <td style={{ padding: rowPadding, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: isEditing ? 'text' : 'grab' }}>
+                    {isEditing ? (
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                            <input
+                                type="text"
+                                value={row.description}
+                                onChange={(e) => updateScreenRow(row.id, 'description', e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
+                                style={{
+                                    width: '100%',
+                                    padding: '1px 48px 1px 4px',
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    color: '#000000',
+                                    background: '#ffffff',
+                                    border: '1.5px solid #3b82f6',
+                                    borderRadius: '4px',
+                                    outline: 'none'
+                                }}
+                            />
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    right: '3px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '2px',
+                                    background: '#f8fafc',
+                                    padding: '1px 3px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <button
+                                    type="button"
+                                    title="Siyah (Standart)"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateScreenRowColor(row.id, 'default');
+                                    }}
+                                    style={{
+                                        width: '10px',
+                                        height: '10px',
+                                        borderRadius: '50%',
+                                        background: '#0f172a',
+                                        border: getItemActiveColor(row) === 'default' ? '1.5px solid #3b82f6' : '1px solid #94a3b8',
+                                        transform: getItemActiveColor(row) === 'default' ? 'scale(1.2)' : 'scale(1)',
+                                        cursor: 'pointer',
+                                        padding: 0
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    title="Mavi"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateScreenRowColor(row.id, 'blue');
+                                    }}
+                                    style={{
+                                        width: '10px',
+                                        height: '10px',
+                                        borderRadius: '50%',
+                                        background: '#2563eb',
+                                        border: getItemActiveColor(row) === 'blue' ? '1.5px solid #1d4ed8' : '1px solid #93c5fd',
+                                        transform: getItemActiveColor(row) === 'blue' ? 'scale(1.2)' : 'scale(1)',
+                                        cursor: 'pointer',
+                                        padding: 0
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    title="Kırmızı"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateScreenRowColor(row.id, 'red');
+                                    }}
+                                    style={{
+                                        width: '10px',
+                                        height: '10px',
+                                        borderRadius: '50%',
+                                        background: '#ef4444',
+                                        border: getItemActiveColor(row) === 'red' ? '1.5px solid #b91c1c' : '1px solid #fca5a5',
+                                        transform: getItemActiveColor(row) === 'red' ? 'scale(1.2)' : 'scale(1)',
+                                        cursor: 'pointer',
+                                        padding: 0
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <span
+                            onClick={() => setEditingScreenId(row.id)}
+                            style={{
+                                fontWeight: getItemFontWeight(row),
+                                fontSize: titleFontSize,
+                                letterSpacing: '0.01em',
+                                color: getItemTextColor(row),
+                                cursor: 'grab'
+                            }}
+                            title={`${row.description} (Basılı tutup sürükleyebilirsiniz)`}
+                        >
+                            {row.description}
+                        </span>
+                    )}
+                </td>
+
+                {/* DOLAR ($) */}
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '48px' : '60px' }}>
+                    {!showCosts ? (
+                        <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
+                    ) : isEditing ? (
+                        <input
+                            type="number"
+                            value={row.usdPrice}
+                            onChange={(e) => updateScreenRow(row.id, 'usdPrice', parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
+                            style={{
+                                width: isCompact ? '46px' : '58px',
+                                padding: '1px 2px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: '#000000',
+                                background: '#ffffff',
+                                border: '1.5px solid #10b981',
+                                borderRadius: '3px',
+                                outline: 'none',
+                                textAlign: 'right'
+                            }}
+                        />
+                    ) : (
+                        <span
+                            onClick={() => setEditingScreenId(row.id)}
+                            style={{ fontWeight: 700, fontSize: fontSize, color: '#10b981', cursor: 'pointer' }}
+                        >
+                            {formatCurrencyUSD(row.usdPrice)}
+                        </span>
+                    )}
+                </td>
+
+                {/* Tamirci (₺) */}
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '60px' : '75px' }}>
+                    {!showCosts ? (
+                        <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
+                    ) : (
+                        <span style={{ fontWeight: 650, fontSize: fontSize, color: '#60a5fa' }}>
+                            {formatCurrencyTL(calculatedRepairerTL)}
+                        </span>
+                    )}
+                </td>
+
+                {/* MÜŞTERİ (₺) */}
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '62px' : '75px' }}>
+                    {isEditing ? (
+                        <input
+                            type="number"
+                            value={row.customerPriceTL}
+                            onChange={(e) => updateScreenRow(row.id, 'customerPriceTL', parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
+                            style={{
+                                width: isCompact ? '56px' : '66px',
+                                padding: '1px 2px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                color: '#000000',
+                                background: '#ffffff',
+                                border: '1.5px solid #ef4444',
+                                borderRadius: '3px',
+                                outline: 'none',
+                                textAlign: 'right'
+                            }}
+                        />
+                    ) : (
+                        <span
+                            onClick={() => setEditingScreenId(row.id)}
+                            style={{ fontWeight: 800, fontSize: fontSize, color: '#f87171', cursor: 'pointer' }}
+                        >
+                            {formatCurrencyTL(row.customerPriceTL)}
+                        </span>
+                    )}
+                </td>
+
+                {/* Sil / Onayla */}
+                <td style={{ textAlign: 'center', padding: isCompact ? '1px 1px' : '3px 1px', width: isCompact ? '20px' : '24px' }}>
+                    {isEditing ? (
+                        <button
+                            type="button"
+                            onClick={() => setEditingScreenId(null)}
+                            style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '1px' }}
+                            title="Tamamla"
+                        >
+                            <Check size={isCompact ? 10 : 11} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => deleteScreenRow(row.id)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '1px' }}
+                            title="Sil"
+                        >
+                            <Trash2 size={isCompact ? 10 : 11} />
+                        </button>
+                    )}
+                </td>
+            </tr>
+        );
+    };
+
+    const renderLedTableHeader = (isCompact: boolean = false) => (
+        <thead>
+            <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)', position: 'sticky', top: 0, zIndex: 10 }}>
+                <th style={{ width: isCompact ? '20px' : '24px', textAlign: 'center', padding: isCompact ? '4px 1px' : '6px 1px', color: 'var(--text-tertiary)' }}>Sıra</th>
+                <th
+                    onClick={() => toggleLedSort('size')}
+                    style={{ width: isCompact ? '34px' : '42px', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 3px', userSelect: 'none', color: 'var(--text-secondary)' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <span>Boyut</span>
+                        <ArrowUpDown size={8} style={{ opacity: ledSortCol === 'size' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th
+                    onClick={() => toggleLedSort('model')}
+                    style={{ cursor: 'pointer', padding: isCompact ? '4px 3px' : '6px 4px', userSelect: 'none', color: 'var(--text-secondary)' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <span>Model / Seri / Marka</span>
+                        <ArrowUpDown size={8} style={{ opacity: ledSortCol === 'model' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th
+                    onClick={() => toggleLedSort('repairerLaborPriceTL')}
+                    style={{ width: isCompact ? '66px' : '80px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#fbbf24' }}
+                    title="Tamirciye özel net LED işçilik bedeli"
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
+                        <span>Tamirci İşçilik</span>
+                        <ArrowUpDown size={8} style={{ opacity: ledSortCol === 'repairerLaborPriceTL' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th
+                    onClick={() => toggleLedSort('customerPriceTL')}
+                    style={{ width: isCompact ? '66px' : '80px', textAlign: 'right', cursor: 'pointer', padding: isCompact ? '4px 2px' : '6px 4px', userSelect: 'none', color: '#f87171' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
+                        <span>Müşteri</span>
+                        <ArrowUpDown size={8} style={{ opacity: ledSortCol === 'customerPriceTL' ? 1 : 0.4 }} />
+                    </div>
+                </th>
+                <th style={{ width: isCompact ? '20px' : '24px', textAlign: 'center', padding: isCompact ? '4px 1px' : '6px 1px' }}></th>
+            </tr>
+        </thead>
+    );
+
+    const renderLedRow = (row: LedPriceItem, displayIdx: number, originalIdx: number, isCompact: boolean = false) => {
+        const isEditing = editingLedId === row.id;
+        const isBeingDragged = draggedLedIdx === originalIdx;
+        const isOverThis = dragOverLedIdx === originalIdx;
+        const isDroppingAbove = isOverThis && draggedLedIdx !== null && draggedLedIdx > originalIdx;
+        const isDroppingBelow = isOverThis && draggedLedIdx !== null && draggedLedIdx < originalIdx;
+
+        const rowPadding = isCompact ? '2.5px 3px' : '4px 4px';
+        const fontSize = isCompact ? '11px' : '12px';
+        const titleFontSize = isCompact ? '11.5px' : '13.5px';
+
+        return (
+            <tr
+                key={row.id}
+                data-editing={isEditing ? 'true' : undefined}
+                draggable={!isEditing}
+                onDragStart={(e) => handleLedDragStart(e, originalIdx)}
+                onDragOver={(e) => handleLedDragOver(e, originalIdx)}
+                onDrop={() => handleLedDrop(originalIdx)}
+                onDragEnd={() => {
+                    setDraggedLedIdx(null);
+                    setDragOverLedIdx(null);
+                }}
+                style={{
+                    background: isEditing
+                        ? 'rgba(16, 185, 129, 0.14)'
+                        : isBeingDragged
+                        ? 'rgba(16, 185, 129, 0.15)'
+                        : displayIdx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                    opacity: isBeingDragged ? 0.4 : 1,
+                    transform: isEditing ? 'translateY(-1px) scale(1.004)' : 'none',
+                    boxShadow: isEditing ? '0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1.5px #10b981' : 'none',
+                    position: isEditing ? 'relative' : 'static',
+                    zIndex: isEditing ? 15 : 1,
+                    borderTop: isDroppingAbove ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.03)',
+                    borderBottom: isDroppingBelow ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.03)',
+                    cursor: isEditing ? 'default' : 'grab',
+                    transition: 'all 0.15s ease'
+                }}
+            >
+                {/* Reorder & Drag Handle */}
+                <td style={{ textAlign: 'center', padding: isCompact ? '1px 1px' : '3px 1px', width: isCompact ? '20px' : '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Sıralamayı değiştirmek için basılı tutup yukarı/aşağı sürükleyin">
+                        <GripVertical size={isCompact ? 11 : 13} style={{ opacity: 0.45, cursor: 'grab' }} />
+                    </div>
+                </td>
+
+                {/* Boyut */}
+                <td style={{ padding: rowPadding, whiteSpace: 'nowrap', width: isCompact ? '34px' : '42px' }}>
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            value={row.size}
+                            onChange={(e) => updateLedRow(row.id, 'size', e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
+                            style={{
+                                width: '100%',
+                                padding: '1px 2px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                color: '#000000',
+                                background: '#ffffff',
+                                border: '1.5px solid #10b981',
+                                borderRadius: '3px',
+                                outline: 'none'
+                            }}
+                        />
+                    ) : (
+                        <span
+                            onClick={() => setEditingLedId(row.id)}
+                            style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: isCompact ? '11.5px' : '13px', cursor: 'pointer' }}
+                            title="Düzenlemek için tıkla"
+                        >
+                            {row.size}&quot;
+                        </span>
+                    )}
+                </td>
+
+                {/* Model */}
+                <td style={{ padding: rowPadding, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: isEditing ? 'text' : 'grab' }}>
+                    {isEditing ? (
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                            <input
+                                type="text"
+                                value={row.model}
+                                onChange={(e) => updateLedRow(row.id, 'model', e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
+                                style={{
+                                    width: '100%',
+                                    padding: '1px 48px 1px 4px',
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    color: '#000000',
+                                    background: '#ffffff',
+                                    border: '1.5px solid #10b981',
+                                    borderRadius: '4px',
+                                    outline: 'none'
+                                }}
+                            />
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    right: '3px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '2px',
+                                    background: '#f8fafc',
+                                    padding: '1px 3px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <button
+                                    type="button"
+                                    title="Siyah (Standart)"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateLedRowColor(row.id, 'default');
+                                    }}
+                                    style={{
+                                        width: '10px',
+                                        height: '10px',
+                                        borderRadius: '50%',
+                                        background: '#0f172a',
+                                        border: getItemActiveColor(row) === 'default' ? '1.5px solid #10b981' : '1px solid #94a3b8',
+                                        transform: getItemActiveColor(row) === 'default' ? 'scale(1.2)' : 'scale(1)',
+                                        cursor: 'pointer',
+                                        padding: 0
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    title="Mavi"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateLedRowColor(row.id, 'blue');
+                                    }}
+                                    style={{
+                                        width: '10px',
+                                        height: '10px',
+                                        borderRadius: '50%',
+                                        background: '#2563eb',
+                                        border: getItemActiveColor(row) === 'blue' ? '1.5px solid #1d4ed8' : '1px solid #93c5fd',
+                                        transform: getItemActiveColor(row) === 'blue' ? 'scale(1.2)' : 'scale(1)',
+                                        cursor: 'pointer',
+                                        padding: 0
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    title="Kırmızı"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateLedRowColor(row.id, 'red');
+                                    }}
+                                    style={{
+                                        width: '10px',
+                                        height: '10px',
+                                        borderRadius: '50%',
+                                        background: '#ef4444',
+                                        border: getItemActiveColor(row) === 'red' ? '1.5px solid #b91c1c' : '1px solid #fca5a5',
+                                        transform: getItemActiveColor(row) === 'red' ? 'scale(1.2)' : 'scale(1)',
+                                        cursor: 'pointer',
+                                        padding: 0
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <span
+                            onClick={() => setEditingLedId(row.id)}
+                            style={{
+                                fontWeight: getItemFontWeight(row),
+                                fontSize: titleFontSize,
+                                letterSpacing: '0.01em',
+                                color: getItemTextColor(row),
+                                cursor: 'grab'
+                            }}
+                            title={`${row.model} (Basılı tutup sürükleyebilirsiniz)`}
+                        >
+                            {row.model}
+                        </span>
+                    )}
+                </td>
+
+                {/* Tamirci İşçilik (₺) */}
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '66px' : '80px' }}>
+                    {!showCosts ? (
+                        <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
+                    ) : isEditing ? (
+                        <input
+                            type="number"
+                            value={row.repairerLaborPriceTL}
+                            onChange={(e) => updateLedRow(row.id, 'repairerLaborPriceTL', parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
+                            style={{
+                                width: isCompact ? '52px' : '58px',
+                                padding: '1px 2px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: '#000000',
+                                background: '#ffffff',
+                                border: '1.5px solid #fbbf24',
+                                borderRadius: '3px',
+                                outline: 'none',
+                                textAlign: 'right'
+                            }}
+                        />
+                    ) : (
+                        <span
+                            onClick={() => setEditingLedId(row.id)}
+                            style={{ fontWeight: 700, fontSize: fontSize, color: '#fbbf24', cursor: 'pointer' }}
+                        >
+                            {formatCurrencyTL(row.repairerLaborPriceTL)}
+                        </span>
+                    )}
+                </td>
+
+                {/* Müşteri Fiyatı (₺) */}
+                <td style={{ textAlign: 'right', padding: rowPadding, fontFamily: 'monospace', whiteSpace: 'nowrap', width: isCompact ? '66px' : '80px' }}>
+                    {isEditing ? (
+                        <input
+                            type="number"
+                            value={row.customerPriceTL}
+                            onChange={(e) => updateLedRow(row.id, 'customerPriceTL', parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
+                            style={{
+                                width: isCompact ? '56px' : '66px',
+                                padding: '1px 2px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                color: '#000000',
+                                background: '#ffffff',
+                                border: '1.5px solid #ef4444',
+                                borderRadius: '3px',
+                                outline: 'none',
+                                textAlign: 'right'
+                            }}
+                        />
+                    ) : (
+                        <span
+                            onClick={() => setEditingLedId(row.id)}
+                            style={{ fontWeight: 800, fontSize: fontSize, color: '#f87171', cursor: 'pointer' }}
+                        >
+                            {formatCurrencyTL(row.customerPriceTL)}
+                        </span>
+                    )}
+                </td>
+
+                {/* Sil / Onayla */}
+                <td style={{ textAlign: 'center', padding: isCompact ? '1px 1px' : '3px 1px', width: isCompact ? '20px' : '24px' }}>
+                    {isEditing ? (
+                        <button
+                            type="button"
+                            onClick={() => setEditingLedId(null)}
+                            style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '1px' }}
+                            title="Tamamla"
+                        >
+                            <Check size={isCompact ? 10 : 11} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => deleteLedRow(row.id)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '1px' }}
+                            title="Sil"
+                        >
+                            <Trash2 size={isCompact ? 10 : 11} />
+                        </button>
+                    )}
+                </td>
+            </tr>
+        );
+    };
+
     // Guard: only operator role can view
     if (status === 'loading' || isLoading) {
         return (
@@ -583,11 +1305,114 @@ export default function PriceListPage() {
                 boxShadow: '0 2px 10px rgba(0,0,0,0.15)'
             }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                    {/* Title */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h1 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    {/* Title & Görünüm Seçenekleri (Tümü / Sadece Ekran / Sadece LED) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <h1 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap' }}>
                             Panel & LED Fiyat Rehberi
                         </h1>
+
+                        {/* Görünüm Filtresi Segmenti */}
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            background: 'var(--bg-secondary)',
+                            padding: '3px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-primary)',
+                            gap: '3px'
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => handleViewModeChange('ALL')}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '4px 9px',
+                                    fontSize: '11px',
+                                    fontWeight: viewMode === 'ALL' ? 750 : 500,
+                                    color: viewMode === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+                                    background: viewMode === 'ALL' ? 'var(--brand-primary)' : 'transparent',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: viewMode === 'ALL' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none'
+                                }}
+                                title="Ekran ve LED listesini yan yana iki tablo olarak görüntüler"
+                            >
+                                <Layers size={13} />
+                                <span>Tümü (İkisi Bir Arada)</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleViewModeChange('SCREEN')}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '4px 10px',
+                                    fontSize: '11px',
+                                    fontWeight: viewMode === 'SCREEN' ? 750 : 500,
+                                    color: viewMode === 'SCREEN' ? '#ffffff' : 'var(--text-secondary)',
+                                    background: viewMode === 'SCREEN' ? '#2563eb' : 'transparent',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: viewMode === 'SCREEN' ? '0 1px 4px rgba(37,99,235,0.35)' : 'none'
+                                }}
+                                title="Sadece Ekran listesini açar ve kaydırmaya gerek olmadan yan yana tüm modelleri tam gösterir"
+                            >
+                                <Tv size={13} />
+                                <span>Sadece Ekran</span>
+                                <span style={{
+                                    fontSize: '9.5px',
+                                    fontWeight: 750,
+                                    padding: '1px 5px',
+                                    borderRadius: '10px',
+                                    background: viewMode === 'SCREEN' ? 'rgba(255,255,255,0.25)' : 'var(--bg-tertiary)',
+                                    color: viewMode === 'SCREEN' ? '#ffffff' : 'var(--text-tertiary)'
+                                }}>
+                                    {sortedScreens.length}
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleViewModeChange('LED')}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '4px 10px',
+                                    fontSize: '11px',
+                                    fontWeight: viewMode === 'LED' ? 750 : 500,
+                                    color: viewMode === 'LED' ? '#ffffff' : 'var(--text-secondary)',
+                                    background: viewMode === 'LED' ? '#059669' : 'transparent',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: viewMode === 'LED' ? '0 1px 4px rgba(5,150,105,0.35)' : 'none'
+                                }}
+                                title="Sadece LED listesini görüntüler"
+                            >
+                                <Lightbulb size={13} />
+                                <span>Sadece LED</span>
+                                <span style={{
+                                    fontSize: '9.5px',
+                                    fontWeight: 750,
+                                    padding: '1px 5px',
+                                    borderRadius: '10px',
+                                    background: viewMode === 'LED' ? 'rgba(255,255,255,0.25)' : 'var(--bg-tertiary)',
+                                    color: viewMode === 'LED' ? '#ffffff' : 'var(--text-tertiary)'
+                                }}>
+                                    {sortedLeds.length}
+                                </span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Middle: Model Search & Table Filter */}
@@ -806,18 +1631,114 @@ export default function PriceListPage() {
                 </div>
             </div>
 
-            {/* ─── Yan Yana İki Tablo (Sıfır Yatay Kaydırma, Ekrana Tam Oturan Grid) ── */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 0.95fr)',
-                gap: '12px',
-                width: '100%',
-                maxWidth: '100%',
-                overflow: 'hidden'
-            }}>
-                {/* ─────────────────────────────────────────────────────────────────── */}
-                {/* SOL TABLO: ZERO TV SERVİSİ — EKRAN DEĞİŞİM FİYATLARI                */}
-                {/* ─────────────────────────────────────────────────────────────────── */}
+            {/* ─── Görünüm Modlarına Göre Dinamik Tablo Yapısı ─────────────────── */}
+
+            {/* 1) TÜMÜ (İKİSİ BİR ARADA) GÖRÜNÜMÜ ─────────────────────────────────── */}
+            {viewMode === 'ALL' && (
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 0.95fr)',
+                    gap: '12px',
+                    width: '100%',
+                    maxWidth: '100%',
+                    overflow: 'hidden'
+                }}>
+                    {/* SOL TABLO: ZERO TV SERVİSİ — EKRAN DEĞİŞİM FİYATLARI */}
+                    <div style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-primary)',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: 0,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                        <div style={{
+                            padding: '6px 10px',
+                            background: 'linear-gradient(90deg, rgba(37, 99, 235, 0.18), rgba(99, 102, 241, 0.05))',
+                            borderBottom: '1px solid var(--border-primary)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Tv size={14} style={{ color: '#60a5fa' }} />
+                                <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                                    ZERO TV SERVİSİ — Ekran Değişimi ({sortedScreens.length})
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={addScreenRow}
+                                className="btn btn-secondary"
+                                style={{ fontSize: '10px', padding: '2px 6px', gap: '3px', borderRadius: '4px' }}
+                            >
+                                <Plus size={11} />
+                                <span>Ekle</span>
+                            </button>
+                        </div>
+
+                        <div style={{ maxHeight: 'calc(100vh - 165px)', overflowY: 'auto', overflowX: 'hidden' }}>
+                            <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                {renderScreenTableHeader(false)}
+                                <tbody>
+                                    {sortedScreens.map((row, idx) => renderScreenRow(row, idx, idx, false))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* SAĞ TABLO: LED DEĞİŞİMİ & TAMİRCİ İŞÇİLİK */}
+                    <div style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-primary)',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: 0,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                        <div style={{
+                            padding: '6px 10px',
+                            background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.18), rgba(99, 102, 241, 0.05))',
+                            borderBottom: '1px solid var(--border-primary)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Lightbulb size={14} style={{ color: '#34d399' }} />
+                                <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                                    LED Değişimi & Tamirci İşçilik ({sortedLeds.length})
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={addLedRow}
+                                className="btn btn-secondary"
+                                style={{ fontSize: '10px', padding: '2px 6px', gap: '3px', borderRadius: '4px' }}
+                            >
+                                <Plus size={11} />
+                                <span>Ekle</span>
+                            </button>
+                        </div>
+
+                        <div style={{ maxHeight: 'calc(100vh - 165px)', overflowY: 'auto', overflowX: 'hidden' }}>
+                            <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                {renderLedTableHeader(false)}
+                                <tbody>
+                                    {sortedLeds.map((row, idx) => renderLedRow(row, idx, idx, false))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 2) SADECE EKRAN GÖRÜNÜMÜ: SIFIR KAYDIRMA, YAN YANA TAM LİSTE ────────── */}
+            {viewMode === 'SCREEN' && (
                 <div style={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-primary)',
@@ -825,394 +1746,126 @@ export default function PriceListPage() {
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    minWidth: 0
+                    width: '100%',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
                 }}>
-                    {/* Header */}
+                    {/* Üst Başlık & Kontroller */}
                     <div style={{
-                        padding: '6px 10px',
-                        background: 'linear-gradient(90deg, rgba(37, 99, 235, 0.18), rgba(99, 102, 241, 0.05))',
+                        padding: '8px 12px',
+                        background: 'linear-gradient(90deg, rgba(37, 99, 235, 0.2), rgba(99, 102, 241, 0.06))',
                         borderBottom: '1px solid var(--border-primary)',
                         display: 'flex',
+                        flexWrap: 'wrap',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        gap: '8px'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Tv size={14} style={{ color: '#60a5fa' }} />
-                            <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                                ZERO TV SERVİSİ — Ekran Değişimi ({sortedScreens.length})
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <Tv size={16} style={{ color: '#60a5fa' }} />
+                            <span style={{ fontWeight: 800, fontSize: '13px', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                ZERO TV SERVİSİ — Ekran Değişimi ({sortedScreens.length} Kalem Model)
+                            </span>
+                            <span style={{
+                                fontSize: '11px',
+                                color: '#93c5fd',
+                                background: 'rgba(37, 99, 235, 0.15)',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}>
+                                ⚡ Yan yana tam görünüm: Sayfayı aşağı kaydırmadan tüm modeller tek bakışta
                             </span>
                         </div>
-                        <button
-                            type="button"
-                            onClick={addScreenRow}
-                            className="btn btn-secondary"
-                            style={{ fontSize: '10px', padding: '2px 6px', gap: '3px', borderRadius: '4px' }}
-                        >
-                            <Plus size={11} />
-                            <span>Ekle</span>
-                        </button>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {/* Sütun Düzeni Seçici */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                background: 'var(--bg-secondary)',
+                                padding: '2px 4px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-primary)',
+                                gap: '2px'
+                            }}>
+                                <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-tertiary)', padding: '0 4px' }}>
+                                    Düzen:
+                                </span>
+                                {[2, 3, 4].map(c => (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => handleScreenColsChange(c)}
+                                        style={{
+                                            padding: '2px 8px',
+                                            fontSize: '10.5px',
+                                            fontWeight: screenCols === c ? 800 : 500,
+                                            color: screenCols === c ? '#ffffff' : 'var(--text-secondary)',
+                                            background: screenCols === c ? '#2563eb' : 'transparent',
+                                            borderRadius: '4px',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                        title={c === 3 ? '3 Sütun (Önerilen: Sıfır Kaydırma)' : `${c} Sütunlu Görünüm`}
+                                    >
+                                        {c === 3 ? '3 Sütun (Sıfır Kaydırma ★)' : `${c} Sütun`}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={addScreenRow}
+                                className="btn btn-primary"
+                                style={{ fontSize: '11px', padding: '3px 10px', gap: '4px', borderRadius: '5px' }}
+                            >
+                                <Plus size={12} />
+                                <span>Yeni Ekran Ekle</span>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Table Body (table-layout: fixed, overflow-x: hidden) */}
-                    <div style={{ maxHeight: 'calc(100vh - 165px)', overflowY: 'auto', overflowX: 'hidden' }}>
-                        <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                            <thead>
-                                <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)', position: 'sticky', top: 0, zIndex: 10 }}>
-                                    <th style={{ width: '24px', textAlign: 'center', padding: '6px 1px', color: 'var(--text-tertiary)' }}>Sıra</th>
-                                    <th
-                                        onClick={() => toggleScreenSort('size')}
-                                        style={{ width: '42px', cursor: 'pointer', padding: '6px 3px', userSelect: 'none', color: 'var(--text-secondary)' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <span>Boyut</span>
-                                            <ArrowUpDown size={9} style={{ opacity: screenSortCol === 'size' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    <th
-                                        onClick={() => toggleScreenSort('description')}
-                                        style={{ cursor: 'pointer', padding: '6px 4px', userSelect: 'none', color: 'var(--text-secondary)' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <span>Ekran - Çözünürlük</span>
-                                            <ArrowUpDown size={9} style={{ opacity: screenSortCol === 'description' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    <th
-                                        onClick={() => toggleScreenSort('usdPrice')}
-                                        style={{ width: '60px', textAlign: 'right', cursor: 'pointer', padding: '6px 4px', userSelect: 'none', color: '#10b981' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
-                                            <span>DOLAR</span>
-                                            <ArrowUpDown size={9} style={{ opacity: screenSortCol === 'usdPrice' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    <th
-                                        onClick={() => toggleScreenSort('tamirciPrice')}
-                                        style={{ width: '75px', textAlign: 'right', cursor: 'pointer', padding: '6px 4px', userSelect: 'none', color: '#60a5fa' }}
-                                        title="Dolar x Manuel Kur"
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
-                                            <span>Tamirci</span>
-                                            <ArrowUpDown size={9} style={{ opacity: screenSortCol === 'tamirciPrice' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    <th
-                                        onClick={() => toggleScreenSort('customerPriceTL')}
-                                        style={{ width: '75px', textAlign: 'right', cursor: 'pointer', padding: '6px 4px', userSelect: 'none', color: '#f87171' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
-                                            <span>MÜŞTERİ</span>
-                                            <ArrowUpDown size={9} style={{ opacity: screenSortCol === 'customerPriceTL' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    <th style={{ width: '24px', textAlign: 'center', padding: '6px 1px' }}></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sortedScreens.map((row, idx) => {
-                                    const calculatedRepairerTL = Math.round((row.usdPrice || 0) * usdRate);
-                                    const isEditing = editingScreenId === row.id;
-                                    const isBeingDragged = draggedScreenIdx === idx;
-                                    const isOverThis = dragOverScreenIdx === idx;
-                                    const isDroppingAbove = isOverThis && draggedScreenIdx !== null && draggedScreenIdx > idx;
-                                    const isDroppingBelow = isOverThis && draggedScreenIdx !== null && draggedScreenIdx < idx;
-
-                                    return (
-                                        <tr
-                                            key={row.id}
-                                            data-editing={isEditing ? 'true' : undefined}
-                                            draggable={!isEditing}
-                                            onDragStart={(e) => handleScreenDragStart(e, idx)}
-                                            onDragOver={(e) => handleScreenDragOver(e, idx)}
-                                            onDrop={() => handleScreenDrop(idx)}
-                                            onDragEnd={() => {
-                                                setDraggedScreenIdx(null);
-                                                setDragOverScreenIdx(null);
-                                            }}
-                                            style={{
-                                                background: isEditing
-                                                    ? 'rgba(59, 130, 246, 0.14)'
-                                                    : isBeingDragged
-                                                    ? 'rgba(59, 130, 246, 0.15)'
-                                                    : idx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
-                                                opacity: isBeingDragged ? 0.4 : 1,
-                                                transform: isEditing ? 'translateY(-2px) scale(1.008)' : 'none',
-                                                boxShadow: isEditing ? '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 1.5px #3b82f6' : 'none',
-                                                position: isEditing ? 'relative' : 'static',
-                                                zIndex: isEditing ? 15 : 1,
-                                                borderTop: isDroppingAbove ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.03)',
-                                                borderBottom: isDroppingBelow ? '2px solid #3b82f6' : '1px solid rgba(255,255,255,0.03)',
-                                                cursor: isEditing ? 'default' : 'grab',
-                                                transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
-                                            }}
-                                        >
-                                            {/* Reorder & Drag Handle */}
-                                            <td style={{ textAlign: 'center', padding: '3px 1px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Sıralamayı değiştirmek için basılı tutup yukarı/aşağı sürükleyin">
-                                                    <GripVertical size={13} style={{ opacity: 0.45, cursor: 'grab' }} />
-                                                </div>
-                                            </td>
-
-                                            {/* Boyut */}
-                                            <td style={{ padding: '4px 4px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                                                {isEditing ? (
-                                                    <input
-                                                        type="text"
-                                                        value={row.size}
-                                                        onChange={(e) => updateScreenRow(row.id, 'size', e.target.value)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
-                                                        style={{
-                                                            width: '100%',
-                                                            padding: '2px 4px',
-                                                            fontSize: '12px',
-                                                            fontWeight: 800,
-                                                            color: '#000000',
-                                                            background: '#ffffff',
-                                                            border: '1.5px solid #3b82f6',
-                                                            borderRadius: '4px',
-                                                            outline: 'none',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingScreenId(row.id)}
-                                                        style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: '13px', cursor: 'pointer' }}
-                                                        title="Düzenlemek için tıkla"
-                                                    >
-                                                        {row.size}&quot;
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Ekran - Çözünürlük */}
-                                            <td style={{ padding: '4px 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: isEditing ? 'text' : 'grab' }}>
-                                                {isEditing ? (
-                                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
-                                                        <input
-                                                            type="text"
-                                                            value={row.description}
-                                                            onChange={(e) => updateScreenRow(row.id, 'description', e.target.value)}
-                                                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '2px 54px 2px 6px',
-                                                                fontSize: '13.5px',
-                                                                fontWeight: 800,
-                                                                color: '#000000',
-                                                                background: '#ffffff',
-                                                                border: '1.5px solid #3b82f6',
-                                                                borderRadius: '4px',
-                                                                outline: 'none',
-                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                            }}
-                                                        />
-                                                        <div
-                                                            style={{
-                                                                position: 'absolute',
-                                                                right: '4px',
-                                                                top: '50%',
-                                                                transform: 'translateY(-50%)',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '3px',
-                                                                background: '#f8fafc',
-                                                                padding: '2px 4px',
-                                                                borderRadius: '10px',
-                                                                border: '1px solid #cbd5e1',
-                                                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
-                                                            }}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            {/* Siyah */}
-                                                            <button
-                                                                type="button"
-                                                                title="Siyah (Standart)"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    updateScreenRowColor(row.id, 'default');
-                                                                }}
-                                                                style={{
-                                                                    width: '11px',
-                                                                    height: '11px',
-                                                                    borderRadius: '50%',
-                                                                    background: '#0f172a',
-                                                                    border: getItemActiveColor(row) === 'default' ? '1.5px solid #3b82f6' : '1px solid #94a3b8',
-                                                                    transform: getItemActiveColor(row) === 'default' ? 'scale(1.25)' : 'scale(1)',
-                                                                    cursor: 'pointer',
-                                                                    padding: 0,
-                                                                    display: 'block'
-                                                                }}
-                                                            />
-                                                            {/* Mavi */}
-                                                            <button
-                                                                type="button"
-                                                                title="Mavi"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    updateScreenRowColor(row.id, 'blue');
-                                                                }}
-                                                                style={{
-                                                                    width: '11px',
-                                                                    height: '11px',
-                                                                    borderRadius: '50%',
-                                                                    background: '#2563eb',
-                                                                    border: getItemActiveColor(row) === 'blue' ? '1.5px solid #1d4ed8' : '1px solid #93c5fd',
-                                                                    transform: getItemActiveColor(row) === 'blue' ? 'scale(1.25)' : 'scale(1)',
-                                                                    cursor: 'pointer',
-                                                                    padding: 0,
-                                                                    display: 'block'
-                                                                }}
-                                                            />
-                                                            {/* Kırmızı */}
-                                                            <button
-                                                                type="button"
-                                                                title="Kırmızı"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    updateScreenRowColor(row.id, 'red');
-                                                                }}
-                                                                style={{
-                                                                    width: '11px',
-                                                                    height: '11px',
-                                                                    borderRadius: '50%',
-                                                                    background: '#ef4444',
-                                                                    border: getItemActiveColor(row) === 'red' ? '1.5px solid #b91c1c' : '1px solid #fca5a5',
-                                                                    transform: getItemActiveColor(row) === 'red' ? 'scale(1.25)' : 'scale(1)',
-                                                                    cursor: 'pointer',
-                                                                    padding: 0,
-                                                                    display: 'block'
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingScreenId(row.id)}
-                                                        style={{
-                                                            fontWeight: getItemFontWeight(row),
-                                                            fontSize: '13.5px',
-                                                            letterSpacing: '0.01em',
-                                                            color: getItemTextColor(row),
-                                                            cursor: 'grab'
-                                                        }}
-                                                        title={`${row.description} (Basılı tutup yukarı/aşağı sürükleyebilirsiniz)`}
-                                                    >
-                                                        {row.description}
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* DOLAR ($) */}
-                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                {!showCosts ? (
-                                                    <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
-                                                ) : isEditing ? (
-                                                    <input
-                                                        type="number"
-                                                        value={row.usdPrice}
-                                                        onChange={(e) => updateScreenRow(row.id, 'usdPrice', parseFloat(e.target.value) || 0)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
-                                                        style={{
-                                                            width: '58px',
-                                                            padding: '2px 4px',
-                                                            fontSize: '12px',
-                                                            fontWeight: 700,
-                                                            color: '#000000',
-                                                            background: '#ffffff',
-                                                            border: '1.5px solid #10b981',
-                                                            borderRadius: '4px',
-                                                            outline: 'none',
-                                                            textAlign: 'right',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingScreenId(row.id)}
-                                                        style={{ fontWeight: 700, fontSize: '12px', color: '#10b981', cursor: 'pointer' }}
-                                                    >
-                                                        {formatCurrencyUSD(row.usdPrice)}
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Tamirci (₺) — Dolar x Manuel Kur */}
-                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                {!showCosts ? (
-                                                    <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
-                                                ) : (
-                                                    <span style={{ fontWeight: 650, fontSize: '12px', color: '#60a5fa' }}>
-                                                        {formatCurrencyTL(calculatedRepairerTL)}
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* MÜŞTERİ (₺) */}
-                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                {isEditing ? (
-                                                    <input
-                                                        type="number"
-                                                        value={row.customerPriceTL}
-                                                        onChange={(e) => updateScreenRow(row.id, 'customerPriceTL', parseFloat(e.target.value) || 0)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter') setEditingScreenId(null); }}
-                                                        style={{
-                                                            width: '66px',
-                                                            padding: '2px 4px',
-                                                            fontSize: '12px',
-                                                            fontWeight: 800,
-                                                            color: '#000000',
-                                                            background: '#ffffff',
-                                                            border: '1.5px solid #ef4444',
-                                                            borderRadius: '4px',
-                                                            outline: 'none',
-                                                            textAlign: 'right',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingScreenId(row.id)}
-                                                        style={{ fontWeight: 800, fontSize: '12px', color: '#f87171', cursor: 'pointer' }}
-                                                    >
-                                                        {formatCurrencyTL(row.customerPriceTL)}
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Sil / Onayla */}
-                                            <td style={{ textAlign: 'center', padding: '3px 1px' }}>
-                                                {isEditing ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditingScreenId(null)}
-                                                        style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '1px' }}
-                                                        title="Tamamla"
-                                                    >
-                                                        <Check size={11} />
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => deleteScreenRow(row.id)}
-                                                        style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '1px' }}
-                                                        title="Sil"
-                                                    >
-                                                        <Trash2 size={11} />
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                    {/* Çok Sütunlu Grid: 67 satır eşit bölünür, ekrana tam oturur */}
+                    <div style={{
+                        padding: '6px',
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${screenCols}, minmax(0, 1fr))`,
+                        gap: '8px',
+                        width: '100%',
+                        alignItems: 'start'
+                    }}>
+                        {splitIntoChunks(sortedScreens, screenCols).map((chunk, colIdx) => (
+                            <div
+                                key={colIdx}
+                                style={{
+                                    background: 'var(--bg-secondary)',
+                                    border: '1px solid var(--border-primary)',
+                                    borderRadius: '6px',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                                }}
+                            >
+                                <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                    {renderScreenTableHeader(true)}
+                                    <tbody>
+                                        {chunk.map((row, rowInChunkIdx) => {
+                                            const originalIdx = sortedScreens.findIndex(s => s.id === row.id);
+                                            return renderScreenRow(row, rowInChunkIdx, originalIdx, true);
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ))}
                     </div>
                 </div>
+            )}
 
-                {/* ─────────────────────────────────────────────────────────────────── */}
-                {/* SAĞ TABLO: LED DEĞİŞİMİ & TAMİRCİ İŞÇİLİK                           */}
-                {/* ─────────────────────────────────────────────────────────────────── */}
+            {/* 3) SADECE LED GÖRÜNÜMÜ: SIFIR KAYDIRMA, YAN YANA TAM LİSTE ──────────── */}
+            {viewMode === 'LED' && (
                 <div style={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-primary)',
@@ -1220,372 +1873,123 @@ export default function PriceListPage() {
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    minWidth: 0
+                    width: '100%',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
                 }}>
-                    {/* Header */}
+                    {/* Üst Başlık & Kontroller */}
                     <div style={{
-                        padding: '6px 10px',
-                        background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.18), rgba(99, 102, 241, 0.05))',
+                        padding: '8px 12px',
+                        background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(99, 102, 241, 0.06))',
                         borderBottom: '1px solid var(--border-primary)',
                         display: 'flex',
+                        flexWrap: 'wrap',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        gap: '8px'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Lightbulb size={14} style={{ color: '#34d399' }} />
-                            <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                                LED Değişimi & Tamirci İşçilik ({sortedLeds.length})
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <Lightbulb size={16} style={{ color: '#34d399' }} />
+                            <span style={{ fontWeight: 800, fontSize: '13px', color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                LED Değişimi & Tamirci İşçilik ({sortedLeds.length} Kalem)
+                            </span>
+                            <span style={{
+                                fontSize: '11px',
+                                color: '#6ee7b7',
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}>
+                                ⚡ Yan yana tam görünüm: Sayfayı aşağı kaydırmadan tüm modeller tek bakışta
                             </span>
                         </div>
-                        <button
-                            type="button"
-                            onClick={addLedRow}
-                            className="btn btn-secondary"
-                            style={{ fontSize: '10px', padding: '2px 6px', gap: '3px', borderRadius: '4px' }}
-                        >
-                            <Plus size={11} />
-                            <span>Ekle</span>
-                        </button>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {/* Sütun Düzeni Seçici */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                background: 'var(--bg-secondary)',
+                                padding: '2px 4px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-primary)',
+                                gap: '2px'
+                            }}>
+                                <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-tertiary)', padding: '0 4px' }}>
+                                    Düzen:
+                                </span>
+                                {[1, 2, 3].map(c => (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => handleLedColsChange(c)}
+                                        style={{
+                                            padding: '2px 8px',
+                                            fontSize: '10.5px',
+                                            fontWeight: ledCols === c ? 800 : 500,
+                                            color: ledCols === c ? '#ffffff' : 'var(--text-secondary)',
+                                            background: ledCols === c ? '#059669' : 'transparent',
+                                            borderRadius: '4px',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                        title={c === 2 ? '2 Sütun (Önerilen: Sıfır Kaydırma)' : `${c} Sütunlu Görünüm`}
+                                    >
+                                        {c === 2 ? '2 Sütun (Sıfır Kaydırma ★)' : `${c} Sütun`}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={addLedRow}
+                                className="btn btn-primary"
+                                style={{ fontSize: '11px', padding: '3px 10px', gap: '4px', borderRadius: '5px' }}
+                            >
+                                <Plus size={12} />
+                                <span>Yeni LED Ekle</span>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Table Body (table-layout: fixed, overflow-x: hidden) */}
-                    <div style={{ maxHeight: 'calc(100vh - 165px)', overflowY: 'auto', overflowX: 'hidden' }}>
-                        <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                            <thead>
-                                <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)', position: 'sticky', top: 0, zIndex: 10 }}>
-                                    <th style={{ width: '24px', textAlign: 'center', padding: '6px 1px', color: 'var(--text-tertiary)' }}>Sıra</th>
-                                    <th
-                                        onClick={() => toggleLedSort('size')}
-                                        style={{ width: '42px', cursor: 'pointer', padding: '6px 3px', userSelect: 'none', color: 'var(--text-secondary)' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <span>Boyut</span>
-                                            <ArrowUpDown size={9} style={{ opacity: ledSortCol === 'size' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    <th
-                                        onClick={() => toggleLedSort('model')}
-                                        style={{ cursor: 'pointer', padding: '6px 4px', userSelect: 'none', color: 'var(--text-secondary)' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <span>Model / Seri / Marka</span>
-                                            <ArrowUpDown size={9} style={{ opacity: ledSortCol === 'model' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    {/* Tamirci İşçilik (₺) */}
-                                    <th
-                                        onClick={() => toggleLedSort('repairerLaborPriceTL')}
-                                        style={{ width: '80px', textAlign: 'right', cursor: 'pointer', padding: '6px 4px', userSelect: 'none', color: '#fbbf24' }}
-                                        title="Tamirciye özel net LED işçilik bedeli"
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
-                                            <span>Tamirci İşçilik</span>
-                                            <ArrowUpDown size={9} style={{ opacity: ledSortCol === 'repairerLaborPriceTL' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    {/* Müşteri Fiyatı (₺) */}
-                                    <th
-                                        onClick={() => toggleLedSort('customerPriceTL')}
-                                        style={{ width: '80px', textAlign: 'right', cursor: 'pointer', padding: '6px 4px', userSelect: 'none', color: '#f87171' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' }}>
-                                            <span>Müşteri</span>
-                                            <ArrowUpDown size={9} style={{ opacity: ledSortCol === 'customerPriceTL' ? 1 : 0.4 }} />
-                                        </div>
-                                    </th>
-                                    <th style={{ width: '24px', textAlign: 'center', padding: '6px 1px' }}></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sortedLeds.map((row, idx) => {
-                                    const isEditing = editingLedId === row.id;
-                                    const isBeingDragged = draggedLedIdx === idx;
-                                    const isOverThis = dragOverLedIdx === idx;
-                                    const isDroppingAbove = isOverThis && draggedLedIdx !== null && draggedLedIdx > idx;
-                                    const isDroppingBelow = isOverThis && draggedLedIdx !== null && draggedLedIdx < idx;
-
-                                    return (
-                                        <tr
-                                            key={row.id}
-                                            data-editing={isEditing ? 'true' : undefined}
-                                            draggable={!isEditing}
-                                            onDragStart={(e) => handleLedDragStart(e, idx)}
-                                            onDragOver={(e) => handleLedDragOver(e, idx)}
-                                            onDrop={() => handleLedDrop(idx)}
-                                            onDragEnd={() => {
-                                                setDraggedLedIdx(null);
-                                                setDragOverLedIdx(null);
-                                            }}
-                                            style={{
-                                                background: isEditing
-                                                    ? 'rgba(16, 185, 129, 0.14)'
-                                                    : isBeingDragged
-                                                    ? 'rgba(16, 185, 129, 0.15)'
-                                                    : idx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
-                                                opacity: isBeingDragged ? 0.4 : 1,
-                                                transform: isEditing ? 'translateY(-2px) scale(1.008)' : 'none',
-                                                boxShadow: isEditing ? '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 1.5px #10b981' : 'none',
-                                                position: isEditing ? 'relative' : 'static',
-                                                zIndex: isEditing ? 15 : 1,
-                                                borderTop: isDroppingAbove ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.03)',
-                                                borderBottom: isDroppingBelow ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.03)',
-                                                cursor: isEditing ? 'default' : 'grab',
-                                                transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
-                                            }}
-                                        >
-                                            {/* Reorder & Drag Handle */}
-                                            <td style={{ textAlign: 'center', padding: '3px 1px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Sıralamayı değiştirmek için basılı tutup yukarı/aşağı sürükleyin">
-                                                    <GripVertical size={13} style={{ opacity: 0.45, cursor: 'grab' }} />
-                                                </div>
-                                            </td>
-
-                                            {/* Boyut */}
-                                            <td style={{ padding: '4px 4px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                                                {isEditing ? (
-                                                    <input
-                                                        type="text"
-                                                        value={row.size}
-                                                        onChange={(e) => updateLedRow(row.id, 'size', e.target.value)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
-                                                        style={{
-                                                            width: '100%',
-                                                            padding: '2px 4px',
-                                                            fontSize: '12px',
-                                                            fontWeight: 800,
-                                                            color: '#000000',
-                                                            background: '#ffffff',
-                                                            border: '1.5px solid #10b981',
-                                                            borderRadius: '4px',
-                                                            outline: 'none',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingLedId(row.id)}
-                                                        style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: '13px', cursor: 'pointer' }}
-                                                        title="Düzenlemek için tıkla"
-                                                    >
-                                                        {row.size}&quot;
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Model */}
-                                            <td style={{ padding: '4px 5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: isEditing ? 'text' : 'grab' }}>
-                                                {isEditing ? (
-                                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
-                                                        <input
-                                                            type="text"
-                                                            value={row.model}
-                                                            onChange={(e) => updateLedRow(row.id, 'model', e.target.value)}
-                                                            onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '2px 54px 2px 6px',
-                                                                fontSize: '13.5px',
-                                                                fontWeight: 800,
-                                                                color: '#000000',
-                                                                background: '#ffffff',
-                                                                border: '1.5px solid #10b981',
-                                                                borderRadius: '4px',
-                                                                outline: 'none',
-                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                            }}
-                                                        />
-                                                        <div
-                                                            style={{
-                                                                position: 'absolute',
-                                                                right: '4px',
-                                                                top: '50%',
-                                                                transform: 'translateY(-50%)',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '3px',
-                                                                background: '#f8fafc',
-                                                                padding: '2px 4px',
-                                                                borderRadius: '10px',
-                                                                border: '1px solid #cbd5e1',
-                                                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
-                                                            }}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            {/* Siyah */}
-                                                            <button
-                                                                type="button"
-                                                                title="Siyah (Standart)"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    updateLedRowColor(row.id, 'default');
-                                                                }}
-                                                                style={{
-                                                                    width: '11px',
-                                                                    height: '11px',
-                                                                    borderRadius: '50%',
-                                                                    background: '#0f172a',
-                                                                    border: getItemActiveColor(row) === 'default' ? '1.5px solid #10b981' : '1px solid #94a3b8',
-                                                                    transform: getItemActiveColor(row) === 'default' ? 'scale(1.25)' : 'scale(1)',
-                                                                    cursor: 'pointer',
-                                                                    padding: 0,
-                                                                    display: 'block'
-                                                                }}
-                                                            />
-                                                            {/* Mavi */}
-                                                            <button
-                                                                type="button"
-                                                                title="Mavi"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    updateLedRowColor(row.id, 'blue');
-                                                                }}
-                                                                style={{
-                                                                    width: '11px',
-                                                                    height: '11px',
-                                                                    borderRadius: '50%',
-                                                                    background: '#2563eb',
-                                                                    border: getItemActiveColor(row) === 'blue' ? '1.5px solid #1d4ed8' : '1px solid #93c5fd',
-                                                                    transform: getItemActiveColor(row) === 'blue' ? 'scale(1.25)' : 'scale(1)',
-                                                                    cursor: 'pointer',
-                                                                    padding: 0,
-                                                                    display: 'block'
-                                                                }}
-                                                            />
-                                                            {/* Kırmızı */}
-                                                            <button
-                                                                type="button"
-                                                                title="Kırmızı"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    updateLedRowColor(row.id, 'red');
-                                                                }}
-                                                                style={{
-                                                                    width: '11px',
-                                                                    height: '11px',
-                                                                    borderRadius: '50%',
-                                                                    background: '#ef4444',
-                                                                    border: getItemActiveColor(row) === 'red' ? '1.5px solid #b91c1c' : '1px solid #fca5a5',
-                                                                    transform: getItemActiveColor(row) === 'red' ? 'scale(1.25)' : 'scale(1)',
-                                                                    cursor: 'pointer',
-                                                                    padding: 0,
-                                                                    display: 'block'
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingLedId(row.id)}
-                                                        style={{
-                                                            fontWeight: getItemFontWeight(row),
-                                                            fontSize: '13.5px',
-                                                            letterSpacing: '0.01em',
-                                                            color: getItemTextColor(row),
-                                                            cursor: 'grab'
-                                                        }}
-                                                        title={`${row.model} (Basılı tutup yukarı/aşağı sürükleyebilirsiniz)`}
-                                                    >
-                                                        {row.model}
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Tamirci İşçilik (₺) */}
-                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                {!showCosts ? (
-                                                    <span style={{ color: 'var(--text-tertiary)', letterSpacing: '1px' }}>•••</span>
-                                                ) : isEditing ? (
-                                                    <input
-                                                        type="number"
-                                                        value={row.repairerLaborPriceTL}
-                                                        onChange={(e) => updateLedRow(row.id, 'repairerLaborPriceTL', parseFloat(e.target.value) || 0)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
-                                                        style={{
-                                                            width: '58px',
-                                                            padding: '2px 4px',
-                                                            fontSize: '12px',
-                                                            fontWeight: 700,
-                                                            color: '#000000',
-                                                            background: '#ffffff',
-                                                            border: '1.5px solid #fbbf24',
-                                                            borderRadius: '4px',
-                                                            outline: 'none',
-                                                            textAlign: 'right',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingLedId(row.id)}
-                                                        style={{ fontWeight: 700, fontSize: '12px', color: '#fbbf24', cursor: 'pointer' }}
-                                                    >
-                                                        {formatCurrencyTL(row.repairerLaborPriceTL)}
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Müşteri Fiyatı (₺) */}
-                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                {isEditing ? (
-                                                    <input
-                                                        type="number"
-                                                        value={row.customerPriceTL}
-                                                        onChange={(e) => updateLedRow(row.id, 'customerPriceTL', parseFloat(e.target.value) || 0)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter') setEditingLedId(null); }}
-                                                        style={{
-                                                            width: '66px',
-                                                            padding: '2px 4px',
-                                                            fontSize: '12px',
-                                                            fontWeight: 800,
-                                                            color: '#000000',
-                                                            background: '#ffffff',
-                                                            border: '1.5px solid #ef4444',
-                                                            borderRadius: '4px',
-                                                            outline: 'none',
-                                                            textAlign: 'right',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        onClick={() => setEditingLedId(row.id)}
-                                                        style={{ fontWeight: 800, fontSize: '12px', color: '#f87171', cursor: 'pointer' }}
-                                                    >
-                                                        {formatCurrencyTL(row.customerPriceTL)}
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Sil / Onayla */}
-                                            <td style={{ textAlign: 'center', padding: '3px 1px' }}>
-                                                {isEditing ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditingLedId(null)}
-                                                        style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: '1px' }}
-                                                        title="Tamamla"
-                                                    >
-                                                        <Check size={11} />
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => deleteLedRow(row.id)}
-                                                        style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '1px' }}
-                                                        title="Sil"
-                                                    >
-                                                        <Trash2 size={11} />
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                    {/* Çok Sütunlu Grid */}
+                    <div style={{
+                        padding: '6px',
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${ledCols}, minmax(0, 1fr))`,
+                        gap: '8px',
+                        width: '100%',
+                        alignItems: 'start'
+                    }}>
+                        {splitIntoChunks(sortedLeds, ledCols).map((chunk, colIdx) => (
+                            <div
+                                key={colIdx}
+                                style={{
+                                    background: 'var(--bg-secondary)',
+                                    border: '1px solid var(--border-primary)',
+                                    borderRadius: '6px',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                                }}
+                            >
+                                <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                    {renderLedTableHeader(true)}
+                                    <tbody>
+                                        {chunk.map((row, rowInChunkIdx) => {
+                                            const originalIdx = sortedLeds.findIndex(s => s.id === row.id);
+                                            return renderLedRow(row, rowInChunkIdx, originalIdx, true);
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ))}
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* ─── Modal: TV Model Ekran & LED Uyumluluk Özeti ("Ne Takılır?" Modalı) ── */}
             {selectedModelName && (
