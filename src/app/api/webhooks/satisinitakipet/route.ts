@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import prisma from '@/lib/prisma';
 import { getUsdTryRate } from '@/lib/currency';
 import { ProductCategory } from '@prisma/client';
@@ -24,30 +25,26 @@ function checkAuth(req: NextRequest): boolean {
 }
 
 /**
- * Webhook endpoint for real-time updates from SatisiniTakipEt.
- * Whenever a product is sold, created, updated or deleted in SatisiniTakipEt,
- * it calls this endpoint to update ServisPlus instantly.
+ * Background worker function to process webhook payloads asynchronously.
+ * Runs non-blocking via waitUntil so that the webhook caller receives an immediate 200 OK.
  */
-export async function POST(req: NextRequest) {
-    if (!checkAuth(req)) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+async function processWebhookData(body: any) {
     try {
-        const body = await req.json();
-        const { event, product, action } = body;
+        const { event, product, action } = body || {};
 
-        // If a full sync trigger event is sent
+        // 1. If a full sync trigger event is sent
         if (action === 'FULL_SYNC' || event === 'FULL_SYNC') {
+            console.log('[Webhook Background] Starting full external products sync...');
             const result = await syncAllExternalProducts();
-            return NextResponse.json(result);
+            console.log('[Webhook Background] Full sync finished:', result);
+            return;
         }
 
-        // If a single product update/sale event is sent
+        // 2. If a single product update/sale event is sent
         if (product && product.id && product.companyId) {
             const now = new Date();
 
-            // 1. Firma A (LED)
+            // 2.1. Firma A (LED)
             if (product.companyId === INTEGRATION_CONFIG.COMPANY_A.id) {
                 const price = Number(product.price || 0);
                 const cost = product.cost !== null && product.cost !== undefined ? Number(product.cost) : null;
@@ -104,12 +101,15 @@ export async function POST(req: NextRequest) {
                 try {
                     revalidatePath('/products');
                     revalidatePath('/tickets');
-                } catch { }
+                } catch (revalidateErr) {
+                    console.warn('[Webhook Background] Revalidation warning:', revalidateErr);
+                }
 
-                return NextResponse.json({ success: true, updated: product.id, source: 'COMPANY_A_LED', isActive });
+                console.log(`[Webhook Background] Processed Company A product: ${product.id} (Active: ${isActive})`);
+                return;
             }
 
-            // 2. Firma B (EKRAN - USD)
+            // 2.2. Firma B (EKRAN - USD)
             if (product.companyId === INTEGRATION_CONFIG.COMPANY_B.id) {
                 const usdRate = await getUsdTryRate();
                 const rawUsdPrice = Number(product.usdPrice ?? product.price ?? 0);
@@ -172,15 +172,51 @@ export async function POST(req: NextRequest) {
                 try {
                     revalidatePath('/products');
                     revalidatePath('/tickets');
-                } catch { }
+                } catch (revalidateErr) {
+                    console.warn('[Webhook Background] Revalidation warning:', revalidateErr);
+                }
 
-                return NextResponse.json({ success: true, updated: product.id, source: 'COMPANY_B_SCREEN', tlPrice, usdRate });
+                console.log(`[Webhook Background] Processed Company B product: ${product.id} (Rate: ${usdRate}, TL Price: ${tlPrice})`);
+                return;
             }
+
+            console.warn(`[Webhook Background] Unmatched companyId: ${product.companyId} for product: ${product.id}`);
+            return;
         }
 
-        return NextResponse.json({ error: 'Unmatched company or missing product payload' }, { status: 400 });
+        console.warn('[Webhook Background] Unrecognized payload structure:', JSON.stringify(body));
     } catch (err: any) {
-        console.error('Webhook error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error('[Webhook Background] Error processing webhook data:', err);
+    }
+}
+
+/**
+ * Webhook endpoint for real-time updates from SatisiniTakipEt.
+ * Responds immediately with 200 OK after basic validation, delegating
+ * database synchronization to background execution via waitUntil.
+ */
+export async function POST(req: NextRequest) {
+    if (!checkAuth(req)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await req.json();
+
+        if (!body || typeof body !== 'object') {
+            return NextResponse.json({ error: 'Invalid payload structure' }, { status: 400 });
+        }
+
+        // Delegate heavy DB / external API work to the background
+        waitUntil(processWebhookData(body));
+
+        // Return immediate 200 OK to prevent client timeouts
+        return NextResponse.json(
+            { success: true, message: 'Webhook alındı' },
+            { status: 200 }
+        );
+    } catch (err: any) {
+        console.error('[Webhook Route] Error parsing request body:', err);
+        return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 }
