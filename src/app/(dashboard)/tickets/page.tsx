@@ -14,7 +14,6 @@ const STATUS_FILTERS = [
     { value: 'ALL', label: 'Tümü' },
     { value: 'SERVIS_ISTENDI', label: 'Servis İstendi' },
     { value: 'TESLIM_ALINDI', label: 'Teslim Alındı' },
-    { value: 'ATOLYEYE_ALINDI', label: 'Atölyeye Alındı' },
     { value: 'TEKNISYENE_VERILDI', label: 'Teknisyene Verildi' },
     { value: 'TAMIR_TAMAMLANDI', label: 'Teslimat Bekliyor' },
     { value: 'TESLIMAT_SERVIS_ISTENDI', label: 'Teslimat Servis İstendi' },
@@ -213,80 +212,90 @@ function TicketsContent() {
                                 <th>Müşteri/Tamirci</th>
                                 <th>Cihaz</th>
                                 <th>Talep</th>
+                                <th>Tamir Durumu</th>
                                 <th>Tür</th>
                                 <th>Öncelik</th>
-                                <th>Tamir Durumu</th>
                                 <th>Durum</th>
                                 <th>Tarih</th>
                                 <th>Tutar</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {tickets.map((ticket) => (
-                                <tr
-                                    key={ticket.id}
-                                    onClick={() => window.location.href = `/tickets/${ticket.id}`}
-                                    className={ticket.closedWithoutPayment ? 'ticket-unpaid' : ''}
-                                >
-                                    <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
-                                        {ticket.ticketNo}
-                                        {ticket._count?.serviceRecords > 0 && <span title="Servis Talebi Var"> 🚗</span>}
-                                    </td>
-                                    <td>
-                                        <div style={{ fontWeight: 500 }}>
-                                            {ticket.customer?.name || ticket.repairer?.name || '-'}
-                                        </div>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
-                                            {ticket.customer?.phone || ticket.repairer?.phone || ''}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div>{ticket.brand?.name}</div>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>{ticket.model}</div>
-                                    </td>
-                                    <td style={{ fontSize: 'var(--font-size-xs)' }}>
-                                        {REQUEST_TYPE_LABELS[ticket.requestType]}
-                                    </td>
-                                    <td>
+                            {tickets.map((ticket) => {
+                                const statusColor = STATUS_COLORS[ticket.status] || '#6B7280';
+                                const isUnpaid = ticket.closedWithoutPayment;
+
+                                return (
+                                    <tr
+                                        key={ticket.id}
+                                        onClick={() => window.location.href = `/tickets/${ticket.id}`}
+                                        className={`ticket-row ${isUnpaid ? 'ticket-unpaid' : ''}`}
+                                        style={{
+                                            borderLeft: `5px solid ${isUnpaid ? 'var(--color-danger)' : statusColor}`,
+                                            backgroundColor: isUnpaid ? undefined : `${statusColor}14`,
+                                        }}
+                                    >
+                                        <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                                            {ticket.ticketNo}
+                                            {ticket._count?.serviceRecords > 0 && <span title="Servis Talebi Var"> 🚗</span>}
+                                        </td>
+                                        <td>
+                                            <div style={{ fontWeight: 500 }}>
+                                                {ticket.customer?.name || ticket.repairer?.name || '-'}
+                                            </div>
+                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
+                                                {ticket.customer?.phone || ticket.repairer?.phone || ''}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>{ticket.brand?.name}</div>
+                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>{ticket.model}</div>
+                                        </td>
+                                        <td style={{ fontSize: 'var(--font-size-xs)' }}>
+                                            {REQUEST_TYPE_LABELS[ticket.requestType]}
+                                        </td>
+                                        <td>
+                                            {ticket.status === 'IPTAL'
+                                                ? <span style={{ color: 'var(--color-danger)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>❌ İptal</span>
+                                                : ((ticket._count?.operations || 0) > 0 || ['TAMIR_TAMAMLANDI', 'TESLIMAT_SERVIS_ISTENDI', 'TESLIM_EDILDI', 'ODEME_BEKLIYOR', 'TAMAMLANDI'].includes(ticket.status))
+                                                    ? <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>✅ Bitti</span>
+                                                    : <span style={{ color: 'var(--color-warning)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>⏳ Devam</span>}
+                                        </td>
+                                        <td>
                                             {CUSTOMER_TYPE_LABELS[ticket.customerType as 'INDIVIDUAL' | 'REPAIRER']}
-                                    </td>
-                                    <td>
-                                        <span className={`badge badge-priority-${ticket.priority}`}>
-                                            {PRIORITY_LABELS[ticket.priority]}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {ticket.status === 'IPTAL'
-                                            ? <span style={{ color: 'var(--color-danger)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>❌ İptal</span>
-                                            : ((ticket._count?.operations || 0) > 0 || ['TAMIR_TAMAMLANDI', 'TESLIMAT_SERVIS_ISTENDI', 'TESLIM_EDILDI', 'ODEME_BEKLIYOR', 'TAMAMLANDI'].includes(ticket.status))
-                                                ? <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>✅ Bitti</span>
-                                                : <span style={{ color: 'var(--color-warning)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>⏳ Devam</span>}
-                                    </td>
-                                    <td>
-                                        <span
-                                            className="badge"
-                                            style={{
-                                                background: `${STATUS_COLORS[ticket.status]}20`,
-                                                color: STATUS_COLORS[ticket.status],
-                                            }}
-                                        >
-                                            {STATUS_LABELS[ticket.status]}
-                                        </span>
-                                    </td>
-                                    <td style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
-                                        {formatDate(ticket.createdAt)}
-                                    </td>
-                                    <td style={{ fontWeight: 500 }}>
-                                        {Number(ticket.totalAmount) > 0 ? (
-                                            (ticket as any).currency === 'USD' ? (
-                                                <span style={{ color: '#059669', fontWeight: 600 }}>$ {Number(ticket.totalAmount).toLocaleString('tr-TR')}</span>
-                                            ) : (
-                                                formatCurrency(Number(ticket.totalAmount))
-                                            )
-                                        ) : '-'}
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                        <td>
+                                            <span className={`badge badge-priority-${ticket.priority}`}>
+                                                {PRIORITY_LABELS[ticket.priority]}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span
+                                                className="badge"
+                                                style={{
+                                                    background: `${statusColor}25`,
+                                                    color: statusColor,
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                {STATUS_LABELS[ticket.status]}
+                                            </span>
+                                        </td>
+                                        <td style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
+                                            {formatDate(ticket.createdAt)}
+                                        </td>
+                                        <td style={{ fontWeight: 500 }}>
+                                            {Number(ticket.totalAmount) > 0 ? (
+                                                (ticket as any).currency === 'USD' ? (
+                                                    <span style={{ color: '#059669', fontWeight: 600 }}>$ {Number(ticket.totalAmount).toLocaleString('tr-TR')}</span>
+                                                ) : (
+                                                    formatCurrency(Number(ticket.totalAmount))
+                                                )
+                                            ) : '-'}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

@@ -1,64 +1,57 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getTicketById } from '@/actions/tickets';
 import { getReceiptTemplate } from '@/actions/template';
 import { formatCurrency, formatDate, REQUEST_TYPE_LABELS, CUSTOMER_TYPE_LABELS } from '@/lib/constants';
 import { STATUS_LABELS } from '@/lib/state-machine';
+import PrintToolbar from '@/components/print/PrintToolbar';
+import Link from 'next/link';
 
-const ZeroLogo = ({ size = 70 }) => (
+const ZeroLogo = ({ size = 70 }: { size?: number }) => (
     <img src="/logo.png" alt="Zero Elektronik Logo" width={size} height={size} style={{ objectFit: 'contain' }} />
 );
 
-export default function TicketPrintPage() {
-    const params = useParams();
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const formatParam = (searchParams.get('format') as 'a4' | 'roll') || 'a4';
-    const autoPrintParam = searchParams.get('autoPrint') === '1';
+interface TicketPrintPageProps {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ format?: string; autoPrint?: string }>;
+}
 
-    const ticketId = params.id as string;
-    const [ticket, setTicket] = useState<any>(null);
-    const [template, setTemplate] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+export default async function TicketPrintPage({ params, searchParams }: TicketPrintPageProps) {
+    const { id: ticketId } = await params;
+    const resolvedSearchParams = await searchParams;
+    const formatParam = (resolvedSearchParams.format as 'a4' | 'roll') || 'a4';
+    const autoPrintParam = resolvedSearchParams.autoPrint === '1';
 
-    useEffect(() => {
-        if (ticketId) {
-            Promise.all([
-                getTicketById(ticketId),
-                getReceiptTemplate(formatParam)
-            ])
-            .then(([ticketData, templateData]) => {
-                setTicket(ticketData);
-                setTemplate(templateData);
-                setLoading(false);
-                if (autoPrintParam) {
-                    setTimeout(() => {
-                        window.print();
-                    }, 400);
-                }
-            })
-            .catch((err) => {
-                console.error('Veriler yüklenirken hata oluştu:', err);
-                setLoading(false);
-            });
-        }
-    }, [ticketId, formatParam, autoPrintParam]);
+    let ticket: any = null;
+    let template: any = null;
 
-    if (loading) {
-        return (
-            <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
-                <div style={{ fontSize: '18px', color: '#666' }}>Fiş yükleniyor...</div>
-            </div>
-        );
+    try {
+        [ticket, template] = await Promise.all([
+            getTicketById(ticketId),
+            getReceiptTemplate(formatParam),
+        ]);
+    } catch (err) {
+        console.error('Veriler yüklenirken hata oluştu:', err);
     }
 
     if (!ticket) {
         return (
             <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
                 <h2>Hata: Fiş bulunamadı.</h2>
-                <button onClick={() => router.back()} style={{ padding: '8px 16px', marginTop: '16px', cursor: 'pointer' }}>Geri Dön</button>
+                <Link
+                    href="/"
+                    style={{
+                        display: 'inline-block',
+                        padding: '8px 16px',
+                        marginTop: '16px',
+                        background: '#2563eb',
+                        color: '#ffffff',
+                        borderRadius: '6px',
+                        textDecoration: 'none',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                    }}
+                >
+                    Ana Sayfaya Dön
+                </Link>
             </div>
         );
     }
@@ -67,14 +60,14 @@ export default function TicketPrintPage() {
     const renderVariableText = (content?: string) => {
         if (!content) return '';
         let result = content;
-        
+
         const customerName = ticket.customer?.name || ticket.repairer?.name || '-';
         const customerPhone = ticket.customer?.phone || ticket.repairer?.phone || '-';
         const customerAddress = ticket.customer?.address || ticket.repairer?.address || '';
         const customerCity = ticket.customer?.city || ticket.repairer?.city || '';
         const customerDistrict = ticket.customer?.district || ticket.repairer?.district || '';
         const fullAddress = [customerAddress, customerDistrict, customerCity].filter(Boolean).join(' ');
-        
+
         const pickupRecord = ticket.serviceRecords?.find((sr: any) => sr.type === 'PICKUP');
         const pickupDate = pickupRecord ? formatDate(pickupRecord.scheduledDate) : formatDate(ticket.createdAt);
 
@@ -84,7 +77,7 @@ export default function TicketPrintPage() {
         };
 
         const replacements: Record<string, string> = {
-            ticketNo: ticket.ticketNo,
+            ticketNo: ticket.ticketNo || '',
             customerName: customerName,
             customerPhone: customerPhone,
             customerAddress: fullAddress,
@@ -96,8 +89,8 @@ export default function TicketPrintPage() {
             deviceCondition: ticket.deviceCondition || '',
             brand: ticket.brand?.name || '',
             model: ticket.model || '',
-            totalAmount: formatAmount(Number(ticket.totalAmount)),
-            status: STATUS_LABELS[ticket.status as keyof typeof STATUS_LABELS] || ticket.status,
+            totalAmount: formatAmount(Number(ticket.totalAmount || 0)),
+            status: STATUS_LABELS[ticket.status as keyof typeof STATUS_LABELS] || ticket.status || '',
         };
 
         Object.entries(replacements).forEach(([key, val]) => {
@@ -162,8 +155,8 @@ export default function TicketPrintPage() {
                 <thead>
                     <tr style={{ background: el.styles?.headerBackgroundColor || '#2461db' }}>
                         {el.columns?.map((col: any) => (
-                            <th 
-                                key={col.id} 
+                            <th
+                                key={col.id}
                                 style={{
                                     border: `${el.styles?.borderWidth || 1}px solid ${el.styles?.borderColor || '#cccccc'}`,
                                     padding: '6px 8px',
@@ -188,10 +181,10 @@ export default function TicketPrintPage() {
                                 if (col.key === 'price') val = ticket.currency === 'USD' ? `$ ${item.price.toLocaleString('tr-TR')}` : formatCurrency(item.price);
                                 if (col.key === 'qty') val = String(item.quantity);
                                 if (col.key === 'total') val = ticket.currency === 'USD' ? `$ ${(item.price * item.quantity).toLocaleString('tr-TR')}` : formatCurrency(item.price * item.quantity);
-                                
+
                                 return (
-                                    <td 
-                                        key={col.id} 
+                                    <td
+                                        key={col.id}
                                         style={{
                                             border: `${el.styles?.borderWidth || 1}px solid ${el.styles?.borderColor || '#cccccc'}`,
                                             padding: '6px 8px',
@@ -261,80 +254,26 @@ export default function TicketPrintPage() {
         });
     }
     const subtotal = fallbackItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const grandTotal = Number(ticket.totalAmount);
+    const grandTotal = Number(ticket.totalAmount || 0);
+
+    const isRoll = template?.format === 'roll' || formatParam === 'roll';
+    const pageSizeCss = isRoll
+        ? (template?.widthMm && template?.heightMm
+            ? `${template.widthMm}mm ${template.heightMm}mm`
+            : (template?.widthMm ? `${template.widthMm}mm auto` : '80mm auto'))
+        : 'A4 portrait';
+
+    const printableWidth = isRoll
+        ? (template?.widthMm ? `${template.widthMm * 4}px` : `${template?.width || 320}px`)
+        : '794px';
+
+    const printableHeight = isRoll
+        ? (template?.heightMm ? `${template.heightMm * 4}px` : 'auto')
+        : '1123px';
 
     return (
         <div className="print-wrapper" style={{ minHeight: '100vh', background: '#f3f4f6', padding: '20px 0', fontFamily: 'sans-serif' }}>
-            {/* Top Toolbar (no-print) */}
-            <div className="no-print" style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '60px',
-                background: '#ffffff',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0 24px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                zIndex: 1000
-            }}>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: '#1f2937' }}>
-                    Yazdırma Ekranı — Fiş No: {ticket.ticketNo}
-                </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <button
-                        onClick={() => window.print()}
-                        style={{
-                            background: '#2563eb',
-                            color: '#ffffff',
-                            border: 'none',
-                            padding: '8px 16px',
-                            borderRadius: '6px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}
-                    >
-                        🖨️ Yazdır / PDF Kaydet
-                    </button>
-                    <button
-                        onClick={() => window.close()}
-                        style={{
-                            background: '#ffffff',
-                            color: '#4b5563',
-                            border: '1px solid #d1d5db',
-                            padding: '8px 16px',
-                            borderRadius: '6px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            fontSize: '14px'
-                        }}
-                    >
-                        ✕ Kapat
-                    </button>
-                </div>
-            </div>
-
-            {/* Print Tips Info Alert (no-print) */}
-            <div className="no-print" style={{
-                maxWidth: '800px',
-                margin: '70px auto 10px auto',
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                color: '#1e40af',
-                fontSize: '13px',
-                lineHeight: '1.5'
-            }}>
-                💡 <b>İpucu:</b> Telefonunuza veya bilgisayarınıza PDF olarak kaydetmek için <b>"Yazdır / PDF Kaydet"</b> butonuna tıklayın, açılan pencerede hedef yazıcıyı <b>"PDF Olarak Kaydet"</b> olarak seçin. İndirdiğiniz PDF'i kolayca WhatsApp üzerinden müşterilerinize gönderebilirsiniz.
-            </div>
+            <PrintToolbar ticketNo={ticket.ticketNo} autoPrint={autoPrintParam} />
 
             {/* CSS Print Styles */}
             <style dangerouslySetInnerHTML={{ __html: `
@@ -344,21 +283,29 @@ export default function TicketPrintPage() {
                         print-color-adjust: exact !important;
                         color-adjust: exact !important;
                     }
+                    @page {
+                        size: ${pageSizeCss};
+                        margin: 0;
+                    }
                     html, body {
-                        height: 100% !important;
+                        width: 100% !important;
+                        height: auto !important;
+                        min-height: auto !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #ffffff !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
                     .print-wrapper {
-                        min-height: auto !important;
-                        height: 100% !important;
+                        width: 100% !important;
+                        min-height: 0 !important;
+                        height: auto !important;
                         background: #ffffff !important;
                         padding: 0 !important;
                         margin: 0 !important;
+                        overflow: visible !important;
                     }
                     .no-print {
                         display: none !important;
@@ -366,23 +313,26 @@ export default function TicketPrintPage() {
                         width: 0 !important;
                         margin: 0 !important;
                         padding: 0 !important;
+                        border: none !important;
                     }
                     .printable-page {
-                        width: ${template ? (template.format === 'a4' ? '100%' : (template.widthMm ? `${template.widthMm}mm` : '80mm')) : '100%'} !important;
-                        max-width: ${template ? (template.format === 'a4' ? '210mm' : (template.widthMm ? `${template.widthMm}mm` : '80mm')) : '210mm'} !important;
-                        height: ${template ? (template.format === 'a4' ? '296mm' : 'auto') : '296mm'} !important;
-                        max-height: ${template ? (template.format === 'a4' ? '296mm' : 'none') : '296mm'} !important;
+                        width: ${printableWidth} !important;
+                        max-width: 100% !important;
+                        height: ${printableHeight} !important;
+                        min-height: ${printableHeight} !important;
                         margin: 0 auto !important;
-                        padding: 0 !important;
+                        padding: ${template && template.elements ? '0' : '20mm 15mm'} !important;
                         box-shadow: none !important;
                         box-sizing: border-box !important;
-                        page-break-after: avoid !important;
-                        break-after: avoid !important;
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
                         position: relative !important;
                         background: #ffffff !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
+                        page-break-after: avoid !important;
+                        break-after: avoid !important;
+                        page-break-before: avoid !important;
+                        break-before: avoid !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
                     }
                     th, td, tr, table {
                         -webkit-print-color-adjust: exact !important;
@@ -394,10 +344,6 @@ export default function TicketPrintPage() {
                         max-width: 100% !important;
                         object-fit: contain !important;
                     }
-                    @page {
-                        size: ${template ? (template.format === 'a4' ? 'A4 portrait' : 'auto') : 'A4 portrait'};
-                        margin: 0mm;
-                    }
                 }
             `}} />
 
@@ -405,12 +351,12 @@ export default function TicketPrintPage() {
             {template && template.elements ? (
                 /* ─── CUSTOM DESIGNED RECEIPT TEMPLATE ─── */
                 <div className="printable-page" style={{
-                    width: template.format === 'a4' ? '794px' : (template.widthMm ? `${template.widthMm * 4}px` : `${template.width || 320}px`),
-                    height: template.format === 'a4' ? '1123px' : 'auto',
-                    minHeight: template.format === 'roll' ? (template.heightMm ? `${template.heightMm * 4}px` : `${template.height || 600}px`) : undefined,
+                    width: printableWidth,
+                    height: printableHeight,
+                    minHeight: printableHeight,
                     background: '#ffffff',
                     margin: '0 auto',
-                    padding: '20px',
+                    padding: '0px',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                     boxSizing: 'border-box',
                     position: 'relative',
@@ -450,17 +396,17 @@ export default function TicketPrintPage() {
                                     />
                                 )}
                                 {el.type === 'image' && el.content && (
-                                    <img 
-                                        src={el.content} 
-                                        alt="Logo" 
-                                        style={{ 
-                                            width: '100%', 
-                                            height: '100%', 
+                                    <img
+                                        src={el.content}
+                                        alt="Logo"
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
                                             objectFit: 'contain',
                                             display: 'block',
                                             WebkitPrintColorAdjust: 'exact',
                                             printColorAdjust: 'exact',
-                                        }} 
+                                        }}
                                     />
                                 )}
                                 {el.type === 'divider' && (
@@ -511,8 +457,8 @@ export default function TicketPrintPage() {
                                                 boxSizing: 'border-box',
                                                 borderRadius: el.styles?.shapeType === 'circle' ? '50%' : `${el.styles?.borderRadius ?? 8}px`,
                                                 backgroundColor: el.styles?.isTransparentFill ? 'transparent' : (el.styles?.backgroundColor || '#e5e7eb'),
-                                                border: el.styles?.isTransparentBorder 
-                                                    ? 'none' 
+                                                border: el.styles?.isTransparentBorder
+                                                    ? 'none'
                                                     : `${el.styles?.borderWidth || 2}px ${el.styles?.borderStyle || 'solid'} ${el.styles?.borderColor || '#000000'}`,
                                                 WebkitPrintColorAdjust: 'exact',
                                                 printColorAdjust: 'exact',

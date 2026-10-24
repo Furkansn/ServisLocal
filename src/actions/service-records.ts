@@ -481,28 +481,7 @@ export async function endDay() {
         include: { ticket: true },
     });
 
-    // Update all picked-up tickets to ATOLYEYE_ALINDI
-    for (const record of completedPickups) {
-        if (record.ticket.status === TicketStatus.TESLIM_ALINDI) {
-            await prisma.$transaction(async (tx) => {
-                await tx.repairTicket.update({
-                    where: { id: record.ticketId },
-                    data: { status: TicketStatus.ATOLYEYE_ALINDI },
-                });
-
-                await tx.statusHistory.create({
-                    data: {
-                        ticketId: record.ticketId,
-                        fromStatus: TicketStatus.TESLIM_ALINDI,
-                        toStatus: TicketStatus.ATOLYEYE_ALINDI,
-                        changedById: session.user.id,
-                        notes: 'Gün bitir - Cihaz atölyeye alındı',
-                    },
-                });
-            });
-        }
-    }
-
+    // Picked-up tickets remain in TESLIM_ALINDI until assigned to technician
     return { processed: completedPickups.length };
 }
 

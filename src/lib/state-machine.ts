@@ -7,7 +7,6 @@ const VALID_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
         TicketStatus.SERVIS_ISTENDI,
         TicketStatus.TESLIM_ALINDI,
         TicketStatus.ERTELENDI,
-        TicketStatus.ATOLYEYE_ALINDI,
         TicketStatus.TEKNISYENE_VERILDI,
         TicketStatus.TEST_EDILIYOR,
         TicketStatus.PARCA_BEKLIYOR,
@@ -28,7 +27,7 @@ const VALID_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
         TicketStatus.SERVIS_ISTENDI,
     ],
     TESLIM_ALINDI: [
-        TicketStatus.ATOLYEYE_ALINDI,
+        TicketStatus.TEKNISYENE_VERILDI,
     ],
     ATOLYEYE_ALINDI: [
         TicketStatus.TEKNISYENE_VERILDI,
@@ -77,7 +76,7 @@ export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
  */
 export function getNextStatuses(current: TicketStatus): TicketStatus[] {
     if (isReadOnly(current)) return [];
-    return Object.values(TicketStatus);
+    return Object.values(TicketStatus).filter(s => s !== TicketStatus.ATOLYEYE_ALINDI);
 }
 
 /**

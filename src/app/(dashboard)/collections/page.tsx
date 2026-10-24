@@ -15,6 +15,7 @@ import {
     deleteAccount,
     createAccountTransfer,
     updatePaymentAccount,
+    logCashBalancesToggle,
 } from '@/actions/collections';
 import { AccountType } from '@prisma/client';
 import { formatCurrency, formatDateTime, formatDate, REQUEST_TYPE_LABELS } from '@/lib/constants';
@@ -27,6 +28,7 @@ const MONTH_NAMES = [
 
 export default function CollectionsPage() {
     const { data: session } = useSession();
+    const currentUserId = (session?.user as any)?.id || '';
     const userRoles = (session?.user as any)?.roles || [];
     const isManager = userRoles.includes('OPERATOR');
 
@@ -36,6 +38,33 @@ export default function CollectionsPage() {
     const [selectedAccountId, setSelectedAccountId] = useState('ALL');
     const [activeTab, setActiveTab] = useState<'PAYMENTS' | 'EXPENSES' | 'SETTLEMENTS' | 'TRANSFERS' | 'USERS'>('PAYMENTS');
     const [selectedUserFilter, setSelectedUserFilter] = useState<string>('ALL');
+
+    // Cash balances open/close toggle state (default closed, cached per user)
+    const [isBalancesOpen, setIsBalancesOpen] = useState(false);
+
+    useEffect(() => {
+        if (currentUserId) {
+            const cached = localStorage.getItem(`collections_balances_open_${currentUserId}`);
+            if (cached === 'true') {
+                setIsBalancesOpen(true);
+            }
+        }
+    }, [currentUserId]);
+
+    const handleToggleBalances = async () => {
+        const nextState = !isBalancesOpen;
+        setIsBalancesOpen(nextState);
+        if (currentUserId) {
+            localStorage.setItem(`collections_balances_open_${currentUserId}`, String(nextState));
+        }
+        try {
+            await logCashBalancesToggle(nextState);
+        } catch (e) {
+            console.error('Failed to log cash balances toggle:', e);
+        }
+    };
+
+    const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === (now.getMonth() + 1);
 
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -264,6 +293,9 @@ export default function CollectionsPage() {
     const handleResetBalance = async () => {
         setResetError('');
         if (!resetAccount) return;
+        if (!isCurrentMonth) {
+            return setResetError('Geçmiş dönem kasaları geriye dönük sıfırlanamaz. Bakiye yeni aya devretmiştir.');
+        }
         const amount = parseFloat(resetAmount);
         if (!amount || amount <= 0) return setResetError('Geçerli bir sıfırlama tutarı giriniz');
 
@@ -272,6 +304,8 @@ export default function CollectionsPage() {
                 accountId: resetAccount.id,
                 amount,
                 notes: resetNotes || `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear} Kasa Sıfırlama / Teslim Alma`,
+                year: selectedYear,
+                month: selectedMonth,
             });
             setShowResetModal(false);
             setResetAccount(null);
@@ -482,108 +516,195 @@ export default function CollectionsPage() {
                 </div>
             ) : (
                 <>
-                    {/* Account Balance Cards Grid */}
+                    {/* Account Balances Header & Open/Close Toggle */}
                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                        gap: 'var(--space-4)',
-                        marginBottom: 'var(--space-6)'
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 'var(--space-3)',
+                        padding: '10px 14px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-primary)'
                     }}>
-                        {data.accountSummaries.map((summary: any) => {
-                            const acc = summary.account;
-                            const totalCollected = summary.totalCollected;
-                            const totalApproved = summary.totalApproved;
-                            const totalPending = summary.totalPending;
-                            const totalExpenses = summary.totalExpenses;
-                            const totalSettled = summary.totalSettled;
-                            const totalTransfersIn = summary.totalTransfersIn || 0;
-                            const totalTransfersOut = summary.totalTransfersOut || 0;
-                            const currentBalance = summary.currentBalance;
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '18px' }}>💼</span>
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Kasa ve Hesap Bakiyeleri</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                ({data.accountSummaries.length} Hesap)
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleToggleBalances}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {isBalancesOpen ? '🙈 Kasaları Gizle / Kapat' : '👁️ Kasaları Aç / Göster'}
+                        </button>
+                    </div>
 
-                            const isCash = acc.type === 'CASH';
-
-                            return (
-                                <div key={acc.id} className="card" style={{
-                                    borderLeft: `4px solid ${isCash ? 'var(--color-success)' : 'var(--brand-primary)'}`,
-                                    position: 'relative'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
-                                        <div>
-                                            <div style={{ fontWeight: 700, fontSize: 'var(--font-size-md)' }}>{acc.name}</div>
-                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{acc.description || acc.type}</div>
-                                        </div>
-                                        {isManager && isCash && (
-                                            <button
-                                                className="btn btn-ghost btn-xs"
-                                                onClick={() => {
-                                                    setResetAccount(acc);
-                                                    setResetAmount(currentBalance > 0 ? currentBalance.toString() : '');
-                                                    setShowResetModal(true);
-                                                }}
-                                                title="Kasayı Sıfırla / Parayı Teslim Al"
-                                                style={{ fontSize: '11px', color: 'var(--brand-primary)' }}
-                                            >
-                                                🏛️ Kasayı Sıfırla
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {/* Net Balance */}
-                                    <div style={{ margin: 'var(--space-3) 0' }}>
-                                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                            Kasa Net Bakiye
-                                        </div>
-                                        <div style={{
-                                            fontSize: '24px',
-                                            fontWeight: 800,
-                                            color: currentBalance >= 0 ? 'var(--color-success)' : 'var(--color-danger)'
-                                        }}>
-                                            {formatCurrency(currentBalance)}
-                                        </div>
-                                    </div>
-
-                                    {/* Breakdown details */}
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: '1fr 1fr',
-                                        gap: '6px',
-                                        paddingTop: '8px',
-                                        borderTop: '1px solid var(--border-primary)',
-                                        fontSize: '11px'
-                                    }}>
-                                        <div>
-                                            <span style={{ color: 'var(--text-tertiary)' }}>Tahsilat: </span>
-                                            <span style={{ fontWeight: 600 }}>{formatCurrency(totalCollected)}</span>
-                                        </div>
-                                        <div>
-                                            <span style={{ color: 'var(--text-tertiary)' }}>Gider: </span>
-                                            <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalExpenses)}</span>
-                                        </div>
-                                        {totalTransfersIn > 0 && (
-                                            <div>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>Giren Virman: </span>
-                                                <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>+{formatCurrency(totalTransfersIn)}</span>
-                                            </div>
-                                        )}
-                                        {totalTransfersOut > 0 && (
-                                            <div>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>Çıkan Virman: </span>
-                                                <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalTransfersOut)}</span>
-                                            </div>
-                                        )}
-                                        <div>
-                                            <span style={{ color: 'var(--text-tertiary)' }}>Onaylı: </span>
-                                            <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(totalApproved)}</span>
-                                        </div>
-                                        <div>
-                                            <span style={{ color: 'var(--text-tertiary)' }}>Bekleyen: </span>
-                                            <span style={{ fontWeight: 600, color: totalPending > 0 ? '#f59e0b' : 'var(--text-tertiary)' }}>{formatCurrency(totalPending)}</span>
-                                        </div>
+                    {!isBalancesOpen ? (
+                        <div
+                            className="card"
+                            onClick={handleToggleBalances}
+                            style={{
+                                padding: 'var(--space-4)',
+                                marginBottom: 'var(--space-6)',
+                                background: 'var(--bg-secondary)',
+                                border: '1px dashed var(--border-primary)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ fontSize: '24px' }}>🔒</span>
+                                <div>
+                                    <div style={{ fontWeight: 600, fontSize: '13px' }}>Kasa toplamları ve bakiyeleri gizlendi</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                        Hassas kasa toplamlarını görüntülemek için tıklayınız veya &ldquo;Kasaları Aç&rdquo; butonunu kullanınız.
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                            <span className="badge badge-primary" style={{ cursor: 'pointer' }}>👁️ Kasaları Aç</span>
+                        </div>
+                    ) : (
+                        /* Account Balance Cards Grid */
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: 'var(--space-4)',
+                            marginBottom: 'var(--space-6)'
+                        }}>
+                            {data.accountSummaries.map((summary: any) => {
+                                const acc = summary.account;
+                                const openingBalance = summary.openingBalance || 0;
+                                const totalCollected = summary.totalCollected;
+                                const totalApproved = summary.totalApproved;
+                                const totalPending = summary.totalPending;
+                                const totalExpenses = summary.totalExpenses;
+                                const totalSettled = summary.totalSettled;
+                                const totalTransfersIn = summary.totalTransfersIn || 0;
+                                const totalTransfersOut = summary.totalTransfersOut || 0;
+                                const currentBalance = summary.currentBalance;
+
+                                const isCash = acc.type === 'CASH';
+
+                                return (
+                                    <div key={acc.id} className="card" style={{
+                                        borderLeft: `4px solid ${isCash ? 'var(--color-success)' : 'var(--brand-primary)'}`,
+                                        position: 'relative'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-md)' }}>{acc.name}</div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{acc.description || acc.type}</div>
+                                            </div>
+                                            {isManager && isCash && (
+                                                isCurrentMonth ? (
+                                                    <button
+                                                        className="btn btn-ghost btn-xs"
+                                                        onClick={() => {
+                                                            setResetAccount(acc);
+                                                            setResetAmount(currentBalance > 0 ? currentBalance.toString() : '');
+                                                            setShowResetModal(true);
+                                                        }}
+                                                        title="Kasayı Sıfırla / Parayı Teslim Al"
+                                                        style={{ fontSize: '11px', color: 'var(--brand-primary)' }}
+                                                    >
+                                                        🏛️ Kasayı Sıfırla
+                                                    </button>
+                                                ) : (
+                                                    <span
+                                                        className="badge badge-neutral"
+                                                        style={{ fontSize: '10px' }}
+                                                        title="Geçmiş dönem bakiyesi yeni aya devretmiştir. Geriye dönük sıfırlama yapılamaz."
+                                                    >
+                                                        Dönem Kapandı
+                                                    </span>
+                                                )
+                                            )}
+                                        </div>
+
+                                        {/* Net Balance */}
+                                        <div style={{ margin: 'var(--space-3) 0' }}>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                Kasa Net Bakiye
+                                            </div>
+                                            <div style={{
+                                                fontSize: '24px',
+                                                fontWeight: 800,
+                                                color: currentBalance >= 0 ? 'var(--color-success)' : 'var(--color-danger)'
+                                            }}>
+                                                {formatCurrency(currentBalance)}
+                                            </div>
+                                        </div>
+
+                                        {/* Breakdown details */}
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr 1fr',
+                                            gap: '6px',
+                                            paddingTop: '8px',
+                                            borderTop: '1px solid var(--border-primary)',
+                                            fontSize: '11px'
+                                        }}>
+                                            <div style={{ gridColumn: 'span 2', paddingBottom: '4px', borderBottom: '1px dashed var(--border-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>Önceki Aydan Devir: </span>
+                                                <span style={{ fontWeight: 600, color: openingBalance >= 0 ? 'var(--text-secondary)' : 'var(--color-danger)' }}>
+                                                    {formatCurrency(openingBalance)}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>Bu Ay Tahsilat: </span>
+                                                <span style={{ fontWeight: 600 }}>{formatCurrency(totalCollected)}</span>
+                                            </div>
+                                            <div>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>Bu Ay Gider: </span>
+                                                <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalExpenses)}</span>
+                                            </div>
+                                            {totalTransfersIn > 0 && (
+                                                <div>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Giren Virman: </span>
+                                                    <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>+{formatCurrency(totalTransfersIn)}</span>
+                                                </div>
+                                            )}
+                                            {totalTransfersOut > 0 && (
+                                                <div>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Çıkan Virman: </span>
+                                                    <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalTransfersOut)}</span>
+                                                </div>
+                                            )}
+                                            <div>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>Onaylı: </span>
+                                                <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(totalApproved)}</span>
+                                            </div>
+                                            <div>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>Bekleyen: </span>
+                                                <span style={{ fontWeight: 600, color: totalPending > 0 ? '#f59e0b' : 'var(--text-tertiary)' }}>{formatCurrency(totalPending)}</span>
+                                            </div>
+                                            {totalSettled > 0 && (
+                                                <div style={{ gridColumn: 'span 2', paddingTop: '4px', borderTop: '1px dashed var(--border-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Teslim Alınan (Sıfırlama): </span>
+                                                    <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalSettled)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
 
                     {/* Navigation Tabs */}
                     <div className="filter-bar" style={{ marginBottom: 'var(--space-4)' }}>

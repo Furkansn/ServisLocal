@@ -238,46 +238,40 @@ export async function getCollectionsData(year: number, month: number, accountId?
 
     // Compute Account Balances & Summaries
     const accountSummaries = accounts.map(acc => {
-        // Find latest settlement for this account (if any)
-        const latestSettlement = allSettlements.find(s => s.accountId === acc.id);
-        const settlementCutoffTime = latestSettlement ? new Date(latestSettlement.createdAt).getTime() : 0;
+        // Transactions strictly before this month (opening balance / devir from previous months)
+        const prevPayments = allPayments.filter(p => (p.accountId === acc.id || (!p.accountId && acc.type === 'CASH')) && p.createdAt < startDate);
+        const prevExpenses = allExpenses.filter(e => e.accountId === acc.id && e.createdAt < startDate);
+        const prevSettlements = allSettlements.filter(s => s.accountId === acc.id && s.createdAt < startDate);
+        const prevTransfersIn = allTransfers.filter(t => t.toAccountId === acc.id && t.createdAt < startDate);
+        const prevTransfersOut = allTransfers.filter(t => t.fromAccountId === acc.id && t.createdAt < startDate);
 
-        // Cumulative Balance (from all-time up to selected month end)
-        const cumPayments = allPayments.filter(p => p.accountId === acc.id || (!p.accountId && acc.type === 'CASH'));
-        const cumExpenses = allExpenses.filter(e => e.accountId === acc.id);
-        const cumSettlements = allSettlements.filter(s => s.accountId === acc.id);
-        const cumTransfersIn = allTransfers.filter(t => t.toAccountId === acc.id);
-        const cumTransfersOut = allTransfers.filter(t => t.fromAccountId === acc.id);
+        const openingBalance = prevPayments.reduce((sum, p) => sum + Number(p.amount), 0) +
+            prevTransfersIn.reduce((sum, t) => sum + Number(t.amount), 0) -
+            prevExpenses.reduce((sum, e) => sum + Number(e.amount), 0) -
+            prevSettlements.reduce((sum, s) => sum + Number(s.amount), 0) -
+            prevTransfersOut.reduce((sum, t) => sum + Number(t.amount), 0);
 
-        const currentBalance = cumPayments.reduce((sum, p) => sum + Number(p.amount), 0) +
-            cumTransfersIn.reduce((sum, t) => sum + Number(t.amount), 0) -
-            cumExpenses.reduce((sum, e) => sum + Number(e.amount), 0) -
-            cumSettlements.reduce((sum, s) => sum + Number(s.amount), 0) -
-            cumTransfersOut.reduce((sum, t) => sum + Number(t.amount), 0);
-
-        // Period subtotals (resets after settlement or month change)
-        let monthAccPayments = payments.filter(p => p.accountId === acc.id || (!p.accountId && acc.type === 'CASH'));
-        let monthAccExpenses = expenses.filter(e => e.accountId === acc.id);
-        let monthAccTransfersIn = transfers.filter(t => t.toAccountId === acc.id);
-        let monthAccTransfersOut = transfers.filter(t => t.fromAccountId === acc.id);
-
-        if (settlementCutoffTime > 0) {
-            monthAccPayments = monthAccPayments.filter(p => new Date(p.createdAt).getTime() > settlementCutoffTime);
-            monthAccExpenses = monthAccExpenses.filter(e => new Date(e.createdAt).getTime() > settlementCutoffTime);
-            monthAccTransfersIn = monthAccTransfersIn.filter(t => new Date(t.createdAt).getTime() > settlementCutoffTime);
-            monthAccTransfersOut = monthAccTransfersOut.filter(t => new Date(t.createdAt).getTime() > settlementCutoffTime);
-        }
+        // Period transactions (all transactions within this month)
+        const monthAccPayments = payments.filter(p => p.accountId === acc.id || (!p.accountId && acc.type === 'CASH'));
+        const monthAccExpenses = expenses.filter(e => e.accountId === acc.id);
+        const monthAccTransfersIn = transfers.filter(t => t.toAccountId === acc.id);
+        const monthAccTransfersOut = transfers.filter(t => t.fromAccountId === acc.id);
+        const monthAccSettlements = settlements.filter(s => s.accountId === acc.id);
 
         const totalCollected = monthAccPayments.reduce((sum, p) => sum + Number(p.amount), 0);
         const totalApproved = monthAccPayments.filter(p => p.isApproved).reduce((sum, p) => sum + Number(p.amount), 0);
         const totalPending = monthAccPayments.filter(p => !p.isApproved).reduce((sum, p) => sum + Number(p.amount), 0);
         const totalExpenses = monthAccExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-        const totalSettled = settlements.filter(s => s.accountId === acc.id).reduce((sum, s) => sum + Number(s.amount), 0);
+        const totalSettled = monthAccSettlements.reduce((sum, s) => sum + Number(s.amount), 0);
         const totalTransfersIn = monthAccTransfersIn.reduce((sum, t) => sum + Number(t.amount), 0);
         const totalTransfersOut = monthAccTransfersOut.reduce((sum, t) => sum + Number(t.amount), 0);
 
+        // Closing balance = Opening Balance + Collections + TransfersIn - Expenses - Settlements - TransfersOut
+        const currentBalance = openingBalance + totalCollected + totalTransfersIn - totalExpenses - totalSettled - totalTransfersOut;
+
         return {
             account: acc,
+            openingBalance,
             totalCollected,
             totalApproved,
             totalPending,
@@ -674,6 +668,8 @@ export async function resetAccountBalance(data: {
     accountId: string;
     amount: number;
     notes?: string;
+    year?: number;
+    month?: number;
 }) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
@@ -683,6 +679,16 @@ export async function resetAccountBalance(data: {
     }
 
     if (data.amount <= 0) throw new Error('Sıfırlanacak tutar 0\'dan büyük olmalıdır.');
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    if (data.year && data.month) {
+        if (data.year !== currentYear || data.month !== currentMonth) {
+            throw new Error('Geçmiş dönemlere ait kasalar geriye dönük sıfırlanamaz. Bakiye yeni aya devretmiştir.');
+        }
+    }
 
     const settlement = await prisma.accountSettlement.create({
         data: {
@@ -699,3 +705,27 @@ export async function resetAccountBalance(data: {
         amount: Number(settlement.amount),
     };
 }
+
+export async function logCashBalancesToggle(opened: boolean) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false };
+
+    try {
+        await prisma.auditLog.create({
+            data: {
+                entityType: 'CASH_BALANCES',
+                entityId: 'ALL',
+                action: AuditAction.UPDATE,
+                field: 'view_cash_balances',
+                oldValue: opened ? 'CLOSED' : 'OPENED',
+                newValue: opened ? 'OPENED' : 'CLOSED',
+                changedById: session.user.id,
+            },
+        });
+        return { success: true };
+    } catch (e) {
+        console.error('AuditLog error for cash balances toggle:', e);
+        return { success: false };
+    }
+}
+

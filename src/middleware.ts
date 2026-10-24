@@ -7,8 +7,7 @@ export default auth((req) => {
     const userRoles = (req.auth?.user as any)?.roles || [];
 
     // Public routes
-    const publicRoutes = ['/login'];
-    if (publicRoutes.includes(pathname)) {
+    if (pathname === '/login') {
         if (isLoggedIn) {
             // Redirect to appropriate dashboard based on role
             if (userRoles.includes('OPERATOR')) {
@@ -22,6 +21,10 @@ export default auth((req) => {
             }
             return NextResponse.redirect(new URL('/', req.url));
         }
+        return NextResponse.next();
+    }
+
+    if (pathname.startsWith('/print/')) {
         return NextResponse.next();
     }
 

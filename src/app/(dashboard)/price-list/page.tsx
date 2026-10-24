@@ -159,7 +159,7 @@ export default function PriceListPage() {
                     setLedCols(3);
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
 
         // Büyük ekranlarda tam genişlik sağlamak için .app-content container'ını genişlet
         const appContent = document.querySelector('.app-content') as HTMLElement | null;
@@ -188,28 +188,28 @@ export default function PriceListPage() {
         setShowCosts(next);
         try {
             localStorage.setItem('price_list_show_costs', String(next));
-        } catch (e) {}
+        } catch (e) { }
     };
 
     const handleViewModeChange = (mode: 'ALL' | 'SCREEN' | 'LED') => {
         setViewMode(mode);
         try {
             localStorage.setItem('price_list_view_mode', mode);
-        } catch (e) {}
+        } catch (e) { }
     };
 
     const handleScreenColsChange = (cols: number) => {
         setScreenCols(cols);
         try {
             localStorage.setItem('price_list_screen_cols', String(cols));
-        } catch (e) {}
+        } catch (e) { }
     };
 
     const handleLedColsChange = (cols: number) => {
         setLedCols(cols);
         try {
             localStorage.setItem('price_list_led_cols', String(cols));
-        } catch (e) {}
+        } catch (e) { }
     };
 
     // Load Price List from Server
@@ -718,8 +718,8 @@ export default function PriceListPage() {
                     background: isEditing
                         ? 'rgba(59, 130, 246, 0.14)'
                         : isBeingDragged
-                        ? 'rgba(59, 130, 246, 0.15)'
-                        : displayIdx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                            ? 'rgba(59, 130, 246, 0.15)'
+                            : displayIdx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
                     opacity: isBeingDragged ? 0.4 : 1,
                     transform: isEditing ? 'translateY(-1px) scale(1.004)' : 'none',
                     boxShadow: isEditing ? '0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1.5px #3b82f6' : 'none',
@@ -1053,8 +1053,8 @@ export default function PriceListPage() {
                     background: isEditing
                         ? 'rgba(16, 185, 129, 0.14)'
                         : isBeingDragged
-                        ? 'rgba(16, 185, 129, 0.15)'
-                        : displayIdx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                            ? 'rgba(16, 185, 129, 0.15)'
+                            : displayIdx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)',
                     opacity: isBeingDragged ? 0.4 : 1,
                     transform: isEditing ? 'translateY(-1px) scale(1.004)' : 'none',
                     boxShadow: isEditing ? '0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1.5px #10b981' : 'none',

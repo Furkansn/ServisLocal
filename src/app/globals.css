@@ -742,6 +742,18 @@ select.select {
   cursor: pointer;
 }
 
+.table tr.ticket-row {
+  transition: filter 0.15s ease, background-color 0.15s ease;
+}
+
+.table tr.ticket-row:hover td {
+  background: transparent !important;
+}
+
+.table tr.ticket-row:hover {
+  filter: brightness(1.15);
+}
+
 /* ─── Search ────────────────────────────────────────────── */
 .search-bar {
   position: relative;
