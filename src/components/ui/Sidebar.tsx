@@ -13,8 +13,7 @@ const OPERATOR_LINKS = [
     { href: '/collections', label: 'Tahsilat & Kasa', icon: '💰' },
     { href: '/reports', label: 'Raporlar', icon: '📈' },
     { href: '/tickets/new', label: 'Yeni Fiş', icon: '➕' },
-    { href: '/customers', label: 'Müşteriler', icon: '👥' },
-    { href: '/repairers', label: 'Tamirciler', icon: '🏪' },
+    { href: '/customers', label: 'Müşteri & Tamirci', icon: '👥' },
     { href: '/products', label: 'Ürünler & Stok', icon: '📦' },
     { href: '/ne-takilir', label: 'Ne Takılır?', icon: '💡' },
     { href: '/price-list', label: 'Fiyat Listesi', icon: '💵' },
@@ -72,17 +71,25 @@ export default function Sidebar() {
             {/* Navigation */}
             <nav className="sidebar-nav">
                 <div className="sidebar-section-label">Ana Menü</div>
-                {OPERATOR_LINKS.map((link) => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        title={isCollapsed ? link.label : undefined}
-                        className={`sidebar-link ${pathname === link.href ? 'active' : ''}`}
-                    >
-                        <span className="sidebar-link-icon">{link.icon}</span>
-                        <span className="sidebar-link-text">{link.label}</span>
-                    </Link>
-                ))}
+                {OPERATOR_LINKS.map((link) => {
+                    const isActive = link.href === '/'
+                        ? pathname === '/'
+                        : link.href === '/customers'
+                            ? (pathname.startsWith('/customers') || pathname.startsWith('/repairers'))
+                            : pathname.startsWith(link.href);
+
+                    return (
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            title={isCollapsed ? link.label : undefined}
+                            className={`sidebar-link ${isActive ? 'active' : ''}`}
+                        >
+                            <span className="sidebar-link-icon">{link.icon}</span>
+                            <span className="sidebar-link-text">{link.label}</span>
+                        </Link>
+                    );
+                })}
                 
                 <div className="sidebar-section-label" style={{ marginTop: '16px' }}>Ayarlar</div>
                 <Link

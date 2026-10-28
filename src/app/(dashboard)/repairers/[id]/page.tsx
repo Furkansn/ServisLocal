@@ -44,8 +44,8 @@ export default function RepairerDetailPage() {
         <div>
             <div className="page-header">
                 <div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => router.push('/repairers')} style={{ marginBottom: 'var(--space-2)' }}>
-                        ← Tamirciler
+                    <button className="btn btn-ghost btn-sm" onClick={() => router.push('/customers?tab=repairers')} style={{ marginBottom: 'var(--space-2)' }}>
+                        ← Tamirciler Listesi
                     </button>
                     <h1 className="page-title">🏪 {repairer.name}</h1>
                     <p className="page-subtitle">{repairer.tickets.length} tamir kaydı</p>

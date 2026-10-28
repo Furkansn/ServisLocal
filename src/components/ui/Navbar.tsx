@@ -33,16 +33,17 @@ export default function Navbar() {
             '/daily-planning': 'Günlük Planlama',
             '/tickets': 'Tamir Fişleri',
             '/tickets/new': 'Yeni Tamir Fişi',
-            '/customers': 'Müşteriler',
-            '/repairers': 'Tamirciler',
+            '/customers': 'Müşteri & Tamirci',
+            '/repairers': 'Müşteri & Tamirci',
             '/products': 'Ürünler & Stok',
             '/personnel': 'Personel Yönetimi',
             '/tv-display': '📺 Cihaz Takip TV',
         };
-        // Handle dynamic routes crudely if needed, but pathname usually suffices for exact matches
-        // For /tickets/[id], pathname is the full path. We can check startsWith.
+        // Handle dynamic routes
         if (pathname.startsWith('/tickets/') && pathname !== '/tickets/new') return 'Fiş Detayı';
         if (pathname.endsWith('/edit')) return 'Fiş Düzenle';
+        if (pathname.startsWith('/customers/')) return 'Müşteri Detayı';
+        if (pathname.startsWith('/repairers/')) return 'Tamirci Detayı';
 
         return routes[pathname] || 'ServisLocal';
     };
