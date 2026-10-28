@@ -312,6 +312,88 @@ export async function getMyWorkOrders() {
         }));
 }
 
+export async function getServiceRecordById(recordId: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const record = await prisma.serviceRecord.findUnique({
+        where: { id: recordId },
+        include: {
+            assignedPersonnel: { select: { id: true, name: true, phone: true } },
+            ticket: {
+                include: {
+                    customer: {
+                        include: {
+                            notes: {
+                                include: { personnel: { select: { name: true } } },
+                                orderBy: { createdAt: 'desc' },
+                            },
+                            _count: { select: { notes: true } },
+                        },
+                    },
+                    repairer: {
+                        include: {
+                            notes: {
+                                include: { personnel: { select: { name: true } } },
+                                orderBy: { createdAt: 'desc' },
+                            },
+                            _count: { select: { notes: true } },
+                        },
+                    },
+                    brand: { select: { name: true } },
+                    accessories: {
+                        include: {
+                            product: { select: { id: true, name: true } },
+                            soldBy: { select: { name: true } },
+                        },
+                    },
+                    photos: {
+                        where: { serviceRecordId: recordId },
+                        include: { uploadedBy: { select: { name: true } } },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                    operations: {
+                        include: { performedBy: { select: { name: true } } },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                    payments: {
+                        include: {
+                            receivedBy: { select: { name: true } },
+                            account: true,
+                        },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                    statusHistory: {
+                        include: { changedBy: { select: { name: true } } },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                },
+            },
+        },
+    });
+
+    if (!record) return null;
+
+    return {
+        ...record,
+        ticket: record.ticket ? {
+            ...record.ticket,
+            repairPrice: Number(record.ticket.repairPrice || 0),
+            totalAmount: Number(record.ticket.totalAmount || 0),
+            paidAmount: Number(record.ticket.paidAmount || 0),
+            accessories: (record.ticket.accessories || []).map((acc: any) => ({
+                ...acc,
+                unitPrice: Number(acc.unitPrice || 0),
+                totalPrice: Number(acc.totalPrice || 0),
+            })),
+            payments: (record.ticket.payments || []).map((p: any) => ({
+                ...p,
+                amount: Number(p.amount || 0),
+            })),
+        } : null,
+    };
+}
+
 // ─── Assign Service Personnel ────────────────────────────
 
 export async function assignServicePersonnel(recordId: string, personnelId: string) {

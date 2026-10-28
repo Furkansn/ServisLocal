@@ -24,6 +24,7 @@ import { updateTicketDeviceCondition, addRepairItemToTicket } from '@/actions/ti
 import { REQUEST_TYPE_LABELS, OPERATION_TYPE_LABELS, PAYMENT_METHOD_LABELS, formatCurrency, parseCurrencyInput, getLocalDateString } from '@/lib/constants';
 import DailyPlanPrintModal from '@/components/service/DailyPlanPrintModal';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type WorkOrder = Awaited<ReturnType<typeof getMyWorkOrders>>[0];
 
@@ -33,6 +34,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ServicePage() {
+    const router = useRouter();
     const [orders, setOrders] = useState<WorkOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
@@ -452,7 +454,7 @@ export default function ServicePage() {
                         <WorkOrderCard
                             key={order.id}
                             order={order}
-                            onAction={() => openActionModal(order)}
+                            onAction={() => router.push(`/service/${order.id}`)}
                             onPostpone={() => {
                                 setPostponeRecord(order);
                                 setPostponeDate('');
@@ -1430,9 +1432,13 @@ function WorkOrderCard({
                         </>
                     ) : (
                         <>
-                            <button className="btn btn-primary btn-sm" style={{ flex: 2 }} onClick={onAction}>
+                            <Link
+                                href={`/service/${order.id}`}
+                                className="btn btn-primary btn-sm"
+                                style={{ flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                            >
                                 📸 İşlem Yap
-                            </button>
+                            </Link>
                             <button className="btn btn-warning btn-sm" style={{ flex: 1 }} onClick={onPostpone}>
                                 ⏳ Ertele
                             </button>
