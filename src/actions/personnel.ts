@@ -32,6 +32,15 @@ export async function createPersonnel(data: {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
 
+    const userRoles = (session.user as any)?.roles || [];
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+    const isOperator = userRoles.includes('OPERATOR') || isCompanyAdmin;
+    if (!isOperator) throw new Error('Personel ekleme yetkiniz bulunmamaktadır.');
+
+    if (data.roles.includes('COMPANY_ADMIN') && !isCompanyAdmin) {
+        throw new Error('Firma Admini rolü atama yetkiniz bulunmamaktadır.');
+    }
+
     const existing = await prisma.personnel.findUnique({ where: { email: data.email } });
     if (existing) throw new Error('Bu e-posta adresi zaten kullanılıyor');
 
@@ -54,6 +63,26 @@ export async function createPersonnel(data: {
 export async function updatePersonnelRoles(personnelId: string, roles: string[]) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const userRoles = (session.user as any)?.roles || [];
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+    const isOperator = userRoles.includes('OPERATOR') || isCompanyAdmin;
+    if (!isOperator) throw new Error('Yetkisiz işlem');
+
+    const target = await prisma.personnel.findUnique({
+        where: { id: personnelId },
+        include: { roles: true },
+    });
+    if (!target) throw new Error('Personel bulunamadı');
+
+    const targetIsCompanyAdmin = target.roles.some((r) => r.role === 'COMPANY_ADMIN');
+    if (targetIsCompanyAdmin && !isCompanyAdmin) {
+        throw new Error('Firma Admini hesapları üzerinde sadece Firma Admini işlem yapabilir.');
+    }
+
+    if (roles.includes('COMPANY_ADMIN') && !isCompanyAdmin) {
+        throw new Error('Firma Admini rolü atama yetkiniz bulunmamaktadır.');
+    }
 
     // Delete existing roles and create new ones
     await prisma.personnelRole.deleteMany({ where: { personnelId } });
@@ -84,6 +113,26 @@ export async function updatePersonnel(
 ) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const userRoles = (session.user as any)?.roles || [];
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+    const isOperator = userRoles.includes('OPERATOR') || isCompanyAdmin;
+    if (!isOperator) throw new Error('Yetkisiz işlem');
+
+    const target = await prisma.personnel.findUnique({
+        where: { id },
+        include: { roles: true },
+    });
+    if (!target) throw new Error('Personel bulunamadı');
+
+    const targetIsCompanyAdmin = target.roles.some((r) => r.role === 'COMPANY_ADMIN');
+    if (targetIsCompanyAdmin && !isCompanyAdmin) {
+        throw new Error('Firma Admini hesapları üzerinde sadece Firma Admini işlem yapabilir.');
+    }
+
+    if (data.roles.includes('COMPANY_ADMIN') && !isCompanyAdmin) {
+        throw new Error('Firma Admini rolü atama yetkiniz bulunmamaktadır.');
+    }
 
     const existing = await prisma.personnel.findUnique({ where: { email: data.email } });
     if (existing && existing.id !== id) throw new Error('Bu e-posta adresi başka bir personel tarafından kullanılıyor');
@@ -118,8 +167,10 @@ export async function deletePersonnel(id: string) {
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
 
     const userRoles = (session.user as any)?.roles || [];
-    if (!userRoles.includes('OPERATOR')) {
-        throw new Error('Personel silme işlemi için Operatör / Servis Müdürü yetkisi gereklidir.');
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+    const isOperator = userRoles.includes('OPERATOR') || isCompanyAdmin;
+    if (!isOperator) {
+        throw new Error('Personel silme işlemi için Operatör veya Firma Admini yetkisi gereklidir.');
     }
 
     if (session.user.id === id) {
@@ -133,6 +184,11 @@ export async function deletePersonnel(id: string) {
 
     if (!target) {
         throw new Error('Silinmek istenen personel bulunamadı.');
+    }
+
+    const targetIsCompanyAdmin = target.roles.some((r) => r.role === 'COMPANY_ADMIN');
+    if (targetIsCompanyAdmin && !isCompanyAdmin) {
+        throw new Error('Firma Admini hesapları üzerinde sadece Firma Admini işlem yapabilir.');
     }
 
     // Check all related records across the system
