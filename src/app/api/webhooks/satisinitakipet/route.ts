@@ -220,3 +220,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 }
+
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, x-api-key, Authorization',
+        },
+    });
+}
+
+

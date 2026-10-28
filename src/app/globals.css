@@ -746,12 +746,21 @@ select.select {
   transition: filter 0.15s ease, background-color 0.15s ease;
 }
 
+.table tr.ticket-row td {
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="light"] .table tr.ticket-row td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .table tr.ticket-row:hover td {
   background: transparent !important;
 }
 
 .table tr.ticket-row:hover {
-  filter: brightness(1.15);
+  filter: brightness(1.25);
 }
 
 /* ─── Search ────────────────────────────────────────────── */

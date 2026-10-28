@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://servislocal.zerosoftech.com'),
   title: 'ServisLocal - Servis Yönetim Sistemi',
   description: 'Tamir fişi, servis ve atölye yönetim platformu',
   manifest: '/manifest.json',

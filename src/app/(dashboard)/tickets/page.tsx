@@ -221,9 +221,16 @@ function TicketsContent() {
                             </tr>
                         </thead>
                         <tbody>
-                            {tickets.map((ticket) => {
+                            {tickets.map((ticket, index) => {
                                 const statusColor = STATUS_COLORS[ticket.status] || '#6B7280';
                                 const isUnpaid = ticket.closedWithoutPayment;
+                                const isEven = index % 2 === 0;
+
+                                const rowBg = isUnpaid
+                                    ? (isEven ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.16)')
+                                    : isEven
+                                        ? `linear-gradient(90deg, ${statusColor}33 0%, ${statusColor}22 50%, ${statusColor}18 100%)`
+                                        : `linear-gradient(90deg, ${statusColor}28 0%, ${statusColor}18 50%, ${statusColor}12 100%)`;
 
                                 return (
                                     <tr
@@ -232,15 +239,15 @@ function TicketsContent() {
                                         className={`ticket-row ${isUnpaid ? 'ticket-unpaid' : ''}`}
                                         style={{
                                             borderLeft: `5px solid ${isUnpaid ? 'var(--color-danger)' : statusColor}`,
-                                            backgroundColor: isUnpaid ? undefined : `${statusColor}14`,
+                                            background: rowBg,
                                         }}
                                     >
-                                        <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                                        <td style={{ fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.02em' }}>
                                             {ticket.ticketNo}
                                             {ticket._count?.serviceRecords > 0 && <span title="Servis Talebi Var"> 🚗</span>}
                                         </td>
                                         <td>
-                                            <div style={{ fontWeight: 500 }}>
+                                            <div style={{ fontWeight: 600 }}>
                                                 {ticket.customer?.name || ticket.repairer?.name || '-'}
                                             </div>
                                             <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
@@ -248,7 +255,7 @@ function TicketsContent() {
                                             </div>
                                         </td>
                                         <td>
-                                            <div>{ticket.brand?.name}</div>
+                                            <div style={{ fontWeight: 500 }}>{ticket.brand?.name}</div>
                                             <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>{ticket.model}</div>
                                         </td>
                                         <td style={{ fontSize: 'var(--font-size-xs)' }}>
@@ -273,9 +280,12 @@ function TicketsContent() {
                                             <span
                                                 className="badge"
                                                 style={{
-                                                    background: `${statusColor}25`,
+                                                    background: `${statusColor}33`,
                                                     color: statusColor,
-                                                    fontWeight: 600,
+                                                    border: `1px solid ${statusColor}66`,
+                                                    fontWeight: 700,
+                                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
+                                                    whiteSpace: 'nowrap',
                                                 }}
                                             >
                                                 {STATUS_LABELS[ticket.status]}
@@ -284,7 +294,7 @@ function TicketsContent() {
                                         <td style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
                                             {formatDate(ticket.createdAt)}
                                         </td>
-                                        <td style={{ fontWeight: 500 }}>
+                                        <td style={{ fontWeight: 600 }}>
                                             {Number(ticket.totalAmount) > 0 ? (
                                                 (ticket as any).currency === 'USD' ? (
                                                     <span style={{ color: '#059669', fontWeight: 600 }}>$ {Number(ticket.totalAmount).toLocaleString('tr-TR')}</span>

@@ -1,8 +1,10 @@
 {
+  "id": "https://servislocal.zerosoftech.com/",
   "name": "ServisLocal",
   "short_name": "ServisLocal",
   "description": "Servis/Tamir Yönetim Sistemi",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0F1117",
   "theme_color": "#6366F1",
