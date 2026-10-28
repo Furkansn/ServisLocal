@@ -186,7 +186,8 @@ export async function getProductsByCategory(category: string, includeOutOfStock?
         LED: ProductCategory.LED,
         LGP: ProductCategory.LGP,
     };
-    const mappedCategory = catMap[category] || (category as ProductCategory);
+    const key = (category || '').toUpperCase().trim();
+    const mappedCategory = catMap[key] || ProductCategory.ACCESSORY;
 
     const where: any = {
         category: mappedCategory,

@@ -266,7 +266,11 @@ export async function getMyWorkOrders() {
     const todayStr = getLocalDateString(new Date());
     const targetDate = new Date(`${todayStr}T00:00:00.000Z`);
 
-    const records = await prisma.serviceRecord.findMany({
+    const userRoles = (session.user as any)?.roles || [];
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+    const isOperator = userRoles.includes('OPERATOR');
+
+    let records = await prisma.serviceRecord.findMany({
         where: {
             assignedPersonnelId: session.user.id,
             scheduledDate: targetDate,
@@ -290,6 +294,32 @@ export async function getMyWorkOrders() {
         },
     });
 
+    // If current user is Admin or Operator and has no assigned records for today, show all today's active records
+    if (records.length === 0 && (isCompanyAdmin || isOperator)) {
+        records = await prisma.serviceRecord.findMany({
+            where: {
+                scheduledDate: targetDate,
+                status: { notIn: ['CANCELLED'] },
+            },
+            include: {
+                ticket: {
+                    include: {
+                        customer: {
+                            include: { _count: { select: { notes: true } } }
+                        },
+                        repairer: {
+                            include: { _count: { select: { notes: true } } }
+                        },
+                        brand: { select: { name: true } },
+                        accessories: { include: { product: { select: { name: true } }, soldBy: { select: { name: true } } } },
+                        operations: { include: { performedBy: { select: { name: true } } }, orderBy: { createdAt: 'desc' } },
+                        statusHistory: { include: { changedBy: { select: { name: true } } }, orderBy: { createdAt: 'desc' } },
+                    },
+                },
+            },
+        });
+    }
+
     return (records as any[])
         .sort((a, b) => {
             if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1;
@@ -300,9 +330,9 @@ export async function getMyWorkOrders() {
             ...r,
             ticket: r.ticket ? {
                 ...r.ticket,
-                repairPrice: Number(r.ticket.repairPrice),
-                totalAmount: Number(r.ticket.totalAmount),
-                paidAmount: Number(r.ticket.paidAmount),
+                repairPrice: Number(r.ticket.repairPrice || 0),
+                totalAmount: Number(r.ticket.totalAmount || 0),
+                paidAmount: Number(r.ticket.paidAmount || 0),
                 accessories: (r.ticket.accessories || []).map((acc: any) => ({
                     ...acc,
                     unitPrice: Number(acc.unitPrice || 0),
@@ -328,7 +358,6 @@ export async function getServiceRecordById(recordId: string) {
                                 include: { personnel: { select: { name: true } } },
                                 orderBy: { createdAt: 'desc' },
                             },
-                            _count: { select: { notes: true } },
                         },
                     },
                     repairer: {
@@ -337,7 +366,6 @@ export async function getServiceRecordById(recordId: string) {
                                 include: { personnel: { select: { name: true } } },
                                 orderBy: { createdAt: 'desc' },
                             },
-                            _count: { select: { notes: true } },
                         },
                     },
                     brand: { select: { name: true } },
@@ -347,11 +375,6 @@ export async function getServiceRecordById(recordId: string) {
                             soldBy: { select: { name: true } },
                         },
                     },
-                    photos: {
-                        where: { serviceRecordId: recordId },
-                        include: { uploadedBy: { select: { name: true } } },
-                        orderBy: { createdAt: 'desc' },
-                    },
                     operations: {
                         include: { performedBy: { select: { name: true } } },
                         orderBy: { createdAt: 'desc' },
@@ -359,7 +382,7 @@ export async function getServiceRecordById(recordId: string) {
                     payments: {
                         include: {
                             receivedBy: { select: { name: true } },
-                            account: true,
+                            account: { select: { name: true, type: true } },
                         },
                         orderBy: { createdAt: 'desc' },
                     },
@@ -374,7 +397,7 @@ export async function getServiceRecordById(recordId: string) {
 
     if (!record) return null;
 
-    return {
+    const formatted = {
         ...record,
         ticket: record.ticket ? {
             ...record.ticket,
@@ -392,6 +415,8 @@ export async function getServiceRecordById(recordId: string) {
             })),
         } : null,
     };
+
+    return JSON.parse(JSON.stringify(formatted, (_, v) => (typeof v === 'bigint' ? v.toString() : v)));
 }
 
 // ─── Assign Service Personnel ────────────────────────────

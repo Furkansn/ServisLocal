@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useTransition, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     getServiceRecordById,
@@ -27,13 +27,9 @@ import {
     getLocalDateString,
 } from '@/lib/constants';
 
-interface PageProps {
-    params: Promise<{ id: string }>;
-}
-
-export default function ServiceProcessPage({ params }: PageProps) {
-    const resolvedParams = use(params);
-    const recordId = resolvedParams.id;
+export default function ServiceProcessPage() {
+    const params = useParams();
+    const recordId = (params?.id as string) || '';
     const router = useRouter();
 
     const [record, setRecord] = useState<any>(null);
@@ -94,12 +90,13 @@ export default function ServiceProcessPage({ params }: PageProps) {
     const [formError, setFormError] = useState('');
 
     const loadData = async () => {
+        if (!recordId) return;
         setLoading(true);
         try {
             const [rec, accs, prods, existingPh] = await Promise.all([
                 getServiceRecordById(recordId),
                 getAccounts(),
-                getProductsByCategory('Aksesuar'),
+                getProductsByCategory('ACCESSORY'),
                 getServiceRecordPhotos(recordId),
             ]);
 
@@ -115,12 +112,8 @@ export default function ServiceProcessPage({ params }: PageProps) {
             setExistingPhotos(existingPh || []);
             setDeviceCondition((rec.ticket as any)?.deviceCondition || '');
 
-            const contact = (rec.ticket as any)?.customer || (rec.ticket as any)?.repairer;
-            const contactType = (rec.ticket as any)?.customer ? 'CUSTOMER' : 'REPAIRER';
-            if (contact?.id) {
-                const notes = await getContactNotes(contact.id, contactType);
-                setContactNotes(notes || []);
-            }
+            const initialNotes = (rec.ticket as any)?.customer?.notes || (rec.ticket as any)?.repairer?.notes || [];
+            setContactNotes(initialNotes);
 
             // Default remaining payment
             if (rec.type === 'DELIVERY') {
@@ -133,7 +126,8 @@ export default function ServiceProcessPage({ params }: PageProps) {
                 }
             }
         } catch (err: any) {
-            alert('Yükleme hatası: ' + err.message);
+            console.error('Service process load error:', err);
+            setFormError('İşlem bilgileri yüklenemedi: ' + (err.message || 'Bilinmeyen hata'));
         } finally {
             setLoading(false);
         }

@@ -7,7 +7,15 @@ import { Role } from '@prisma/client';
 
 export async function getPersonnel() {
     return prisma.personnel.findMany({
-        include: { roles: true },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            isActive: true,
+            createdAt: true,
+            roles: true,
+        },
         orderBy: { name: 'asc' },
     });
 }
