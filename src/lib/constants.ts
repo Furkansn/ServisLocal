@@ -57,10 +57,14 @@ export const SERVICE_RECORD_TYPE_LABELS: Record<'PICKUP' | 'DELIVERY' | 'TASK', 
     TASK: 'Görev',
 };
 
-// ─── Ticket Number Format ────────────────────────────────
+// ─── Ticket Number Format (YYMMNNN, örn: 2610062) ────────
 
-export function formatTicketNo(counter: number): string {
-    return `SP-${String(counter).padStart(6, '0')}`;
+export function formatTicketNo(counter: number, date?: Date | string): string {
+    const d = date ? new Date(date) : new Date();
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const seq = String(counter).padStart(3, '0');
+    return `${yy}${mm}${seq}`;
 }
 
 // ─── Currency Format ─────────────────────────────────────
