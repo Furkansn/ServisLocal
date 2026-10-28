@@ -297,7 +297,7 @@ export default function TechnicianOperationsPage() {
     };
 
     return (
-        <div style={{ padding: '24px', maxWidth: '1600px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div className="technician-operations-container" style={{ padding: '16px 20px', width: '100%', maxWidth: '100%', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}>
             
             {/* Header */}
             <div style={{
@@ -704,40 +704,37 @@ export default function TechnicianOperationsPage() {
                     )}
                 </div>
 
-                <div style={{ overflowX: 'auto', width: '100%' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
+                <div style={{ width: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                         <thead>
                             <tr style={{
                                 background: 'var(--bg-tertiary, rgba(255,255,255,0.04))',
                                 color: 'var(--text-tertiary)',
                                 textTransform: 'uppercase',
-                                fontSize: '11px',
+                                fontSize: '10.5px',
                                 letterSpacing: '0.5px',
                                 borderBottom: '1px solid var(--border-primary)',
                             }}>
-                                <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Tarih & Saat</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Fiş No</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Cihaz Modeli</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Müşteri / Tamirci</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>İşlem Türü</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Takılan Parça / Ürün</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Çıkan Parça</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Teknisyen</th>
-                                <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Notlar</th>
-                                <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>İşlem (Aksiyon)</th>
+                                <th style={{ padding: '10px 12px', width: '13%' }}>Fiş & Tarih</th>
+                                <th style={{ padding: '10px 12px', width: '22%' }}>Cihaz & Müşteri</th>
+                                <th style={{ padding: '10px 10px', width: '14%' }}>İşlem Türü</th>
+                                <th style={{ padding: '10px 12px', width: '22%' }}>Parça (Takılan / Çıkan)</th>
+                                <th style={{ padding: '10px 10px', width: '12%' }}>Teknisyen</th>
+                                <th style={{ padding: '10px 10px', width: '9%' }}>Notlar</th>
+                                <th style={{ padding: '10px 12px', width: '8%', textAlign: 'right' }}>Aksiyon</th>
                             </tr>
                         </thead>
                         <tbody>
                             {initialLoading ? (
                                 <tr>
-                                    <td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                                    <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
                                         <RotateCcw size={22} className="animate-spin" style={{ margin: '0 auto 10px' }} />
                                         <div>İşlem kayıtları yükleniyor...</div>
                                     </td>
                                 </tr>
                             ) : filteredOperations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                                    <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
                                         <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔍</div>
                                         <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)' }}>Kriterlere uygun işlem bulunamadı</div>
                                         <div style={{ fontSize: '12.5px', marginTop: '4px' }}>Filtreleri temizleyerek veya farklı bir tarih seçerek tekrar deneyin.</div>
@@ -775,181 +772,173 @@ export default function TechnicianOperationsPage() {
                                                 transition: 'background 0.15s ease',
                                             }}
                                         >
-                                            {/* Tarih & Saat */}
-                                            <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                                    {formatDateTime(op.createdAt).split(' ')[0]}
-                                                </div>
-                                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                                                    {formatDateTime(op.createdAt).split(' ')[1] || ''}
-                                                </div>
-                                            </td>
-
-                                            {/* Fiş No */}
-                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                            {/* SÜTUN 1: Fiş No & Tarih */}
+                                            <td style={{ padding: '9px 12px' }}>
                                                 {ticket ? (
                                                     <div>
-                                                        <Link
-                                                            href={`/tickets/${ticket.id}`}
-                                                            target="_blank"
-                                                            style={{
-                                                                color: 'var(--brand-primary, #38bdf8)',
-                                                                fontWeight: 700,
-                                                                textDecoration: 'none',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px',
-                                                                fontFamily: 'monospace',
-                                                                fontSize: '13px',
-                                                            }}
-                                                            title="Fiş Detayını Yeni Sekmede Aç"
-                                                        >
-                                                            {ticket.ticketNo}
-                                                            <ExternalLink size={12} />
-                                                        </Link>
-                                                        {ticket.status && (
-                                                            <div style={{ marginTop: '2px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                            <Link
+                                                                href={`/tickets/${ticket.id}`}
+                                                                target="_blank"
+                                                                style={{
+                                                                    color: 'var(--brand-primary, #38bdf8)',
+                                                                    fontWeight: 800,
+                                                                    textDecoration: 'none',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '3px',
+                                                                    fontFamily: 'monospace',
+                                                                    fontSize: '13px',
+                                                                }}
+                                                                title="Fiş Detayını Aç"
+                                                            >
+                                                                {ticket.ticketNo}
+                                                                <ExternalLink size={11} />
+                                                            </Link>
+                                                            {ticket.status && (
                                                                 <span style={{
-                                                                    fontSize: '10px',
-                                                                    padding: '1px 6px',
+                                                                    fontSize: '9.5px',
+                                                                    padding: '1px 5px',
                                                                     borderRadius: '4px',
-                                                                    fontWeight: 600,
+                                                                    fontWeight: 700,
                                                                     background: `${STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS] || '#64748b'}20`,
                                                                     color: STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS] || '#94a3b8',
+                                                                    whiteSpace: 'nowrap',
                                                                 }}>
                                                                     {STATUS_LABELS[ticket.status as keyof typeof STATUS_LABELS] || ticket.status}
                                                                 </span>
-                                                            </div>
-                                                        )}
+                                                            )}
+                                                        </div>
+                                                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            <span>📅</span> {formatDateTime(op.createdAt)}
+                                                        </div>
                                                     </div>
                                                 ) : (
                                                     <span style={{ color: 'var(--text-tertiary)' }}>-</span>
                                                 )}
                                             </td>
 
-                                            {/* Cihaz Modeli */}
-                                            <td style={{ padding: '12px 14px', color: 'var(--text-primary)', maxWidth: '170px' }}>
-                                                <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={[ticket?.brand?.name, ticket?.model].filter(Boolean).join(' ')}>
+                                            {/* SÜTUN 2: Cihaz Modeli & Müşteri */}
+                                            <td style={{ padding: '9px 12px' }}>
+                                                <div style={{
+                                                    fontWeight: 700,
+                                                    color: 'var(--text-primary)',
+                                                    fontSize: '12.5px',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                }} title={[ticket?.brand?.name, ticket?.model].filter(Boolean).join(' ')}>
                                                     {[ticket?.brand?.name, ticket?.model].filter(Boolean).join(' ') || '-'}
                                                 </div>
-                                                {ticket?.serialNo && (
-                                                    <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
-                                                        SN: {ticket.serialNo}
-                                                    </div>
-                                                )}
-                                            </td>
-
-                                            {/* Müşteri / Tamirci */}
-                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', maxWidth: '160px' }}>
-                                                <div style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }} title={customerName}>
-                                                    {customerName}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', fontSize: '11px' }}>
+                                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }} title={customerName}>
+                                                        {customerName}
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: '9.5px',
+                                                        padding: '1px 5px',
+                                                        borderRadius: '3px',
+                                                        fontWeight: 700,
+                                                        background: isRepairer ? 'rgba(234, 179, 8, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                                        color: isRepairer ? '#fde047' : '#93c5fd',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        {isRepairer ? 'Tamirci' : 'Bireysel'}
+                                                    </span>
+                                                    {ticket?.serialNo && (
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '90px' }} title={`Seri No: ${ticket.serialNo}`}>
+                                                            SN:{ticket.serialNo}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <span style={{
-                                                    fontSize: '10px',
-                                                    padding: '1px 5px',
-                                                    borderRadius: '3px',
-                                                    fontWeight: 700,
-                                                    background: isRepairer ? 'rgba(234, 179, 8, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                                                    color: isRepairer ? '#fde047' : '#93c5fd',
-                                                }}>
-                                                    {isRepairer ? 'Tamirci' : 'Bireysel Müşteri'}
-                                                </span>
                                             </td>
 
-                                            {/* İşlem Türü */}
-                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                            {/* SÜTUN 3: İşlem Türü */}
+                                            <td style={{ padding: '9px 10px', whiteSpace: 'nowrap' }}>
                                                 <span style={{
                                                     background: badge.bg,
                                                     border: `1px solid ${badge.border}`,
                                                     color: badge.text,
-                                                    padding: '3px 9px',
+                                                    padding: '2px 8px',
                                                     borderRadius: '6px',
                                                     fontWeight: 700,
-                                                    fontSize: '11.5px',
+                                                    fontSize: '11px',
                                                     display: 'inline-flex',
                                                     alignItems: 'center',
-                                                    gap: '5px',
+                                                    gap: '4px',
                                                 }}>
                                                     <span>{badge.icon}</span>
                                                     <span>{badge.label}</span>
                                                 </span>
                                             </td>
 
-                                            {/* Takılan Parça / Ürün */}
-                                            <td style={{ padding: '12px 14px', maxWidth: '220px' }}>
+                                            {/* SÜTUN 4: Parça (Takılan / Çıkan) */}
+                                            <td style={{ padding: '9px 12px' }}>
                                                 {op.installedProduct ? (
-                                                    <div>
-                                                        <div style={{ fontWeight: 600, color: '#38bdf8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={op.installedProduct.name}>
-                                                            {op.installedProduct.name}
-                                                        </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', fontSize: '10.5px' }}>
-                                                            {op.installedProduct.sku && (
-                                                                <span style={{ color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
-                                                                    SKU: {op.installedProduct.sku}
-                                                                </span>
-                                                            )}
-                                                            <span style={{ color: op.installedProduct.stock > 0 ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                                                                (Kalan: {op.installedProduct.stock})
-                                                            </span>
-                                                        </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                        <span style={{ fontWeight: 700, color: '#38bdf8', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }} title={op.installedProduct.name}>
+                                                            📦 {op.installedProduct.name}
+                                                        </span>
+                                                        <span style={{ fontSize: '10px', color: op.installedProduct.stock > 0 ? '#10b981' : '#ef4444', fontWeight: 700, flexShrink: 0 }}>
+                                                            ({op.installedProduct.stock})
+                                                        </span>
                                                     </div>
                                                 ) : (
-                                                    <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '12px' }}>
+                                                    <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '11px' }}>
                                                         Stoklu parça seçilmedi
                                                     </span>
                                                 )}
-                                            </td>
-
-                                            {/* Çıkan Parça / Panel */}
-                                            <td style={{ padding: '12px 14px', maxWidth: '150px' }}>
-                                                {op.removedPart ? (
-                                                    <span style={{
-                                                        background: 'var(--bg-tertiary, rgba(255,255,255,0.06))',
-                                                        border: '1px solid var(--border-primary)',
-                                                        padding: '2px 7px',
-                                                        borderRadius: '4px',
-                                                        fontFamily: 'monospace',
-                                                        fontSize: '11px',
-                                                        color: '#f1f5f9',
-                                                        display: 'inline-block',
-                                                        maxWidth: '140px',
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                        whiteSpace: 'nowrap',
-                                                    }} title={op.removedPart}>
-                                                        {op.removedPart}
-                                                    </span>
-                                                ) : (
-                                                    <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                                                {op.removedPart && (
+                                                    <div style={{ marginTop: '2px' }}>
+                                                        <span style={{
+                                                            background: 'var(--bg-tertiary, rgba(255,255,255,0.06))',
+                                                            border: '1px solid var(--border-primary)',
+                                                            padding: '1px 5px',
+                                                            borderRadius: '3px',
+                                                            fontFamily: 'monospace',
+                                                            fontSize: '10.5px',
+                                                            color: '#cbd5e1',
+                                                            display: 'inline-block',
+                                                            maxWidth: '180px',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap',
+                                                        }} title={`Çıkan Parça / Panel: ${op.removedPart}`}>
+                                                            Çıkan: {op.removedPart}
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </td>
 
-                                            {/* Teknisyen */}
-                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                            {/* SÜTUN 5: Teknisyen */}
+                                            <td style={{ padding: '9px 10px', whiteSpace: 'nowrap' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text-primary)', fontSize: '12px' }}>
                                                     <div style={{
-                                                        width: '24px',
-                                                        height: '24px',
+                                                        width: '20px',
+                                                        height: '20px',
                                                         borderRadius: '50%',
                                                         background: 'rgba(59, 130, 246, 0.2)',
                                                         color: '#60a5fa',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center',
-                                                        fontSize: '11px',
-                                                        fontWeight: 700,
+                                                        fontSize: '10px',
+                                                        fontWeight: 800,
+                                                        flexShrink: 0,
                                                     }}>
                                                         {op.performedBy?.name ? op.performedBy.name.charAt(0).toUpperCase() : 'T'}
                                                     </div>
-                                                    <span>{op.performedBy?.name || 'Bilinmiyor'}</span>
+                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }} title={op.performedBy?.name || ''}>
+                                                        {op.performedBy?.name || 'Bilinmiyor'}
+                                                    </span>
                                                 </div>
                                             </td>
 
-                                            {/* Notlar */}
-                                            <td style={{ padding: '12px 14px', maxWidth: '160px' }}>
+                                            {/* SÜTUN 6: Notlar */}
+                                            <td style={{ padding: '9px 10px', maxWidth: '120px' }}>
                                                 {op.notes ? (
                                                     <div style={{
-                                                        fontSize: '11.5px',
+                                                        fontSize: '11px',
                                                         color: 'var(--text-secondary)',
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis',
@@ -958,33 +947,33 @@ export default function TechnicianOperationsPage() {
                                                         📝 {op.notes}
                                                     </div>
                                                 ) : (
-                                                    <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>-</span>
                                                 )}
                                             </td>
 
-                                            {/* Aksiyonlar */}
-                                            <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                            {/* SÜTUN 7: Aksiyonlar */}
+                                            <td style={{ padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                     <button
                                                         onClick={() => handleOpenEdit(op)}
                                                         style={{
                                                             background: 'rgba(59, 130, 246, 0.15)',
                                                             color: '#60a5fa',
                                                             border: '1px solid rgba(59, 130, 246, 0.3)',
-                                                            padding: '5px 10px',
-                                                            borderRadius: '6px',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '5px',
                                                             cursor: 'pointer',
-                                                            fontSize: '11.5px',
+                                                            fontSize: '11px',
                                                             fontWeight: 700,
-                                                            display: 'flex',
+                                                            display: 'inline-flex',
                                                             alignItems: 'center',
-                                                            gap: '4px',
+                                                            gap: '3px',
                                                             transition: 'all 0.15s ease',
                                                         }}
                                                         title="Bu işlemi revize et / düzenle"
                                                     >
-                                                        <Edit3 size={13} />
-                                                        <span>Revize Et</span>
+                                                        <Edit3 size={12} />
+                                                        <span>Revize</span>
                                                     </button>
 
                                                     <button
@@ -993,15 +982,15 @@ export default function TechnicianOperationsPage() {
                                                             background: 'rgba(239, 68, 68, 0.1)',
                                                             color: '#f87171',
                                                             border: '1px solid rgba(239, 68, 68, 0.25)',
-                                                            padding: '5px 8px',
-                                                            borderRadius: '6px',
+                                                            padding: '4px 6px',
+                                                            borderRadius: '5px',
                                                             cursor: 'pointer',
-                                                            fontSize: '11.5px',
+                                                            fontSize: '11px',
                                                             transition: 'all 0.15s ease',
                                                         }}
                                                         title="İşlemi Sil"
                                                     >
-                                                        <Trash2 size={13} />
+                                                        <Trash2 size={12} />
                                                     </button>
                                                 </div>
                                             </td>
