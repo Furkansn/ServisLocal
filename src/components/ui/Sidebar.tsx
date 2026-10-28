@@ -10,6 +10,7 @@ const OPERATOR_LINKS = [
     { href: '/', label: 'Dashboard', icon: '📊' },
     { href: '/daily-planning', label: 'Günlük Planlama', icon: '📅' },
     { href: '/tickets', label: 'Tamir Fişleri', icon: '🔧' },
+    { href: '/technician-operations', label: 'Teknisyen İşlemleri', icon: '🛠️' },
     { href: '/collections', label: 'Tahsilat & Kasa', icon: '💰' },
     { href: '/reports', label: 'Raporlar', icon: '📈' },
     { href: '/tickets/new', label: 'Yeni Fiş', icon: '➕' },

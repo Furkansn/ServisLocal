@@ -242,8 +242,11 @@ export async function updateOperation(data: {
         include: { ticket: true },
     });
     if (!existingOp) throw new Error('İşlem bulunamadı');
-    if (existingOp.ticket.status === TicketStatus.TAMAMLANDI || existingOp.ticket.status === TicketStatus.IPTAL) {
-        throw new Error('Tamamlanan veya iptal edilen fişin işlemleri düzenlenemez');
+
+    const userRoles = (session.user as any)?.roles || [];
+    const isManager = userRoles.includes('OPERATOR') || userRoles.includes('COMPANY_ADMIN');
+    if ((existingOp.ticket.status === TicketStatus.TAMAMLANDI || existingOp.ticket.status === TicketStatus.IPTAL) && !isManager) {
+        throw new Error('Tamamlanan veya iptal edilen fişin işlemleri teknisyenler tarafından düzenlenemez');
     }
 
     const oldProductId = existingOp.installedProductId;
@@ -364,6 +367,7 @@ export async function updateOperation(data: {
         });
 
         revalidatePath('/technician');
+        revalidatePath('/technician-operations');
         revalidatePath(`/tickets/${existingOp.ticketId}`);
 
         return updated;
@@ -385,8 +389,11 @@ export async function deleteOperation(operationId: string) {
         include: { ticket: true },
     });
     if (!existingOp) throw new Error('İşlem bulunamadı');
-    if (existingOp.ticket.status === TicketStatus.TAMAMLANDI || existingOp.ticket.status === TicketStatus.IPTAL) {
-        throw new Error('Tamamlanan veya iptal edilen fişin işlemleri silinemez');
+
+    const userRoles = (session.user as any)?.roles || [];
+    const isManager = userRoles.includes('OPERATOR') || userRoles.includes('COMPANY_ADMIN');
+    if ((existingOp.ticket.status === TicketStatus.TAMAMLANDI || existingOp.ticket.status === TicketStatus.IPTAL) && !isManager) {
+        throw new Error('Tamamlanan veya iptal edilen fişin işlemleri teknisyenler tarafından silinemez');
     }
 
     const res = await prisma.$transaction(async (tx) => {
@@ -444,6 +451,7 @@ export async function deleteOperation(operationId: string) {
         });
 
         revalidatePath('/technician');
+        revalidatePath('/technician-operations');
         revalidatePath(`/tickets/${existingOp.ticketId}`);
 
         return { success: true };
@@ -457,4 +465,109 @@ export async function deleteOperation(operationId: string) {
     // Delete from Ne Takılır compatibility database
     await deleteOperationFromCompatibility(operationId);
     return res;
+}
+
+// ─── Get All Technician Operations (For Operator & Company Admin) ─────
+
+export interface TechnicianOperationsFilter {
+    startDate?: string;
+    endDate?: string;
+    technicianId?: string;
+    operationType?: string;
+    search?: string;
+}
+
+export async function getTechnicianOperationsList(filter?: TechnicianOperationsFilter) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem: Lütfen giriş yapınız');
+
+    const userRoles = (session.user as any)?.roles || [];
+    const isAuthorized = userRoles.includes('OPERATOR') || userRoles.includes('COMPANY_ADMIN');
+    if (!isAuthorized) {
+        throw new Error('Bu sayfaya erişim yetkiniz bulunmamaktadır.');
+    }
+
+    const where: any = {};
+
+    if (filter?.startDate || filter?.endDate) {
+        where.createdAt = {};
+        if (filter.startDate) where.createdAt.gte = new Date(`${filter.startDate}T00:00:00.000Z`);
+        if (filter.endDate) where.createdAt.lte = new Date(`${filter.endDate}T23:59:59.999Z`);
+    }
+
+    if (filter?.technicianId && filter.technicianId !== 'ALL') {
+        where.performedById = filter.technicianId;
+    }
+
+    if (filter?.operationType && filter.operationType !== 'ALL') {
+        where.operationType = filter.operationType as any;
+    }
+
+    if (filter?.search && filter.search.trim()) {
+        const q = filter.search.trim();
+        where.OR = [
+            { ticket: { ticketNo: { contains: q, mode: 'insensitive' } } },
+            { ticket: { model: { contains: q, mode: 'insensitive' } } },
+            { ticket: { brand: { name: { contains: q, mode: 'insensitive' } } } },
+            { ticket: { customer: { name: { contains: q, mode: 'insensitive' } } } },
+            { ticket: { repairer: { name: { contains: q, mode: 'insensitive' } } } },
+            { removedPart: { contains: q, mode: 'insensitive' } },
+            { installedProduct: { name: { contains: q, mode: 'insensitive' } } },
+            { notes: { contains: q, mode: 'insensitive' } },
+        ];
+    }
+
+    const operations = await prisma.ticketOperation.findMany({
+        where,
+        include: {
+            ticket: {
+                select: {
+                    id: true,
+                    ticketNo: true,
+                    model: true,
+                    serialNo: true,
+                    status: true,
+                    priority: true,
+                    customerType: true,
+                    repairPrice: true,
+                    brand: { select: { id: true, name: true } },
+                    customer: { select: { id: true, name: true, phone: true } },
+                    repairer: { select: { id: true, name: true, phone: true } },
+                },
+            },
+            installedProduct: {
+                select: {
+                    id: true,
+                    name: true,
+                    sku: true,
+                    category: true,
+                    stock: true,
+                    price: true,
+                },
+            },
+            performedBy: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            },
+        },
+        orderBy: {
+            createdAt: 'desc',
+        },
+        take: 500,
+    });
+
+    return operations.map(op => ({
+        ...op,
+        ticket: op.ticket ? {
+            ...op.ticket,
+            repairPrice: Number(op.ticket.repairPrice || 0),
+        } : null,
+        installedProduct: op.installedProduct ? {
+            ...op.installedProduct,
+            price: Number(op.installedProduct.price || 0),
+        } : null,
+    }));
 }

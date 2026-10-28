@@ -56,7 +56,7 @@ export default auth((req) => {
 
     // Role-based route protection
     // Operator routes
-    const operatorRoutes = ['/tickets', '/customers', '/repairers', '/collections', '/personnel', '/daily-planning', '/products', '/tv-display', '/price-list', '/template-builder'];
+    const operatorRoutes = ['/tickets', '/customers', '/repairers', '/collections', '/personnel', '/daily-planning', '/products', '/tv-display', '/price-list', '/template-builder', '/technician-operations'];
     if (operatorRoutes.some((r) => pathname.startsWith(r))) {
         if (!isOperator) {
             if (userRoles.includes('TECHNICIAN')) {
