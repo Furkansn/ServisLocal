@@ -46,12 +46,21 @@ export default function TVDisplayPage() {
 
     // Fullscreen handler
     const toggleFullscreen = () => {
+        const el = document.getElementById('tv-display-root') || document.documentElement;
         if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(e => console.error(e));
+            el.requestFullscreen().then(() => setIsFullscreen(true)).catch(e => console.error(e));
         } else {
             document.exitFullscreen().then(() => setIsFullscreen(false)).catch(e => console.error(e));
         }
     };
+
+    useEffect(() => {
+        const handleFsChange = () => {
+            setIsFullscreen(Boolean(document.fullscreenElement));
+        };
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
 
     if (loading && !data) {
         return (
@@ -65,13 +74,15 @@ export default function TVDisplayPage() {
     const todayFormatted = data?.todayDateStr ? formatDate(new Date(data.todayDateStr)) : formatDate(new Date());
 
     return (
-        <div style={{
+        <div id="tv-display-root" className="tv-display-container" style={{
             minHeight: '100vh',
             background: '#0f172a',
             color: '#f8fafc',
             fontFamily: 'Inter, system-ui, sans-serif',
-            padding: '20px 24px',
+            padding: '16px 20px',
             boxSizing: 'border-box',
+            width: '100%',
+            overflowX: 'hidden',
         }}>
             {/* Minimal Header */}
             <header style={{
@@ -79,10 +90,10 @@ export default function TVDisplayPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 background: '#1e293b',
-                padding: '14px 24px',
+                padding: '14px 20px',
                 borderRadius: '12px',
                 border: '1px solid #334155',
-                marginBottom: '20px',
+                marginBottom: '16px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
             }}>
                 {/* Logo & Title */}
@@ -90,11 +101,11 @@ export default function TVDisplayPage() {
                     <img
                         src="/logo-full.png"
                         alt="ZERO TV Ekran Değişim Servisi"
-                        style={{ height: '48px', objectFit: 'contain' }}
+                        style={{ height: '44px', objectFit: 'contain' }}
                     />
                     <div>
-                        <div style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Servis Atölye Paneli</div>
-                        <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Servis Atölye Paneli</div>
+                        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: 0 }}>
                             Cihaz Takip Listesi
                         </h1>
                     </div>
@@ -103,8 +114,8 @@ export default function TVDisplayPage() {
                 {/* Right Info: Date, Clock, Controls */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tarih: <span style={{ color: '#ffffff', fontWeight: 600 }}>{todayFormatted}</span></div>
-                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#38bdf8', fontFamily: 'monospace', letterSpacing: '1px' }}>
+                        <div style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 500 }}>Tarih: <span style={{ color: '#ffffff', fontWeight: 600 }}>{todayFormatted}</span></div>
+                        <div style={{ fontSize: '20px', fontWeight: 800, color: '#38bdf8', fontFamily: 'monospace', letterSpacing: '1px' }}>
                             {timeStr || '--:--:--'}
                         </div>
                     </div>
@@ -118,9 +129,9 @@ export default function TVDisplayPage() {
                                 color: '#ffffff',
                                 border: '1px solid #475569',
                                 borderRadius: '8px',
-                                padding: '8px 14px',
+                                padding: '8px 12px',
                                 cursor: 'pointer',
-                                fontSize: '13px',
+                                fontSize: '12px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
@@ -137,9 +148,9 @@ export default function TVDisplayPage() {
                                 color: isFullscreen ? '#fca5a5' : '#93c5fd',
                                 border: `1px solid ${isFullscreen ? 'rgba(239, 68, 68, 0.5)' : 'rgba(59, 130, 246, 0.5)'}`,
                                 borderRadius: '8px',
-                                padding: '8px 14px',
+                                padding: '8px 12px',
                                 cursor: 'pointer',
-                                fontSize: '13px',
+                                fontSize: '12px',
                                 fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -155,11 +166,11 @@ export default function TVDisplayPage() {
             {/* Main Layout Grid */}
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1fr) 260px',
-                gap: '12px',
+                gridTemplateColumns: 'minmax(0, 1fr) 280px',
+                gap: '16px',
                 maxWidth: '100%',
+                width: '100%',
                 boxSizing: 'border-box',
-                overflow: 'hidden',
             }}>
                 
                 {/* LEFT SIDE: Waiting Table + Completed Table */}
@@ -417,29 +428,31 @@ export default function TVDisplayPage() {
                 </div>
 
                 {/* RIGHT SIDEBAR: Metric Widgets */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '300px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
 
                     {/* WIDGET 1: Toplam Yapılan Cihaz Sayısı - Günlük */}
                     <div style={{
                         background: '#1e293b',
                         borderRadius: '12px',
                         border: '1px solid #334155',
-                        padding: '20px',
+                        padding: '16px 14px',
                         textAlign: 'center',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        boxSizing: 'border-box',
                     }}>
                         <div style={{
                             color: '#34d399',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             fontWeight: 800,
                             textTransform: 'uppercase',
-                            letterSpacing: '0.8px',
-                            marginBottom: '10px',
+                            letterSpacing: '0.5px',
+                            marginBottom: '8px',
+                            lineHeight: 1.3,
                         }}>
                             BUGÜN TAMAMLANAN CİHAZ SAYISI
                         </div>
                         <div style={{
-                            fontSize: '52px',
+                            fontSize: '46px',
                             fontWeight: 900,
                             color: '#ffffff',
                             lineHeight: 1,
@@ -453,26 +466,28 @@ export default function TVDisplayPage() {
                         background: '#1e293b',
                         borderRadius: '12px',
                         border: '1px solid #334155',
-                        padding: '20px',
+                        padding: '16px 14px',
                         textAlign: 'center',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        boxSizing: 'border-box',
                     }}>
                         <div style={{
                             color: '#38bdf8',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             fontWeight: 800,
                             textTransform: 'uppercase',
-                            letterSpacing: '0.8px',
-                            marginBottom: '10px',
+                            letterSpacing: '0.5px',
+                            marginBottom: '8px',
+                            lineHeight: 1.3,
                         }}>
                             TOPLAM TAMİR BEKLEYEN CİHAZ SAYISI
                         </div>
                         <div style={{
-                            fontSize: '52px',
+                            fontSize: '46px',
                             fontWeight: 900,
                             color: '#ffffff',
                             lineHeight: 1,
-                            marginBottom: '16px',
+                            marginBottom: '14px',
                         }}>
                             {data?.waitingCount || 0}
                         </div>
@@ -481,19 +496,20 @@ export default function TVDisplayPage() {
                         <div style={{
                             display: 'grid',
                             gridTemplateColumns: '1fr 1fr',
-                            gap: '8px',
+                            gap: '6px',
                             background: '#111827',
-                            padding: '12px',
+                            padding: '10px 8px',
                             borderRadius: '8px',
                             border: '1px solid #334155',
+                            boxSizing: 'border-box',
                         }}>
-                            <div style={{ borderRight: '1px solid #334155' }}>
-                                <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Müşteri</div>
-                                <div style={{ fontSize: '20px', fontWeight: 800, color: '#38bdf8' }}>{data?.waitingCustomerCount || 0}</div>
+                            <div style={{ borderRight: '1px solid #334155', paddingRight: '4px' }}>
+                                <div style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Müşteri</div>
+                                <div style={{ fontSize: '18px', fontWeight: 800, color: '#38bdf8' }}>{data?.waitingCustomerCount || 0}</div>
                             </div>
-                            <div>
-                                <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Tamirci</div>
-                                <div style={{ fontSize: '20px', fontWeight: 800, color: '#fde047' }}>{data?.waitingRepairerCount || 0}</div>
+                            <div style={{ paddingLeft: '4px' }}>
+                                <div style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Tamirci</div>
+                                <div style={{ fontSize: '18px', fontWeight: 800, color: '#fde047' }}>{data?.waitingRepairerCount || 0}</div>
                             </div>
                         </div>
                     </div>
@@ -503,16 +519,17 @@ export default function TVDisplayPage() {
                         background: '#1e293b',
                         borderRadius: '12px',
                         border: '1px solid #334155',
-                        padding: '16px 18px',
+                        padding: '14px 12px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        boxSizing: 'border-box',
                     }}>
                         <div style={{
                             color: '#cbd5e1',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             fontWeight: 800,
                             textTransform: 'uppercase',
-                            letterSpacing: '0.8px',
-                            marginBottom: '14px',
+                            letterSpacing: '0.5px',
+                            marginBottom: '12px',
                             borderBottom: '1px solid #334155',
                             paddingBottom: '8px',
                             textAlign: 'center',
@@ -520,9 +537,9 @@ export default function TVDisplayPage() {
                             TEKNİSYEN PERFORMANSI (BUGÜN)
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {(!data?.technicianStats || data.technicianStats.length === 0) ? (
-                                <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>Teknisyen tanımı bulunmuyor.</div>
+                                <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', padding: '8px 0' }}>Teknisyen tanımı bulunmuyor.</div>
                             ) : (
                                 data.technicianStats.map((tech) => (
                                     <div
@@ -531,24 +548,25 @@ export default function TVDisplayPage() {
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            padding: '8px 12px',
+                                            padding: '7px 10px',
                                             background: '#111827',
                                             borderRadius: '8px',
                                             border: '1px solid #334155',
-                                            fontSize: '13px',
+                                            fontSize: '12px',
                                         }}
                                     >
-                                        <span style={{ fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap' }}>
+                                        <span style={{ fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '170px' }} title={tech.name}>
                                             👤 {tech.name}
                                         </span>
                                         <span style={{
                                             background: tech.completedCount > 0 ? 'rgba(52, 211, 153, 0.2)' : '#1e293b',
                                             color: tech.completedCount > 0 ? '#6ee7b7' : '#94a3b8',
                                             border: `1px solid ${tech.completedCount > 0 ? 'rgba(52, 211, 153, 0.4)' : '#334155'}`,
-                                            padding: '2px 10px',
+                                            padding: '2px 8px',
                                             borderRadius: '12px',
                                             fontWeight: 800,
-                                            fontSize: '13px',
+                                            fontSize: '12px',
+                                            flexShrink: 0,
                                         }}>
                                             {tech.completedCount}
                                         </span>

@@ -197,10 +197,11 @@ a:hover {
   margin: 0 auto;
 }
 
-.app-content:has(.price-list-page) {
+.app-content:has(.price-list-page),
+.app-content:has(.tv-display-container) {
   max-width: 100% !important;
   width: 100% !important;
-  padding: 10px 16px !important;
+  padding: 0 !important;
   margin: 0 !important;
 }
 
