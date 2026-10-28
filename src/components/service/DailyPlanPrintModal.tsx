@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { REQUEST_TYPE_LABELS, OPERATION_TYPE_LABELS } from '@/lib/constants';
 
 interface DailyPlanPrintModalProps {
     isOpen: boolean;
@@ -345,6 +346,14 @@ export default function DailyPlanPrintModal({
                                             ? (r.taskDescription || 'Manuel İş Tanımı')
                                             : `${ticket?.brand?.name || ''} ${ticket?.model || ''}`.trim() || '—';
 
+                                        const requestTypeLabel = !isTask && ticket?.requestType
+                                            ? (ticket.requestType === 'OTHER' && (ticket as any)?.customRequestType
+                                                ? (ticket as any).customRequestType
+                                                : (REQUEST_TYPE_LABELS[ticket.requestType as keyof typeof REQUEST_TYPE_LABELS]
+                                                    || OPERATION_TYPE_LABELS[ticket.requestType as keyof typeof OPERATION_TYPE_LABELS]
+                                                    || ticket.requestType))
+                                            : '';
+
                                         // Payment status calculation
                                         let paymentBadge = <span style={{ color: '#64748b' }}>—</span>;
                                         if (!isTask && ticket) {
@@ -501,9 +510,9 @@ export default function DailyPlanPrintModal({
                                                 {/* Device & Model / Task Detail */}
                                                 <td style={{ padding: '6px 8px', borderRight: '1px solid #cbd5e1' }}>
                                                     <div style={{ fontWeight: 600 }}>{deviceModel}</div>
-                                                    {ticket?.requestType && (
-                                                        <div style={{ fontSize: '9px', color: '#64748b' }}>
-                                                            {ticket.requestType}
+                                                    {requestTypeLabel && (
+                                                        <div style={{ fontSize: '9.5px', color: '#475569', marginTop: '1px', fontWeight: 500 }}>
+                                                            {requestTypeLabel}
                                                         </div>
                                                     )}
                                                 </td>
