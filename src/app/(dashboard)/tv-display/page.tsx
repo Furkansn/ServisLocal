@@ -155,61 +155,61 @@ export default function TVDisplayPage() {
             {/* Main Layout Grid */}
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1fr) 300px',
-                gap: '16px',
+                gridTemplateColumns: 'minmax(0, 1fr) 260px',
+                gap: '12px',
                 maxWidth: '100%',
                 boxSizing: 'border-box',
                 overflow: 'hidden',
             }}>
                 
                 {/* LEFT SIDE: Waiting Table + Completed Table */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0, overflow: 'hidden' }}>
                     
                     {/* 1. BEKLEYEN CİHAZLAR TABLOSU */}
                     <div style={{
                         background: '#1e293b',
-                        borderRadius: '12px',
+                        borderRadius: '10px',
                         border: '1px solid #334155',
                         overflow: 'hidden',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     }}>
                         <div style={{
-                            padding: '12px 18px',
+                            padding: '8px 14px',
                             background: '#243147',
                             borderBottom: '1px solid #334155',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
                         }}>
-                            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ color: '#38bdf8', fontSize: '18px' }}>⏳</span> Tamir Bekleyen Cihazlar
-                                <span style={{ background: '#0f172a', color: '#38bdf8', padding: '2px 9px', borderRadius: '12px', fontSize: '12px', fontWeight: 700, border: '1px solid #38bdf8' }}>
+                            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: '#38bdf8', fontSize: '16px' }}>⏳</span> Tamir Bekleyen Cihazlar
+                                <span style={{ background: '#0f172a', color: '#38bdf8', padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, border: '1px solid #38bdf8' }}>
                                     {data?.waitingCount || 0}
                                 </span>
                             </h2>
-                            <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 500 }}>
+                            <span style={{ fontSize: '10.5px', color: '#cbd5e1', fontWeight: 500 }}>
                                 En Acil / Eski Kayıtlar Üstte
                             </span>
                         </div>
 
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                        <div style={{ overflowX: 'auto', width: '100%' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11px' }}>
                                 <thead>
-                                    <tr style={{ background: '#111827', color: '#94a3b8', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px', borderBottom: '1px solid #334155' }}>
-                                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Öncelik</th>
-                                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Cihaz Kodu</th>
-                                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Müşteri Türü</th>
-                                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Müşteri Adı</th>
-                                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Marka / Model</th>
-                                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: '#38bdf8' }}>Yapılacak İşlem</th>
-                                        <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Cihaz Durumu</th>
-                                        <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>Geliş</th>
+                                    <tr style={{ background: '#111827', color: '#94a3b8', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px', borderBottom: '1px solid #334155' }}>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Öncelik</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Cihaz Kodu</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Müşteri Türü</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Müşteri Adı</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Marka / Model</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', color: '#38bdf8' }}>Yapılacak İşlem</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Cihaz Durumu</th>
+                                        <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>Geliş</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {(!data?.waitingTickets || data.waitingTickets.length === 0) ? (
                                         <tr>
-                                            <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>
+                                            <td colSpan={8} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '11px', fontWeight: 500 }}>
                                                 Tamir bekleyen cihaz bulunmuyor.
                                             </td>
                                         </tr>
@@ -226,29 +226,29 @@ export default function TVDisplayPage() {
                                                     background: idx % 2 === 0 ? '#1e293b' : '#172234',
                                                 }}>
                                                     {/* Öncelik */}
-                                                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                                         {isUrgent ? (
-                                                            <span style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>ACİL</span>
+                                                             <span style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 800 }}>ACİL</span>
                                                         ) : isPriority ? (
-                                                            <span style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fde047', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>ÖNCELİKLİ</span>
+                                                             <span style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fde047', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 800 }}>ÖNCELİK</span>
                                                         ) : (
-                                                            <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', border: '1px solid rgba(59, 130, 246, 0.35)', padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 }}>Normal</span>
+                                                             <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', border: '1px solid rgba(59, 130, 246, 0.35)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 700 }}>Normal</span>
                                                         )}
                                                     </td>
 
                                                     {/* Cihaz Kodu */}
-                                                    <td style={{ padding: '10px 12px', fontWeight: 800, color: '#ffffff', fontFamily: 'monospace', fontSize: '14px', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', fontWeight: 800, color: '#ffffff', fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
                                                         {t.ticketNo}
                                                     </td>
 
                                                     {/* Müşteri Türü */}
-                                                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                                         <span style={{
                                                             background: t.customerType === 'REPAIRER' ? 'rgba(234, 179, 8, 0.18)' : 'rgba(59, 130, 246, 0.18)',
                                                             color: t.customerType === 'REPAIRER' ? '#fde047' : '#7dd3fc',
-                                                            padding: '2px 7px',
-                                                            borderRadius: '4px',
-                                                            fontSize: '10px',
+                                                            padding: '1px 5px',
+                                                            borderRadius: '3px',
+                                                            fontSize: '9.5px',
                                                             fontWeight: 700,
                                                             border: `1px solid ${t.customerType === 'REPAIRER' ? 'rgba(234, 179, 8, 0.35)' : 'rgba(59, 130, 246, 0.35)'}`,
                                                         }}>
@@ -257,41 +257,41 @@ export default function TVDisplayPage() {
                                                     </td>
 
                                                     {/* Müşteri Adı */}
-                                                    <td style={{ padding: '10px 12px', fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', fontWeight: 600, color: '#f1f5f9', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={customerName}>
                                                         {customerName}
                                                     </td>
 
                                                     {/* Marka / Model */}
-                                                    <td style={{ padding: '10px 12px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', color: '#e2e8f0', maxWidth: '125px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         <span style={{ fontWeight: 600 }}>{t.brand?.name || '-'}</span>{' '}
                                                         <span style={{ fontFamily: 'monospace', color: '#94a3b8' }}>{t.model}</span>
                                                     </td>
 
                                                     {/* Yapılacak İşlem */}
-                                                    <td style={{ padding: '10px 12px', fontWeight: 700, color: '#38bdf8', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', fontWeight: 700, color: '#38bdf8', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.operationLabel}>
                                                         ⚡ {t.operationLabel || 'Tamir'}
                                                     </td>
 
                                                     {/* Cihaz Durumu */}
-                                                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                                         <span style={{
                                                             background: 'rgba(148, 163, 184, 0.15)',
                                                             color: STATUS_COLORS[t.status as keyof typeof STATUS_COLORS] || '#ffffff',
                                                             border: '1px solid #475569',
-                                                            padding: '3px 8px',
-                                                            borderRadius: '5px',
+                                                            padding: '2px 6px',
+                                                            borderRadius: '4px',
                                                             fontWeight: 700,
-                                                            fontSize: '11px',
+                                                            fontSize: '10px',
                                                             display: 'inline-flex',
                                                             alignItems: 'center',
-                                                            gap: '4px',
+                                                            gap: '3px',
                                                         }}>
                                                             {STATUS_LABELS[t.status as keyof typeof STATUS_LABELS] || t.status}
                                                         </span>
                                                     </td>
 
                                                     {/* Geliş Tarihi */}
-                                                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f87171', fontWeight: 700, fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f87171', fontWeight: 700, fontFamily: 'monospace', fontSize: '11px', whiteSpace: 'nowrap' }}>
                                                         {formatDate(t.createdAt).slice(0, 5)}
                                                     </td>
                                                 </tr>
@@ -306,47 +306,47 @@ export default function TVDisplayPage() {
                     {/* 2. YAPILAN CİHAZLAR TABLOSU */}
                     <div style={{
                         background: '#1e293b',
-                        borderRadius: '12px',
+                        borderRadius: '10px',
                         border: '1px solid #334155',
                         overflow: 'hidden',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     }}>
                         <div style={{
-                            padding: '14px 20px',
+                            padding: '8px 14px',
                             background: '#243147',
                             borderBottom: '1px solid #334155',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
                         }}>
-                            <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ color: '#34d399', fontSize: '18px' }}>✅</span> Yapılan / Tamamlanan Cihazlar
-                                <span style={{ background: '#0f172a', color: '#34d399', padding: '3px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 700, border: '1px solid #34d399' }}>
+                            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: '#34d399', fontSize: '16px' }}>✅</span> Yapılan / Tamamlanan Cihazlar
+                                <span style={{ background: '#0f172a', color: '#34d399', padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, border: '1px solid #34d399' }}>
                                     {data?.todayCompletedCount || 0}
                                 </span>
                             </h2>
-                            <span style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 500 }}>
+                            <span style={{ fontSize: '10.5px', color: '#cbd5e1', fontWeight: 500 }}>
                                 Bugüne Ait İşlemler
                             </span>
                         </div>
 
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <div style={{ overflowX: 'auto', width: '100%' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11px' }}>
                                 <thead>
-                                    <tr style={{ background: '#111827', color: '#94a3b8', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px', borderBottom: '1px solid #334155' }}>
-                                        <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Tarih / Saat</th>
-                                        <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Cihaz Kodu</th>
-                                        <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Teknisyen</th>
-                                        <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Yapılan İşlem</th>
-                                        <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Müşteri Adı</th>
-                                        <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>Marka / Model</th>
-                                        <th style={{ padding: '12px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>Cihaz Durumu</th>
+                                    <tr style={{ background: '#111827', color: '#94a3b8', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px', borderBottom: '1px solid #334155' }}>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Tarih / Saat</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Cihaz Kodu</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Teknisyen</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Yapılan İşlem</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Müşteri Adı</th>
+                                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>Marka / Model</th>
+                                        <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>Cihaz Durumu</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {(!data?.completedTicketsToday || data.completedTicketsToday.length === 0) ? (
                                         <tr>
-                                            <td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: 500 }}>
+                                            <td colSpan={7} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '11px', fontWeight: 500 }}>
                                                 Henüz işlemi tamamlanan cihaz bulunmuyor.
                                             </td>
                                         </tr>
@@ -362,50 +362,47 @@ export default function TVDisplayPage() {
                                                     background: idx % 2 === 0 ? '#1e293b' : '#172234',
                                                 }}>
                                                     {/* Tarih / Saat */}
-                                                    <td style={{ padding: '12px 14px', color: '#cbd5e1', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', color: '#cbd5e1', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                                         {timeStrFormatted}
                                                     </td>
 
                                                     {/* Cihaz Kodu */}
-                                                    <td style={{ padding: '12px 14px', fontWeight: 800, color: '#ffffff', fontFamily: 'monospace', fontSize: '15px', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', fontWeight: 800, color: '#ffffff', fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
                                                         {t.ticketNo}
                                                     </td>
 
                                                     {/* Teknisyen */}
-                                                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', fontWeight: 700, color: '#e2e8f0', whiteSpace: 'nowrap' }}>
                                                         👤 {t.technicianName}
                                                     </td>
 
                                                     {/* Yapılan İşlem */}
-                                                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#38bdf8', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', fontWeight: 700, color: '#38bdf8', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={opLabel}>
                                                         🛠️ {opLabel}
                                                     </td>
 
                                                     {/* Müşteri Adı */}
-                                                    <td style={{ padding: '12px 14px', fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', fontWeight: 600, color: '#f1f5f9', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={customerName}>
                                                         {customerName}
                                                     </td>
 
                                                     {/* Marka / Model */}
-                                                    <td style={{ padding: '12px 14px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', color: '#e2e8f0', maxWidth: '125px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         {[t.brand?.name, t.model].filter(Boolean).join(' ') || '-'}
                                                     </td>
 
                                                     {/* Durum */}
-                                                    <td style={{ padding: '12px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                                                         <span style={{
                                                             background: 'rgba(16, 185, 129, 0.2)',
                                                             color: '#6ee7b7',
                                                             border: '1px solid rgba(16, 185, 129, 0.4)',
-                                                            padding: '4px 10px',
-                                                            borderRadius: '6px',
+                                                            padding: '2px 7px',
+                                                            borderRadius: '4px',
                                                             fontWeight: 700,
-                                                            fontSize: '12px',
-                                                            display: 'inline-flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px',
+                                                            fontSize: '10px',
                                                         }}>
-                                                            İşlem Tamamlandı ✔
+                                                            ✅ Tamamlandı
                                                         </span>
                                                     </td>
                                                 </tr>

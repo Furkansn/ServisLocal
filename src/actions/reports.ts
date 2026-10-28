@@ -9,10 +9,19 @@ export interface ReportFilter {
     endDate?: string;
 }
 
-// ─── 1. Operational & Jobs Report ────────────────────────
-export async function getOperationalReport(filter?: ReportFilter) {
+async function checkCompanyAdmin() {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    const userRoles = (session.user as any)?.roles || [];
+    if (!userRoles.includes('COMPANY_ADMIN')) {
+        throw new Error('Raporlar sayfası sadece Firma Admini tarafından görüntülenebilir.');
+    }
+    return session;
+}
+
+// ─── 1. Operational & Jobs Report ────────────────────────
+export async function getOperationalReport(filter?: ReportFilter) {
+    await checkCompanyAdmin();
 
     const where: any = {};
     if (filter?.startDate || filter?.endDate) {
@@ -109,8 +118,7 @@ export async function getOperationalReport(filter?: ReportFilter) {
 
 // ─── 2. Technician Performance & Profitability Report ────
 export async function getTechnicianReport(filter?: ReportFilter) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    await checkCompanyAdmin();
 
     const where: any = {};
     if (filter?.startDate || filter?.endDate) {
@@ -229,8 +237,7 @@ export async function getTechnicianReport(filter?: ReportFilter) {
 
 // ─── 3. Detailed Financial & Parts & Profit Report ─────────
 export async function getFinancialDetailReport(filter?: ReportFilter) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    await checkCompanyAdmin();
 
     const where: any = {};
     if (filter?.startDate || filter?.endDate) {
@@ -339,8 +346,7 @@ export async function getFinancialDetailReport(filter?: ReportFilter) {
 
 // ─── 4. Inventory & Stock Valuation Report ───────────────
 export async function getInventoryReport() {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+    await checkCompanyAdmin();
 
     const products = await prisma.product.findMany({
         orderBy: [

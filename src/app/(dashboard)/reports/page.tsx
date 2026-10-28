@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
+import { useSession } from 'next-auth/react';
 import {
     getOperationalReport,
     getTechnicianReport,
@@ -21,6 +22,10 @@ import { REQUEST_TYPE_LABELS, formatDate, formatCurrency, getLocalDateString } f
 type TabType = 'OPERATIONAL' | 'TECHNICIAN' | 'FINANCIAL' | 'INVENTORY';
 
 export default function ReportsPage() {
+    const { data: session } = useSession();
+    const userRoles = (session?.user as any)?.roles || [];
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -144,6 +149,18 @@ export default function ReportsPage() {
             setIsExporting(false);
         }
     };
+
+    if (session && !isCompanyAdmin) {
+        return (
+            <div className="card" style={{ padding: 'var(--space-8)', textAlign: 'center', maxWidth: '560px', margin: '40px auto' }}>
+                <span style={{ fontSize: '48px', display: 'block', marginBottom: '16px' }}>🔒</span>
+                <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Erişim Kısıtlı</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                    Yönetim ve Operasyon Raporları sayfası sadece <strong>Firma Admini</strong> yetkisine sahip kullanıcılar tarafından görüntülenebilir.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div>

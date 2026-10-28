@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from 'react';
 import { getPersonnel, createPersonnel, updatePersonnel, deletePersonnel } from '@/actions/personnel';
 
 const ROLE_LABELS: Record<string, string> = {
+    COMPANY_ADMIN: 'Firma Admini (Tüm Yetkiler)',
     OPERATOR: 'Operatör',
     SERVICE_STAFF: 'Servis Personeli',
     TECHNICIAN: 'Teknisyen',

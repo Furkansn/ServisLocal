@@ -5,12 +5,14 @@ export default auth((req) => {
     const { pathname } = req.nextUrl;
     const isLoggedIn = !!req.auth;
     const userRoles = (req.auth?.user as any)?.roles || [];
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+    const isOperator = userRoles.includes('OPERATOR') || isCompanyAdmin;
 
     // Public routes
     if (pathname === '/login') {
         if (isLoggedIn) {
             // Redirect to appropriate dashboard based on role
-            if (userRoles.includes('OPERATOR')) {
+            if (isOperator) {
                 return NextResponse.redirect(new URL('/', req.url));
             }
             if (userRoles.includes('SERVICE_STAFF')) {
@@ -33,9 +35,16 @@ export default auth((req) => {
         return NextResponse.redirect(new URL('/login', req.url));
     }
 
+    // Reports route: EXCLUSIVELY for COMPANY_ADMIN
+    if (pathname.startsWith('/reports')) {
+        if (!isCompanyAdmin) {
+            return NextResponse.redirect(new URL('/', req.url));
+        }
+    }
+
     // Redirect non-operator from dashboard root to their panel
     if (pathname === '/') {
-        if (!userRoles.includes('OPERATOR')) {
+        if (!isOperator) {
             if (userRoles.includes('TECHNICIAN')) {
                 return NextResponse.redirect(new URL('/technician', req.url));
             }
@@ -47,11 +56,14 @@ export default auth((req) => {
 
     // Role-based route protection
     // Operator routes
-    const operatorRoutes = ['/tickets', '/customers', '/repairers', '/personnel', '/daily-planning', '/products', '/tv-display', '/price-list'];
+    const operatorRoutes = ['/tickets', '/customers', '/repairers', '/collections', '/personnel', '/daily-planning', '/products', '/tv-display', '/price-list', '/template-builder'];
     if (operatorRoutes.some((r) => pathname.startsWith(r))) {
-        if (!userRoles.includes('OPERATOR')) {
+        if (!isOperator) {
             if (userRoles.includes('TECHNICIAN')) {
                 return NextResponse.redirect(new URL('/technician', req.url));
+            }
+            if (userRoles.includes('SERVICE_STAFF')) {
+                return NextResponse.redirect(new URL('/service', req.url));
             }
             return NextResponse.redirect(new URL('/login', req.url));
         }
@@ -59,14 +71,14 @@ export default auth((req) => {
 
     // Service staff routes
     if (pathname.startsWith('/service')) {
-        if (!userRoles.includes('SERVICE_STAFF')) {
+        if (!userRoles.includes('SERVICE_STAFF') && !isCompanyAdmin) {
             return NextResponse.redirect(new URL('/login', req.url));
         }
     }
 
     // Technician routes
     if (pathname.startsWith('/technician')) {
-        if (!userRoles.includes('TECHNICIAN')) {
+        if (!userRoles.includes('TECHNICIAN') && !isCompanyAdmin) {
             return NextResponse.redirect(new URL('/login', req.url));
         }
     }

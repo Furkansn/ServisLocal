@@ -38,7 +38,7 @@ export async function createAccount(data: {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
     const userRoles = (session.user as any)?.roles || [];
-    if (!userRoles.includes('OPERATOR')) throw new Error('Bu işlem için Servis Müdürü yetkisi gereklidir.');
+    if (!userRoles.includes('COMPANY_ADMIN') && !userRoles.includes('OPERATOR')) throw new Error('Bu işlem için yönetici yetkisi gereklidir.');
 
     if (!data.name.trim()) throw new Error('Hesap adı boş olamaz.');
 
@@ -63,7 +63,7 @@ export async function updateAccount(id: string, data: {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
     const userRoles = (session.user as any)?.roles || [];
-    if (!userRoles.includes('OPERATOR')) throw new Error('Bu işlem için Servis Müdürü yetkisi gereklidir.');
+    if (!userRoles.includes('COMPANY_ADMIN') && !userRoles.includes('OPERATOR')) throw new Error('Bu işlem için yönetici yetkisi gereklidir.');
 
     const account = await prisma.account.update({
         where: { id },
@@ -83,7 +83,7 @@ export async function deleteAccount(id: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
     const userRoles = (session.user as any)?.roles || [];
-    if (!userRoles.includes('OPERATOR')) throw new Error('Bu işlem için Servis Müdürü yetkisi gereklidir.');
+    if (!userRoles.includes('COMPANY_ADMIN') && !userRoles.includes('OPERATOR')) throw new Error('Bu işlem için yönetici yetkisi gereklidir.');
 
     const paymentCount = await prisma.payment.count({ where: { accountId: id } });
     const expenseCount = await prisma.expense.count({ where: { accountId: id } });
@@ -488,8 +488,8 @@ export async function approvePayment(paymentId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
     const userRoles = (session.user as any)?.roles || [];
-    if (!userRoles.includes('OPERATOR')) {
-        throw new Error('Tahsilat onaylama yetkisi sadece Servis Müdürü\'ne aittir.');
+    if (!userRoles.includes('COMPANY_ADMIN') && !userRoles.includes('OPERATOR')) {
+        throw new Error('Tahsilat onaylama yetkisi sadece Yönetici veya Servis Müdürü\'ne aittir.');
     }
 
     const updated = await prisma.payment.update({
@@ -512,8 +512,8 @@ export async function unapprovePayment(paymentId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
     const userRoles = (session.user as any)?.roles || [];
-    if (!userRoles.includes('OPERATOR')) {
-        throw new Error('Bu işlem sadece Servis Müdürü tarafından yapılabilir.');
+    if (!userRoles.includes('COMPANY_ADMIN') && !userRoles.includes('OPERATOR')) {
+        throw new Error('Bu işlem sadece Yönetici veya Servis Müdürü tarafından yapılabilir.');
     }
 
     const updated = await prisma.payment.update({
@@ -674,8 +674,8 @@ export async function resetAccountBalance(data: {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Yetkisiz işlem');
     const userRoles = (session.user as any)?.roles || [];
-    if (!userRoles.includes('OPERATOR')) {
-        throw new Error('Kasa sıfırlama / teslim alma yetkisi sadece Servis Müdürü\'ne aittir.');
+    if (!userRoles.includes('COMPANY_ADMIN')) {
+        throw new Error('Kasa sıfırlama / teslim alma yetkisi sadece Firma Admini\'ne aittir.');
     }
 
     if (data.amount <= 0) throw new Error('Sıfırlanacak tutar 0\'dan büyük olmalıdır.');

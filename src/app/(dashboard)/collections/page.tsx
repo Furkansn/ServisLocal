@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
@@ -30,7 +30,10 @@ export default function CollectionsPage() {
     const { data: session } = useSession();
     const currentUserId = (session?.user as any)?.id || '';
     const userRoles = (session?.user as any)?.roles || [];
-    const isManager = userRoles.includes('OPERATOR');
+    const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+    const isOperator = userRoles.includes('OPERATOR');
+    const isManager = isCompanyAdmin;
+    const isOperatorOnly = isOperator && !isCompanyAdmin;
 
     const now = new Date();
     const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -69,6 +72,11 @@ export default function CollectionsPage() {
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
+
+    const totalCashBalance = useMemo(() => {
+        if (!data?.accountSummaries) return 0;
+        return data.accountSummaries.reduce((sum: number, accSummary: any) => sum + (Number(accSummary.currentBalance) || 0), 0);
+    }, [data?.accountSummaries]);
 
     // Expense modal state
     const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -393,48 +401,50 @@ export default function CollectionsPage() {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                    <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => {
-                            setExportScope('CURRENT_MONTH');
-                            setExportAccountId(selectedAccountId);
-                            setShowExportModal(true);
-                        }}
-                        style={{
-                            background: '#10b981',
-                            borderColor: '#059669',
-                            color: '#ffffff',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontWeight: 600,
-                        }}
-                    >
-                        📊 Toplu Excel İndir
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setShowExpenseModal(true)}
-                    >
-                        ➕ Gider / Harcama Ekle
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setShowTransferModal(true)}
-                        style={{ border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)' }}
-                    >
-                        🔄 Hesaplar Arası Virman / Transfer
-                    </button>
-                    {isManager && (
+                {!isOperatorOnly && (
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                        <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => {
+                                setExportScope('CURRENT_MONTH');
+                                setExportAccountId(selectedAccountId);
+                                setShowExportModal(true);
+                            }}
+                            style={{
+                                background: '#10b981',
+                                borderColor: '#059669',
+                                color: '#ffffff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontWeight: 600,
+                            }}
+                        >
+                            📊 Toplu Excel İndir
+                        </button>
                         <button
                             className="btn btn-secondary btn-sm"
-                            onClick={() => setShowAccountModal(true)}
+                            onClick={() => setShowExpenseModal(true)}
                         >
-                            ⚙️ Hesap Tanımları
+                            ➕ Gider / Harcama Ekle
                         </button>
-                    )}
-                </div>
+                        <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setShowTransferModal(true)}
+                            style={{ border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)' }}
+                        >
+                            🔄 Hesaplar Arası Virman / Transfer
+                        </button>
+                        {isManager && (
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => setShowAccountModal(true)}
+                            >
+                                ⚙️ Hesap Tanımları
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Filters Bar: Year, Month, Account Selectors */}
@@ -488,23 +498,25 @@ export default function CollectionsPage() {
                             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Dönem: </span>
                             <strong style={{ color: 'var(--brand-primary)' }}>{MONTH_NAMES[selectedMonth - 1]} {selectedYear}</strong>
                         </div>
-                        <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => handleDownloadExcel('CURRENT_MONTH', selectedAccountId)}
-                            disabled={isExporting || isLoading || !data}
-                            title="Görüntülenen ayı anında Excel olarak indir"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                borderColor: '#10b981',
-                                color: '#10b981',
-                                fontSize: '12px',
-                                padding: '4px 10px',
-                            }}
-                        >
-                            {isExporting ? '⏳ İndiriliyor...' : '📥 Bu Ayı İndir (.xlsx)'}
-                        </button>
+                        {!isOperatorOnly && (
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleDownloadExcel('CURRENT_MONTH', selectedAccountId)}
+                                disabled={isExporting || isLoading || !data}
+                                title="Görüntülenen ayı anında Excel olarak indir"
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    borderColor: '#10b981',
+                                    color: '#10b981',
+                                    fontSize: '12px',
+                                    padding: '4px 10px',
+                                }}
+                            >
+                                {isExporting ? '⏳ İndiriliyor...' : '📥 Bu Ayı İndir (.xlsx)'}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -516,76 +528,120 @@ export default function CollectionsPage() {
                 </div>
             ) : (
                 <>
-                    {/* Account Balances Header & Open/Close Toggle */}
+                    {/* Unified Cash Balances Bar (One single bar, no duplicate boxes) */}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: 'var(--space-3)',
-                        padding: '10px 14px',
+                        marginBottom: isBalancesOpen ? 'var(--space-4)' : 'var(--space-6)',
+                        padding: '12px 18px',
                         background: 'var(--bg-secondary)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-primary)'
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid var(--border-primary)',
+                        boxShadow: 'var(--shadow-sm)'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '18px' }}>💼</span>
-                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Kasa ve Hesap Bakiyeleri</span>
-                            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                                ({data.accountSummaries.length} Hesap)
-                            </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '20px' }}>{isBalancesOpen ? '💼' : '🔒'}</span>
+                            <div>
+                                <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>
+                                    {isBalancesOpen
+                                        ? (isOperatorOnly ? 'Kasa Toplam Durumu' : `Kasa ve Hesap Bakiyeleri (${data.accountSummaries.length} Hesap)`)
+                                        : 'Kasa Bakiyeleri ve Toplamları Gizlendi'}
+                                </span>
+                                {!isBalancesOpen && (
+                                    <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginLeft: '8px' }}>
+                                        (Görüntülemek için Kasaları Aç butonunu kullanınız)
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <button
                             type="button"
-                            className="btn btn-secondary btn-sm"
+                            className={`btn ${isBalancesOpen ? 'btn-secondary' : 'btn-primary'} btn-sm`}
                             onClick={handleToggleBalances}
                             style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
                                 fontSize: '12px',
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 cursor: 'pointer'
                             }}
                         >
-                            {isBalancesOpen ? '🙈 Kasaları Gizle / Kapat' : '👁️ Kasaları Aç / Göster'}
+                            {isBalancesOpen ? '🙈 Kasaları Kapat' : '👁️ Kasaları Aç'}
                         </button>
                     </div>
 
-                    {!isBalancesOpen ? (
-                        <div
-                            className="card"
-                            onClick={handleToggleBalances}
-                            style={{
-                                padding: 'var(--space-4)',
+                    {/* When Open */}
+                    {isBalancesOpen && (
+                        isOperatorOnly ? (
+                            /* OPERATOR VIEW: ONLY the current total cash amount */
+                            <div className="card" style={{
+                                padding: '24px 28px',
                                 marginBottom: 'var(--space-6)',
-                                background: 'var(--bg-secondary)',
-                                border: '1px dashed var(--border-primary)',
-                                cursor: 'pointer',
+                                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                borderRadius: '16px',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
                                 display: 'flex',
-                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                transition: 'all 0.2s ease'
-                            }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <span style={{ fontSize: '24px' }}>🔒</span>
-                                <div>
-                                    <div style={{ fontWeight: 600, fontSize: '13px' }}>Kasa toplamları ve bakiyeleri gizlendi</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                                        Hassas kasa toplamlarını görüntülemek için tıklayınız veya &ldquo;Kasaları Aç&rdquo; butonunu kullanınız.
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: '20px',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                                    <div style={{
+                                        width: '56px',
+                                        height: '56px',
+                                        borderRadius: '14px',
+                                        background: 'rgba(56, 189, 248, 0.15)',
+                                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '28px',
+                                    }}>
+                                        💰
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                                            O An Kasada Bulunan Toplam Tutar ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
+                                        </div>
+                                        <div style={{
+                                            fontSize: '34px',
+                                            fontWeight: 800,
+                                            color: totalCashBalance >= 0 ? '#34d399' : '#f87171',
+                                            fontFamily: 'monospace',
+                                            marginTop: '4px',
+                                            letterSpacing: '-0.5px'
+                                        }}>
+                                            {formatCurrency(totalCashBalance)}
+                                        </div>
                                     </div>
                                 </div>
+                                <div style={{
+                                    background: 'rgba(15, 23, 42, 0.6)',
+                                    padding: '8px 14px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #334155',
+                                    fontSize: '12px',
+                                    color: '#94a3b8',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+                                    <span>🔒</span>
+                                    <span>Operatör Görünümü</span>
+                                </div>
                             </div>
-                            <span className="badge badge-primary" style={{ cursor: 'pointer' }}>👁️ Kasaları Aç</span>
-                        </div>
-                    ) : (
-                        /* Account Balance Cards Grid */
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                            gap: 'var(--space-4)',
-                            marginBottom: 'var(--space-6)'
-                        }}>
+                        ) : (
+                            /* COMPANY ADMIN VIEW: Full Account Balance Cards Grid */
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                                gap: 'var(--space-4)',
+                                marginBottom: 'var(--space-6)'
+                            }}>
                             {data.accountSummaries.map((summary: any) => {
                                 const acc = summary.account;
                                 const openingBalance = summary.openingBalance || 0;
@@ -704,10 +760,12 @@ export default function CollectionsPage() {
                                 );
                             })}
                         </div>
-                    )}
+                    ))}
 
-                    {/* Navigation Tabs */}
-                    <div className="filter-bar" style={{ marginBottom: 'var(--space-4)' }}>
+                    {!isOperatorOnly && (
+                        <>
+                            {/* Navigation Tabs */}
+                            <div className="filter-bar" style={{ marginBottom: 'var(--space-4)' }}>
                         <button
                             className={`filter-pill ${activeTab === 'PAYMENTS' ? 'active' : ''}`}
                             onClick={() => setActiveTab('PAYMENTS')}
@@ -1163,6 +1221,8 @@ export default function CollectionsPage() {
                             </div>
                         );
                     })()}
+                        </>
+                    )}
                 </>
             )}
 

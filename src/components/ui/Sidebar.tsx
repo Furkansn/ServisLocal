@@ -45,6 +45,7 @@ export default function Sidebar() {
     const userRoles = (session?.user as any)?.roles || [];
 
     const roleLabels: Record<string, string> = {
+        COMPANY_ADMIN: 'Firma Admini',
         OPERATOR: 'Operatör',
         SERVICE_STAFF: 'Servis',
         TECHNICIAN: 'Teknisyen',
@@ -52,6 +53,13 @@ export default function Sidebar() {
 
     const roleDisplay = userRoles.map((r: string) => roleLabels[r] || r).join(', ');
     const initials = userName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
+    const filteredLinks = OPERATOR_LINKS.filter((link) => {
+        if (link.href === '/reports') {
+            return userRoles.includes('COMPANY_ADMIN');
+        }
+        return true;
+    });
 
     return (
         <aside className={`app-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
@@ -71,7 +79,7 @@ export default function Sidebar() {
             {/* Navigation */}
             <nav className="sidebar-nav">
                 <div className="sidebar-section-label">Ana Menü</div>
-                {OPERATOR_LINKS.map((link) => {
+                {filteredLinks.map((link) => {
                     const isActive = link.href === '/'
                         ? pathname === '/'
                         : link.href === '/customers'
