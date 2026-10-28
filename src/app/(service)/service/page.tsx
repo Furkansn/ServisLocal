@@ -1,14 +1,28 @@
 'use client';
 
 import { useState, useEffect, useTransition, useRef } from 'react';
-import { getMyWorkOrders, completePickup, completeDelivery, postponeService, cancelService, saveTicketPhoto, getServiceRecordPhotos, rescheduleServiceRecord, updateServiceRecordsOrder } from '@/actions/service-records';
+import {
+    getMyWorkOrders,
+    completePickup,
+    completeDelivery,
+    postponeService,
+    cancelService,
+    saveTicketPhoto,
+    getServiceRecordPhotos,
+    rescheduleServiceRecord,
+    updateServiceRecordsOrder,
+    completeManualTask,
+    cancelManualTask,
+    postponeManualTask,
+} from '@/actions/service-records';
 import { addContactNote, getContactNotes } from '@/actions/contact-notes';
 import { addPayment } from '@/actions/payments';
 import { getAccounts } from '@/actions/collections';
 import { compressImage } from '@/lib/image-utils';
 import { addAccessoryToTicket, getProductsByCategory } from '@/actions/products';
 import { updateTicketDeviceCondition, addRepairItemToTicket } from '@/actions/tickets';
-import { REQUEST_TYPE_LABELS, OPERATION_TYPE_LABELS, PAYMENT_METHOD_LABELS, formatCurrency, parseCurrencyInput } from '@/lib/constants';
+import { REQUEST_TYPE_LABELS, OPERATION_TYPE_LABELS, PAYMENT_METHOD_LABELS, formatCurrency, parseCurrencyInput, getLocalDateString } from '@/lib/constants';
+import DailyPlanPrintModal from '@/components/service/DailyPlanPrintModal';
 import Link from 'next/link';
 
 type WorkOrder = Awaited<ReturnType<typeof getMyWorkOrders>>[0];
@@ -112,6 +126,45 @@ export default function ServicePage() {
             setIsSorting(false);
             load();
         } catch (err: any) { alert(err.message); }
+    };
+
+    // Print Modal state
+    const [showPrintModal, setShowPrintModal] = useState(false);
+
+    const handleCompleteTask = async (recordId: string) => {
+        if (!confirm('Bu görevi "Yapıldı" olarak işaretlemek istiyor musunuz?')) return;
+        try {
+            await completeManualTask(recordId);
+            load();
+        } catch (err: any) {
+            alert(err.message || 'Görev tamamlanamadı.');
+        }
+    };
+
+    const handleCancelTask = async (recordId: string) => {
+        const reason = prompt('Görevin yapılamama nedeni (isteğe bağlı):');
+        if (reason === null) return;
+        try {
+            await cancelManualTask(recordId, reason || undefined);
+            load();
+        } catch (err: any) {
+            alert(err.message || 'İşlem başarısız.');
+        }
+    };
+
+    const handlePostponeTask = async (recordId: string) => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        const newDate = prompt('Yeni ertelenecek tarih (YYYY-AA-GG):', tomorrowStr);
+        if (newDate === null) return;
+        const reason = prompt('Erteleme notu (isteğe bağlı):') || undefined;
+        try {
+            await postponeManualTask(recordId, newDate || undefined, reason);
+            load();
+        } catch (err: any) {
+            alert(err.message || 'Erteleme başarısız.');
+        }
     };
 
     const handleCancel = async (recordId: string) => {
@@ -357,12 +410,22 @@ export default function ServicePage() {
 
     return (
         <div style={{ maxWidth: '600px', margin: '0 auto', paddingBottom: '80px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                     <h1 className="page-title" style={{ fontSize: 'var(--font-size-xl)' }}>🚚 Bugünkü İşlerim</h1>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>{todayStr}</div>
                 </div>
-                <div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setShowPrintModal(true)}
+                        title="Yatay A4 Plan Çıktısı Al"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}
+                    >
+                        <span>🖨️</span>
+                        <span>Planı Yazdır (Yatay)</span>
+                    </button>
                     {!isSorting ? (
                         <button className="btn btn-secondary btn-sm" onClick={() => setIsSorting(true)}>
                             🔃 Sırala
@@ -397,19 +460,23 @@ export default function ServicePage() {
                                 setShowPostponeModal(true);
                             }}
                             onCancel={() => handleCancel(order.id)}
+                            onCompleteTask={() => handleCompleteTask(order.id)}
+                            onCancelTask={() => handleCancelTask(order.id)}
+                            onPostponeTask={() => handlePostponeTask(order.id)}
                             isSorting={isSorting}
                             onMove={(dir) => moveOrder(order.id, dir)}
                             canMoveUp={orders.indexOf(order) > 0}
                             canMoveDown={orders.indexOf(order) < orders.length - 1}
                             onShowNotes={() => {
-                                const contactId = order.ticket.customerId || order.ticket.repairerId;
-                                const contactName = (order.ticket.customer || order.ticket.repairer)?.name;
+                                if (order.type === 'TASK') return;
+                                const contactId = order.ticket?.customerId || order.ticket?.repairerId;
+                                const contactName = (order.ticket?.customer || order.ticket?.repairer)?.name;
                                 if (contactId && contactName) {
                                     handleShowNotes(
                                         contactId,
                                         contactName,
-                                        order.ticket.customerId ? 'CUSTOMER' : 'REPAIRER',
-                                        order.ticket.notes || undefined,
+                                        order.ticket?.customerId ? 'CUSTOMER' : 'REPAIRER',
+                                        order.ticket?.notes || undefined,
                                         order.notes || undefined
                                     );
                                 }
@@ -418,6 +485,15 @@ export default function ServicePage() {
                     ))}
                 </div>
             )}
+
+            {/* Landscape Daily Plan Print Modal */}
+            <DailyPlanPrintModal
+                isOpen={showPrintModal}
+                onClose={() => setShowPrintModal(false)}
+                records={orders}
+                personnelList={[]}
+                dateStr={getLocalDateString()}
+            />
 
             {/* Action Modal */}
             {showActionModal && actionRecord && (
@@ -1063,6 +1139,9 @@ function WorkOrderCard({
     onAction,
     onPostpone,
     onCancel,
+    onCompleteTask,
+    onCancelTask,
+    onPostponeTask,
     isSorting,
     onMove,
     canMoveUp,
@@ -1073,6 +1152,9 @@ function WorkOrderCard({
     onAction: () => void;
     onPostpone: () => void;
     onCancel: () => void;
+    onCompleteTask?: () => void;
+    onCancelTask?: () => void;
+    onPostponeTask?: () => void;
     isSorting?: boolean;
     onMove?: (dir: 'up' | 'down') => void;
     canMoveUp?: boolean;
@@ -1080,26 +1162,146 @@ function WorkOrderCard({
     onShowNotes?: () => void;
 }) {
     const [showNav, setShowNav] = useState<string | null>(null);
-    const customer = order.ticket.customer || order.ticket.repairer;
+    const isTask = order.type === 'TASK';
     const isCompleted = order.status === 'COMPLETED';
+
+    // ─── Manual Task Card Render ───
+    if (isTask) {
+        return (
+            <div className="card" style={{ marginBottom: 'var(--space-2)', opacity: isCompleted ? 0.6 : 1, padding: 'var(--space-4)', borderLeft: '4px solid #f59e0b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)', gap: '8px' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                            <span style={{
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                color: '#b45309',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 800,
+                                fontSize: '11px',
+                            }}>
+                                📋 MANUEL GÖREV
+                            </span>
+                        </div>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {order.taskTitle}
+                        </h3>
+                    </div>
+
+                    <span className={`badge ${isCompleted ? 'badge-success' : order.status === 'POSTPONED' ? 'badge-warning' : order.status === 'CANCELLED' ? 'badge-danger' : 'badge-info'}`} style={{ whiteSpace: 'nowrap', padding: '4px 8px', fontSize: '11px', flexShrink: 0 }}>
+                        {isCompleted ? '✅ Yapıldı' : order.status === 'POSTPONED' ? '⏳ Ertelendi' : order.status === 'CANCELLED' ? '❌ Yapılmadı' : '⏳ Bekliyor'}
+                    </span>
+                </div>
+
+                {order.taskDescription && (
+                    <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginBottom: '8px', background: 'var(--bg-secondary)', padding: '8px 10px', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>
+                        {order.taskDescription}
+                    </div>
+                )}
+
+                {order.taskContactPhone && (
+                    <div style={{ marginBottom: '6px' }}>
+                        <a href={`tel:${order.taskContactPhone}`} style={{ fontSize: '14px', color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 600 }}>
+                            📞 {order.taskContactPhone}
+                        </a>
+                    </div>
+                )}
+
+                {order.taskAddress && (
+                    <div style={{ marginBottom: '10px' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', gap: '4px', alignItems: 'flex-start' }}>
+                            <span>📍</span>
+                            <a
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setShowNav(encodeURIComponent(order.taskAddress));
+                                }}
+                                style={{ color: 'var(--text-secondary)', textDecoration: 'none', borderBottom: '1px dashed var(--border-color)' }}
+                            >
+                                {order.taskAddress}
+                            </a>
+                        </div>
+                    </div>
+                )}
+
+                {showNav && (
+                    <div style={{ padding: '8px', background: 'var(--bg-secondary)', borderRadius: '6px', marginBottom: '8px', fontSize: '12px' }}>
+                        <div style={{ fontWeight: 600, marginBottom: '4px' }}>🗺️ Haritada Aç:</div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${showNav}`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs" style={{ flex: 1, textAlign: 'center' }}>Google Maps</a>
+                            <a href={`https://yandex.com/maps/?text=${showNav}`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs" style={{ flex: 1, textAlign: 'center' }}>Yandex Maps</a>
+                            <button className="btn btn-ghost btn-xs" onClick={() => setShowNav(null)}>✕</button>
+                        </div>
+                    </div>
+                )}
+
+                {!isCompleted && order.status !== 'CANCELLED' && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                        {isSorting ? (
+                            <>
+                                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => onMove?.('up')} disabled={!canMoveUp}>
+                                    ⬆ Yukarı
+                                </button>
+                                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => onMove?.('down')} disabled={!canMoveDown}>
+                                    ⬇ Aşağı
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    type="button"
+                                    className="btn btn-success btn-sm"
+                                    style={{ flex: 1.5, fontWeight: 700 }}
+                                    onClick={onCompleteTask}
+                                >
+                                    ✅ Yapıldı
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-danger btn-sm"
+                                    style={{ flex: 1 }}
+                                    onClick={onCancelTask}
+                                >
+                                    ❌ Yapılmadı
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-warning btn-sm"
+                                    style={{ flex: 1 }}
+                                    onClick={onPostponeTask}
+                                >
+                                    ⏳ Ertelendi
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ─── Regular Ticket Work Order Card ───
+    const customer = order.ticket?.customer || order.ticket?.repairer;
     const customerName = customer?.name || '-';
     const customerPhone = customer?.phone;
 
-    const notesCount = (order.ticket.customer?._count?.notes || 0) + (order.ticket.repairer?._count?.notes || 0) + (order.ticket.notes ? 1 : 0) + (order.notes ? 1 : 0);
+    const notesCount = (order.ticket?.customer?._count?.notes || 0) + (order.ticket?.repairer?._count?.notes || 0) + (order.ticket?.notes ? 1 : 0) + (order.notes ? 1 : 0);
 
     return (
         <div className="card" style={{ marginBottom: 'var(--space-2)', opacity: isCompleted ? 0.6 : 1, padding: 'var(--space-4)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)', gap: '8px' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                    <Link href={`/tickets/${order.ticket.id}`} style={{ fontWeight: 800, fontSize: 'var(--font-size-lg)', color: 'inherit', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {order.ticket.ticketNo}
+                    <Link href={`/tickets/${order.ticket?.id}`} style={{ fontWeight: 800, fontSize: 'var(--font-size-lg)', color: 'inherit', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {order.ticket?.ticketNo}
                     </Link>
                     <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
                         <span className={`badge ${order.type === 'PICKUP' ? 'badge-info' : 'badge-success'}`} style={{ fontSize: '10px' }}>
                             {order.type === 'PICKUP' ? '📥 Alınacak' : '📤 Verilecek'}
                         </span>
                         <span className="badge" style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--text-secondary)', fontSize: '10px' }}>
-                            🛠 {REQUEST_TYPE_LABELS[(order.ticket as any).requestType as keyof typeof REQUEST_TYPE_LABELS] || '—'}
+                            🛠 {REQUEST_TYPE_LABELS[(order.ticket as any)?.requestType as keyof typeof REQUEST_TYPE_LABELS] || '—'}
                         </span>
                     </div>
                 </div>
@@ -1164,14 +1366,14 @@ function WorkOrderCard({
                 <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <span style={{
                         fontSize: '10px',
-                        background: (order.ticket as any).customerId ? 'rgba(59, 130, 246, 0.12)' : 'rgba(234, 179, 8, 0.12)',
+                        background: (order.ticket as any)?.customerId ? 'rgba(59, 130, 246, 0.12)' : 'rgba(234, 179, 8, 0.12)',
                         padding: '2px 8px',
                         borderRadius: '4px',
-                        color: (order.ticket as any).customerId ? 'var(--brand-primary)' : 'var(--color-warning)',
+                        color: (order.ticket as any)?.customerId ? 'var(--brand-primary)' : 'var(--color-warning)',
                         fontWeight: 800,
-                        border: `1px solid ${(order.ticket as any).customerId ? 'rgba(59, 130, 246, 0.2)' : 'rgba(234, 179, 8, 0.2)'}`
+                        border: `1px solid ${(order.ticket as any)?.customerId ? 'rgba(59, 130, 246, 0.2)' : 'rgba(234, 179, 8, 0.2)'}`
                     }}>
-                        {(order.ticket as any).customerId ? 'MÜŞTERİ' : 'TAMİRCİ'}
+                        {(order.ticket as any)?.customerId ? 'MÜŞTERİ' : 'TAMİRCİ'}
                     </span>
                     <span style={{ fontSize: '15px' }}>{customerName}</span>
                 </div>
@@ -1211,10 +1413,8 @@ function WorkOrderCard({
                 </div>
             )}
 
-
-
             <div style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>{(order.ticket as any).brand?.name} · {(order.ticket as any).model}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{(order.ticket as any)?.brand?.name} · {(order.ticket as any)?.model}</span>
             </div>
 
             {!isCompleted && (

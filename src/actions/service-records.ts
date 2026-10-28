@@ -145,7 +145,7 @@ export async function getDailyServiceRecords(date?: string) {
         })
         .map(r => ({
             ...r,
-            ticket: {
+            ticket: r.ticket ? {
                 ...r.ticket,
                 repairPrice: Number(r.ticket.repairPrice),
                 totalAmount: Number(r.ticket.totalAmount),
@@ -155,8 +155,103 @@ export async function getDailyServiceRecords(date?: string) {
                     unitPrice: Number(acc.unitPrice || 0),
                     totalPrice: Number(acc.totalPrice || 0),
                 })),
-            },
+            } : null,
         }));
+}
+
+// ─── Create Manual Service Task ──────────────────────────
+
+export async function createManualServiceTask(data: {
+    title: string;
+    description?: string;
+    address?: string;
+    contactPhone?: string;
+    scheduledDate: string;
+    assignedPersonnelId?: string;
+}) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    if (!data.title?.trim()) {
+        throw new Error('İş tanımı / görev başlığı zorunludur.');
+    }
+
+    const status = data.assignedPersonnelId ? ServiceRecordStatus.ASSIGNED : ServiceRecordStatus.PLANNED;
+
+    const record = await prisma.serviceRecord.create({
+        data: {
+            type: 'TASK',
+            taskTitle: data.title.trim(),
+            taskDescription: data.description?.trim() || null,
+            taskAddress: data.address?.trim() || null,
+            taskContactPhone: data.contactPhone?.trim() || null,
+            scheduledDate: new Date(`${data.scheduledDate}T00:00:00.000Z`),
+            assignedPersonnelId: data.assignedPersonnelId || null,
+            status,
+        },
+    });
+
+    revalidatePath('/daily-planning');
+    revalidatePath('/service');
+    return record;
+}
+
+export async function completeManualTask(recordId: string, notes?: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const updated = await prisma.serviceRecord.update({
+        where: { id: recordId },
+        data: {
+            status: ServiceRecordStatus.COMPLETED,
+            completedAt: new Date(),
+            notes: notes?.trim() || undefined,
+        },
+    });
+
+    revalidatePath('/daily-planning');
+    revalidatePath('/service');
+    return updated;
+}
+
+export async function cancelManualTask(recordId: string, reason?: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const updated = await prisma.serviceRecord.update({
+        where: { id: recordId },
+        data: {
+            status: ServiceRecordStatus.CANCELLED,
+            notes: reason?.trim() || 'Yapılmadı olarak işaretlendi',
+        },
+    });
+
+    revalidatePath('/daily-planning');
+    revalidatePath('/service');
+    return updated;
+}
+
+export async function postponeManualTask(recordId: string, newDate?: string, notes?: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Yetkisiz işlem');
+
+    const updateData: any = {
+        status: ServiceRecordStatus.POSTPONED,
+        postponedDate: new Date(),
+        notes: notes?.trim() || undefined,
+    };
+    if (newDate) {
+        updateData.scheduledDate = new Date(`${newDate}T00:00:00.000Z`);
+    }
+
+    const updated = await prisma.serviceRecord.update({
+        where: { id: recordId },
+        data: updateData,
+    });
+
+    revalidatePath('/daily-planning');
+    revalidatePath('/service');
+    return updated;
 }
 
 // ─── Get My Work Orders (Service Personnel) ─────────────
@@ -203,7 +298,7 @@ export async function getMyWorkOrders() {
         })
         .map(r => ({
             ...r,
-            ticket: {
+            ticket: r.ticket ? {
                 ...r.ticket,
                 repairPrice: Number(r.ticket.repairPrice),
                 totalAmount: Number(r.ticket.totalAmount),
@@ -213,7 +308,7 @@ export async function getMyWorkOrders() {
                     unitPrice: Number(acc.unitPrice || 0),
                     totalPrice: Number(acc.totalPrice || 0),
                 })),
-            },
+            } : null,
         }));
 }
 
@@ -252,7 +347,7 @@ export async function rescheduleServiceRecord(recordId: string, newDate: string,
         include: { ticket: true },
     });
 
-    if (notes) {
+    if (notes && record.ticketId) {
         await prisma.ticketOperation.create({
             data: {
                 ticketId: record.ticketId,
@@ -276,7 +371,9 @@ export async function completePickup(recordId: string, notes?: string) {
         where: { id: recordId },
         include: { ticket: true },
     });
-    if (!record) throw new Error('Servis kaydı bulunamadı');
+    if (!record || !record.ticketId || !record.ticket) {
+        throw new Error('Servis kaydı veya bağlı fiş bulunamadı');
+    }
 
     // Check minimum 2 photos
     const photoCount = await prisma.ticketPhoto.count({
@@ -285,6 +382,9 @@ export async function completePickup(recordId: string, notes?: string) {
     if (photoCount < 2) {
         throw new Error('En az 2 fotoğraf yüklemelisiniz (kırık cihaz + barkod)');
     }
+
+    const ticketId = record.ticketId;
+    const ticketStatus = record.ticket.status;
 
     return prisma.$transaction(async (tx) => {
         await tx.serviceRecord.update({
@@ -297,14 +397,14 @@ export async function completePickup(recordId: string, notes?: string) {
         });
 
         await tx.repairTicket.update({
-            where: { id: record.ticketId },
+            where: { id: ticketId },
             data: { status: TicketStatus.TESLIM_ALINDI },
         });
 
         await tx.statusHistory.create({
             data: {
-                ticketId: record.ticketId,
-                fromStatus: record.ticket.status,
+                ticketId: ticketId,
+                fromStatus: ticketStatus,
                 toStatus: TicketStatus.TESLIM_ALINDI,
                 changedById: session.user.id,
                 notes: 'Servis personeli teslim aldı',
@@ -327,6 +427,17 @@ export async function postponeService(recordId: string, newDate?: string, notes?
     });
     if (!record) throw new Error('Servis kaydı bulunamadı');
 
+    if (record.type === 'TASK') {
+        return postponeManualTask(recordId, newDate, notes);
+    }
+
+    if (!record.ticketId || !record.ticket) {
+        throw new Error('Servis kaydına bağlı fiş bulunamadı');
+    }
+
+    const ticketId = record.ticketId;
+    const ticketStatus = record.ticket.status;
+
     return prisma.$transaction(async (tx) => {
         await tx.serviceRecord.update({
             where: { id: recordId },
@@ -338,14 +449,14 @@ export async function postponeService(recordId: string, newDate?: string, notes?
         });
 
         await tx.repairTicket.update({
-            where: { id: record.ticketId },
+            where: { id: ticketId },
             data: { status: TicketStatus.ERTELENDI },
         });
 
         await tx.statusHistory.create({
             data: {
-                ticketId: record.ticketId,
-                fromStatus: record.ticket.status,
+                ticketId: ticketId,
+                fromStatus: ticketStatus,
                 toStatus: TicketStatus.ERTELENDI,
                 changedById: session.user.id,
                 notes: notes || 'Servis personeli erteledi',
@@ -355,7 +466,7 @@ export async function postponeService(recordId: string, newDate?: string, notes?
         if (notes) {
             await tx.ticketOperation.create({
                 data: {
-                    ticketId: record.ticketId,
+                    ticketId: ticketId,
                     operationType: 'OTHER',
                     notes: `[ERTELEME] ${notes}`,
                     performedById: session.user.id,
@@ -379,6 +490,17 @@ export async function cancelService(recordId: string, notes?: string) {
     });
     if (!record) throw new Error('Servis kaydı bulunamadı');
 
+    if (record.type === 'TASK') {
+        return cancelManualTask(recordId, notes);
+    }
+
+    if (!record.ticketId || !record.ticket) {
+        throw new Error('Servis kaydına bağlı fiş bulunamadı');
+    }
+
+    const ticketId = record.ticketId;
+    const ticketStatus = record.ticket.status;
+
     return prisma.$transaction(async (tx) => {
         await tx.serviceRecord.update({
             where: { id: recordId },
@@ -389,14 +511,14 @@ export async function cancelService(recordId: string, notes?: string) {
         });
 
         await tx.repairTicket.update({
-            where: { id: record.ticketId },
+            where: { id: ticketId },
             data: { status: TicketStatus.IPTAL },
         });
 
         await tx.statusHistory.create({
             data: {
-                ticketId: record.ticketId,
-                fromStatus: record.ticket.status,
+                ticketId: ticketId,
+                fromStatus: ticketStatus,
                 toStatus: TicketStatus.IPTAL,
                 changedById: session.user.id,
                 notes: notes || 'İptal edildi',
@@ -417,7 +539,9 @@ export async function completeDelivery(recordId: string, notes?: string) {
         where: { id: recordId },
         include: { ticket: true },
     });
-    if (!record) throw new Error('Servis kaydı bulunamadı');
+    if (!record || !record.ticketId || !record.ticket) {
+        throw new Error('Servis kaydı veya bağlı fiş bulunamadı');
+    }
 
     // Check minimum 1 photo for delivery
     const photoCount = await prisma.ticketPhoto.count({
@@ -426,6 +550,9 @@ export async function completeDelivery(recordId: string, notes?: string) {
     if (photoCount < 1) {
         throw new Error('En az 1 fotoğraf yüklemelisiniz (çalışır hali)');
     }
+
+    const ticketId = record.ticketId;
+    const ticketStatus = record.ticket.status;
 
     return prisma.$transaction(async (tx) => {
         await tx.serviceRecord.update({
@@ -438,14 +565,14 @@ export async function completeDelivery(recordId: string, notes?: string) {
         });
 
         await tx.repairTicket.update({
-            where: { id: record.ticketId },
+            where: { id: ticketId },
             data: { status: TicketStatus.TESLIM_EDILDI },
         });
 
         await tx.statusHistory.create({
             data: {
-                ticketId: record.ticketId,
-                fromStatus: record.ticket.status,
+                ticketId: ticketId,
+                fromStatus: ticketStatus,
                 toStatus: TicketStatus.TESLIM_EDILDI,
                 changedById: session.user.id,
                 notes: 'Cihaz teslim edildi',

@@ -51,9 +51,10 @@ export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
     REPAIRER: 'Tamirci',
 };
 
-export const SERVICE_RECORD_TYPE_LABELS: Record<'PICKUP' | 'DELIVERY', string> = {
+export const SERVICE_RECORD_TYPE_LABELS: Record<'PICKUP' | 'DELIVERY' | 'TASK', string> = {
     PICKUP: 'Alınacak',
     DELIVERY: 'Verilecek',
+    TASK: 'Görev',
 };
 
 // ─── Ticket Number Format ────────────────────────────────

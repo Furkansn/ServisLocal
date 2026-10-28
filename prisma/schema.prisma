@@ -57,6 +57,7 @@ enum CustomerType {
 enum ServiceRecordType {
   PICKUP
   DELIVERY
+  TASK
 }
 
 enum ServiceRecordStatus {
@@ -271,8 +272,12 @@ model RepairTicket {
 
 model ServiceRecord {
   id                  String              @id @default(uuid())
-  ticketId            String
+  ticketId            String?
   type                ServiceRecordType
+  taskTitle           String?
+  taskDescription     String?
+  taskAddress         String?
+  taskContactPhone    String?
   scheduledDate       DateTime            @db.Date
   assignedPersonnelId String?
   status              ServiceRecordStatus @default(PLANNED)
@@ -283,8 +288,8 @@ model ServiceRecord {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
-  ticket            RepairTicket @relation(fields: [ticketId], references: [id])
-  assignedPersonnel Personnel?   @relation("AssignedServicePersonnel", fields: [assignedPersonnelId], references: [id])
+  ticket            RepairTicket? @relation(fields: [ticketId], references: [id])
+  assignedPersonnel Personnel?    @relation("AssignedServicePersonnel", fields: [assignedPersonnelId], references: [id])
   photos            TicketPhoto[]
 
   @@index([scheduledDate])
