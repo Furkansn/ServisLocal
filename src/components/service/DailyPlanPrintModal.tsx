@@ -323,15 +323,14 @@ export default function DailyPlanPrintModal({
                                 <thead>
                                     <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #64748b', textAlign: 'left' }}>
                                         <th style={{ padding: '6px 4px', width: '28px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>#</th>
-                                        <th style={{ padding: '6px 6px', width: '75px', borderRight: '1px solid #cbd5e1' }}>İş Türü</th>
-                                        <th style={{ padding: '6px 6px', width: '70px', borderRight: '1px solid #cbd5e1' }}>Fiş No</th>
-                                        <th style={{ padding: '6px 8px', width: '135px', borderRight: '1px solid #cbd5e1' }}>Müşteri / Firma</th>
-                                        <th style={{ padding: '6px 8px', width: '105px', borderRight: '1px solid #cbd5e1' }}>Telefon</th>
+                                        <th style={{ padding: '6px 6px', width: '80px', borderRight: '1px solid #cbd5e1' }}>İş Türü</th>
+                                        <th style={{ padding: '6px 6px', width: '75px', borderRight: '1px solid #cbd5e1' }}>Fiş No</th>
+                                        <th style={{ padding: '6px 8px', width: '150px', borderRight: '1px solid #cbd5e1' }}>Müşteri / Firma</th>
+                                        <th style={{ padding: '6px 8px', width: '115px', borderRight: '1px solid #cbd5e1' }}>Telefon</th>
                                         <th style={{ padding: '6px 8px', borderRight: '1px solid #cbd5e1' }}>Adres / İlçe</th>
-                                        <th style={{ padding: '6px 8px', width: '140px', borderRight: '1px solid #cbd5e1' }}>Cihaz & Model / Tanım</th>
-                                        <th style={{ padding: '6px 6px', width: '90px', borderRight: '1px solid #cbd5e1', textAlign: 'center' }}>Ödeme</th>
-                                        <th style={{ padding: '6px 6px', width: '70px', borderRight: '1px solid #cbd5e1', textAlign: 'center' }}>Not</th>
-                                        <th style={{ padding: '6px 6px', width: '95px', textAlign: 'center' }}>İmza / Durum</th>
+                                        <th style={{ padding: '6px 8px', width: '160px', borderRight: '1px solid #cbd5e1' }}>Cihaz & Model / Tanım</th>
+                                        <th style={{ padding: '6px 6px', width: '110px', borderRight: '1px solid #cbd5e1', textAlign: 'center' }}>Ödeme</th>
+                                        <th style={{ padding: '6px 6px', width: '75px', textAlign: 'center' }}>Not</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -347,58 +346,50 @@ export default function DailyPlanPrintModal({
                                             : `${ticket?.brand?.name || ''} ${ticket?.model || ''}`.trim() || '—';
 
                                         // Payment status calculation
-                                        let paymentBadge = null;
-                                        if (isTask) {
-                                            paymentBadge = <span style={{ color: '#64748b' }}>—</span>;
-                                        } else if (ticket) {
+                                        let paymentBadge = <span style={{ color: '#64748b' }}>—</span>;
+                                        if (!isTask && ticket) {
                                             const totalAmt = Number(ticket.totalAmount || 0);
                                             const paidAmt = Number(ticket.paidAmount || 0);
                                             const remaining = Math.max(0, Number(ticket.remainingAmount ?? (totalAmt - paidAmt)));
 
-                                            if (r.type === 'DELIVERY') {
-                                                if (remaining > 0) {
-                                                    paymentBadge = (
-                                                        <div
-                                                            style={{
-                                                                background: '#fee2e2',
-                                                                color: '#b91c1c',
-                                                                border: '1px solid #fca5a5',
-                                                                padding: '2px 4px',
-                                                                borderRadius: '3px',
-                                                                fontWeight: 800,
-                                                                fontSize: '10px',
-                                                            }}
-                                                        >
-                                                            ALINACAK<br />
-                                                            {remaining.toLocaleString('tr-TR')} ₺
-                                                        </div>
-                                                    );
-                                                } else if (totalAmt > 0 && remaining === 0) {
-                                                    paymentBadge = (
-                                                        <span
-                                                            style={{
-                                                                background: '#dcfce7',
-                                                                color: '#15803d',
-                                                                border: '1px solid #86efac',
-                                                                padding: '2px 5px',
-                                                                borderRadius: '3px',
-                                                                fontWeight: 700,
-                                                                fontSize: '10px',
-                                                            }}
-                                                        >
-                                                            ÖDENDİ
-                                                        </span>
-                                                    );
-                                                } else {
-                                                    paymentBadge = <span style={{ color: '#64748b', fontSize: '10px' }}>Ücretsiz</span>;
-                                                }
-                                            } else {
-                                                // Pickup
-                                                paymentBadge = remaining > 0 ? (
-                                                    <span style={{ color: '#475569', fontSize: '10px' }}>Bakiye: {remaining.toLocaleString('tr-TR')} ₺</span>
-                                                ) : (
-                                                    <span style={{ color: '#64748b', fontSize: '10px' }}>—</span>
+                                            if (remaining > 0) {
+                                                paymentBadge = (
+                                                    <span
+                                                        style={{
+                                                            background: '#fee2e2',
+                                                            color: '#b91c1c',
+                                                            border: '1px solid #fca5a5',
+                                                            padding: '2px 6px',
+                                                            borderRadius: '3px',
+                                                            fontWeight: 800,
+                                                            fontSize: '11px',
+                                                            display: 'inline-block',
+                                                            whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        {remaining.toLocaleString('tr-TR')} ₺
+                                                    </span>
                                                 );
+                                            } else if (totalAmt > 0 && remaining === 0) {
+                                                paymentBadge = (
+                                                    <span
+                                                        style={{
+                                                            background: '#dcfce7',
+                                                            color: '#15803d',
+                                                            border: '1px solid #86efac',
+                                                            padding: '2px 6px',
+                                                            borderRadius: '3px',
+                                                            fontWeight: 700,
+                                                            fontSize: '10px',
+                                                            display: 'inline-block',
+                                                            whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        Ödeme Yapıldı
+                                                    </span>
+                                                );
+                                            } else {
+                                                paymentBadge = <span style={{ color: '#64748b', fontSize: '10px' }}>—</span>;
                                             }
                                         }
 
@@ -523,7 +514,7 @@ export default function DailyPlanPrintModal({
                                                 </td>
 
                                                 {/* Customer Note Indicator */}
-                                                <td style={{ padding: '6px 6px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
+                                                <td style={{ padding: '6px 6px', textAlign: 'center' }}>
                                                     {hasNotes ? (
                                                         <span
                                                             style={{
@@ -545,25 +536,6 @@ export default function DailyPlanPrintModal({
                                                         <span style={{ color: '#94a3b8', fontSize: '10px' }}>Yok</span>
                                                     )}
                                                 </td>
-
-                                                {/* Signature / Delivery Box */}
-                                                <td style={{ padding: '4px 6px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                                    <div
-                                                        style={{
-                                                            border: '1px dashed #94a3b8',
-                                                            borderRadius: '3px',
-                                                            height: '28px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontSize: '8.5px',
-                                                            color: '#94a3b8',
-                                                            background: '#ffffff',
-                                                        }}
-                                                    >
-                                                        {r.status === 'COMPLETED' ? '✅ Tamamlandı' : 'İmza / Kaşe'}
-                                                    </div>
-                                                </td>
                                             </tr>
                                         );
                                     })}
@@ -574,9 +546,6 @@ export default function DailyPlanPrintModal({
                         {/* Footer Notes for Printout */}
                         <div
                             style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
                                 marginTop: '12px',
                                 paddingTop: '8px',
                                 borderTop: '1px solid #cbd5e1',
@@ -584,12 +553,7 @@ export default function DailyPlanPrintModal({
                                 color: '#64748b',
                             }}
                         >
-                            <div>
-                                📌 <em>"📝 Not Var" ibaresi olan müşterilerin detaylı notlarını servis personeli mobil panelden (📋 butonu) görebilir.</em>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <strong>Servis Teslim Eden / Alan Yetkili İmza:</strong> ________________________
-                            </div>
+                            📌 <em>"📝 Not Var" ibaresi olan müşterilerin detaylı notlarını servis personeli mobil panelden (📋 butonu) görebilir.</em>
                         </div>
                     </div>
                 </div>
