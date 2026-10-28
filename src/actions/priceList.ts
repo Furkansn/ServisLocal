@@ -51,11 +51,15 @@ export async function savePriceListData(data: PriceListData): Promise<{ success:
         return { success: false, error: 'Bu işlem için yetkiniz yok (Sadece Operatör / Servis Müdürü).' };
     }
 
-    // 1. Save to JSON file as immediate sync
-    try {
-        await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (err) {
-        console.error('Failed to save to local price-list JSON:', err);
+    // 1. Save to JSON file as immediate sync (local development only)
+    if (!process.env.VERCEL) {
+        try {
+            await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+        } catch (err: any) {
+            if (err?.code !== 'EROFS') {
+                console.warn('Local JSON write skipped:', err?.message || err);
+            }
+        }
     }
 
     // 2. Save to Database for persistence across instances

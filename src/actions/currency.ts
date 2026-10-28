@@ -33,18 +33,22 @@ export async function updateSystemUsdRate(newRate: number): Promise<{ success: b
     const cleanRate = Math.round(newRate * 100) / 100;
     setCachedUsdRate(cleanRate);
 
-    // 1. Update price-list-data.json
-    try {
-        let existingData: any = {};
+    // 1. Update price-list-data.json (local development only)
+    if (!process.env.VERCEL) {
         try {
-            const raw = await fs.readFile(STORAGE_PATH, 'utf-8');
-            existingData = JSON.parse(raw);
-        } catch {}
+            let existingData: any = {};
+            try {
+                const raw = await fs.readFile(STORAGE_PATH, 'utf-8');
+                existingData = JSON.parse(raw);
+            } catch {}
 
-        existingData.usdRate = cleanRate;
-        await fs.writeFile(STORAGE_PATH, JSON.stringify(existingData, null, 2), 'utf-8');
-    } catch (err) {
-        console.error('Failed to write usdRate to local JSON:', err);
+            existingData.usdRate = cleanRate;
+            await fs.writeFile(STORAGE_PATH, JSON.stringify(existingData, null, 2), 'utf-8');
+        } catch (err: any) {
+            if (err?.code !== 'EROFS') {
+                console.warn('Local JSON write skipped:', err?.message || err);
+            }
+        }
     }
 
     // 2. Update Database ReceiptTemplate for price_list_v1

@@ -68,6 +68,14 @@ function TicketsContent() {
                     endDate: endDate || undefined,
                 });
                 setTickets(data);
+            } catch (err: any) {
+                // If a new Vercel deployment happened while this tab was open,
+                // Server Action hash might be stale. Reload page so client gets latest build.
+                if (err?.message?.includes('Failed to find Server Action') || err?.message?.includes('older or newer deployment')) {
+                    window.location.reload();
+                } else {
+                    console.error('Error loading tickets:', err);
+                }
             } finally {
                 setInitialLoading(false);
             }
