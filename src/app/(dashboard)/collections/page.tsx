@@ -545,7 +545,7 @@ export default function CollectionsPage() {
                             <div>
                                 <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>
                                     {isBalancesOpen
-                                        ? (isOperatorOnly ? 'Kasa Toplam Durumu' : `Kasa ve Hesap Bakiyeleri (${data.accountSummaries.length} Hesap)`)
+                                        ? `Kasa ve Hesap Bakiyeleri (${data.accountSummaries.length} Hesap)`
                                         : 'Kasa Bakiyeleri ve Toplamları Gizlendi'}
                                 </span>
                                 {!isBalancesOpen && (
@@ -572,76 +572,14 @@ export default function CollectionsPage() {
                         </button>
                     </div>
 
-                    {/* When Open */}
+                    {/* When Open: Render account cards grid */}
                     {isBalancesOpen && (
-                        isOperatorOnly ? (
-                            /* OPERATOR VIEW: ONLY the current total cash amount */
-                            <div className="card" style={{
-                                padding: '24px 28px',
-                                marginBottom: 'var(--space-6)',
-                                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
-                                border: '1px solid rgba(56, 189, 248, 0.35)',
-                                borderRadius: '16px',
-                                boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                flexWrap: 'wrap',
-                                gap: '20px',
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-                                    <div style={{
-                                        width: '56px',
-                                        height: '56px',
-                                        borderRadius: '14px',
-                                        background: 'rgba(56, 189, 248, 0.15)',
-                                        border: '1px solid rgba(56, 189, 248, 0.35)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '28px',
-                                    }}>
-                                        💰
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                                            O An Kasada Bulunan Toplam Tutar ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
-                                        </div>
-                                        <div style={{
-                                            fontSize: '34px',
-                                            fontWeight: 800,
-                                            color: totalCashBalance >= 0 ? '#34d399' : '#f87171',
-                                            fontFamily: 'monospace',
-                                            marginTop: '4px',
-                                            letterSpacing: '-0.5px'
-                                        }}>
-                                            {formatCurrency(totalCashBalance)}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style={{
-                                    background: 'rgba(15, 23, 42, 0.6)',
-                                    padding: '8px 14px',
-                                    borderRadius: '8px',
-                                    border: '1px solid #334155',
-                                    fontSize: '12px',
-                                    color: '#94a3b8',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}>
-                                    <span>🔒</span>
-                                    <span>Operatör Görünümü</span>
-                                </div>
-                            </div>
-                        ) : (
-                            /* COMPANY ADMIN VIEW: Full Account Balance Cards Grid */
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                                gap: 'var(--space-4)',
-                                marginBottom: 'var(--space-6)'
-                            }}>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: 'var(--space-4)',
+                            marginBottom: 'var(--space-6)'
+                        }}>
                             {data.accountSummaries.map((summary: any) => {
                                 const acc = summary.account;
                                 const openingBalance = summary.openingBalance || 0;
@@ -706,96 +644,100 @@ export default function CollectionsPage() {
                                             </div>
                                         </div>
 
-                                        {/* Breakdown details */}
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '1fr 1fr',
-                                            gap: '6px',
-                                            paddingTop: '8px',
-                                            borderTop: '1px solid var(--border-primary)',
-                                            fontSize: '11px'
-                                        }}>
-                                            <div style={{ gridColumn: 'span 2', paddingBottom: '4px', borderBottom: '1px dashed var(--border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>Önceki Aydan Devir: </span>
-                                                <span style={{ fontWeight: 600, color: openingBalance >= 0 ? 'var(--text-secondary)' : 'var(--color-danger)' }}>
-                                                    {formatCurrency(openingBalance)}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>Bu Ay Tahsilat: </span>
-                                                <span style={{ fontWeight: 600 }}>{formatCurrency(totalCollected)}</span>
-                                            </div>
-                                            <div>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>Bu Ay Gider: </span>
-                                                <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalExpenses)}</span>
-                                            </div>
-                                            {totalTransfersIn > 0 && (
+                                        {/* Breakdown details - Sadece Firma Adminine göster, Operatörden gizle */}
+                                        {!isOperatorOnly && (
+                                            <div style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr 1fr',
+                                                gap: '6px',
+                                                paddingTop: '8px',
+                                                borderTop: '1px solid var(--border-primary)',
+                                                fontSize: '11px'
+                                            }}>
+                                                <div style={{ gridColumn: 'span 2', paddingBottom: '4px', borderBottom: '1px dashed var(--border-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Önceki Aydan Devir: </span>
+                                                    <span style={{ fontWeight: 600, color: openingBalance >= 0 ? 'var(--text-secondary)' : 'var(--color-danger)' }}>
+                                                        {formatCurrency(openingBalance)}
+                                                    </span>
+                                                </div>
                                                 <div>
-                                                    <span style={{ color: 'var(--text-tertiary)' }}>Giren Virman: </span>
-                                                    <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>+{formatCurrency(totalTransfersIn)}</span>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Bu Ay Tahsilat: </span>
+                                                    <span style={{ fontWeight: 600 }}>{formatCurrency(totalCollected)}</span>
                                                 </div>
-                                            )}
-                                            {totalTransfersOut > 0 && (
                                                 <div>
-                                                    <span style={{ color: 'var(--text-tertiary)' }}>Çıkan Virman: </span>
-                                                    <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalTransfersOut)}</span>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Bu Ay Gider: </span>
+                                                    <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalExpenses)}</span>
                                                 </div>
-                                            )}
-                                            <div>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>Onaylı: </span>
-                                                <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(totalApproved)}</span>
-                                            </div>
-                                            <div>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>Bekleyen: </span>
-                                                <span style={{ fontWeight: 600, color: totalPending > 0 ? '#f59e0b' : 'var(--text-tertiary)' }}>{formatCurrency(totalPending)}</span>
-                                            </div>
-                                            {totalSettled > 0 && (
-                                                <div style={{ gridColumn: 'span 2', paddingTop: '4px', borderTop: '1px dashed var(--border-primary)', display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span style={{ color: 'var(--text-tertiary)' }}>Teslim Alınan (Sıfırlama): </span>
-                                                    <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalSettled)}</span>
+                                                {totalTransfersIn > 0 && (
+                                                    <div>
+                                                        <span style={{ color: 'var(--text-tertiary)' }}>Giren Virman: </span>
+                                                        <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>+{formatCurrency(totalTransfersIn)}</span>
+                                                    </div>
+                                                )}
+                                                {totalTransfersOut > 0 && (
+                                                    <div>
+                                                        <span style={{ color: 'var(--text-tertiary)' }}>Çıkan Virman: </span>
+                                                        <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalTransfersOut)}</span>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Onaylı: </span>
+                                                    <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(totalApproved)}</span>
                                                 </div>
-                                            )}
-                                        </div>
+                                                <div>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>Bekleyen: </span>
+                                                    <span style={{ fontWeight: 600, color: totalPending > 0 ? '#f59e0b' : 'var(--text-tertiary)' }}>{formatCurrency(totalPending)}</span>
+                                                </div>
+                                                {totalSettled > 0 && (
+                                                    <div style={{ gridColumn: 'span 2', paddingTop: '4px', borderTop: '1px dashed var(--border-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                                        <span style={{ color: 'var(--text-tertiary)' }}>Teslim Alınan (Sıfırlama): </span>
+                                                        <span style={{ fontWeight: 600, color: 'var(--color-danger)' }}>-{formatCurrency(totalSettled)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
                         </div>
-                    ))}
+                    )}
 
-                    {!isOperatorOnly && (
-                        <>
-                            {/* Navigation Tabs */}
-                            <div className="filter-bar" style={{ marginBottom: 'var(--space-4)' }}>
+                    {/* Navigation Tabs */}
+                    <div className="filter-bar" style={{ marginBottom: 'var(--space-4)' }}>
                         <button
                             className={`filter-pill ${activeTab === 'PAYMENTS' ? 'active' : ''}`}
                             onClick={() => setActiveTab('PAYMENTS')}
                         >
                             📋 Tahsilatlar ({data.payments.length})
                         </button>
-                        <button
-                            className={`filter-pill ${activeTab === 'EXPENSES' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('EXPENSES')}
-                        >
-                            📉 Giderler & Harcamalar ({data.expenses.length})
-                        </button>
-                        <button
-                            className={`filter-pill ${activeTab === 'TRANSFERS' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('TRANSFERS')}
-                        >
-                            🔄 Virman & Transferler ({data.transfers?.length || 0})
-                        </button>
-                        <button
-                            className={`filter-pill ${activeTab === 'SETTLEMENTS' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('SETTLEMENTS')}
-                        >
-                            🏛️ Kasa Sıfırlama & Çekimler ({data.settlements.length})
-                        </button>
-                        <button
-                            className={`filter-pill ${activeTab === 'USERS' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('USERS')}
-                        >
-                            👤 Personel Bazlı Rapor
-                        </button>
+                        {!isOperatorOnly && (
+                            <>
+                                <button
+                                    className={`filter-pill ${activeTab === 'EXPENSES' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('EXPENSES')}
+                                >
+                                    📉 Giderler & Harcamalar ({data.expenses.length})
+                                </button>
+                                <button
+                                    className={`filter-pill ${activeTab === 'TRANSFERS' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('TRANSFERS')}
+                                >
+                                    🔄 Virman & Transferler ({data.transfers?.length || 0})
+                                </button>
+                                <button
+                                    className={`filter-pill ${activeTab === 'SETTLEMENTS' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('SETTLEMENTS')}
+                                >
+                                    🏛️ Kasa Sıfırlama & Çekimler ({data.settlements.length})
+                                </button>
+                                <button
+                                    className={`filter-pill ${activeTab === 'USERS' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('USERS')}
+                                >
+                                    👤 Personel Bazlı Rapor
+                                </button>
+                            </>
+                        )}
                     </div>
 
                     {/* Tab 1: Payments */}
@@ -818,12 +760,12 @@ export default function CollectionsPage() {
                                                 <th>Tahsil Eden</th>
                                                 <th>Yöntem / Kasa</th>
                                                 <th>Tutar</th>
-                                                <th>Müdür Onayı (Zarf / Kasa Kontrol)</th>
+                                                {!isOperatorOnly && <th>Müdür Onayı (Zarf / Kasa Kontrol)</th>}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {data.payments.map((p: any) => (
-                                                <tr key={p.id} style={{ background: p.isApproved ? 'transparent' : 'rgba(245, 158, 11, 0.05)' }}>
+                                                <tr key={p.id} style={{ background: !isOperatorOnly && !p.isApproved ? 'rgba(245, 158, 11, 0.05)' : 'transparent' }}>
                                                     <td style={{ fontSize: '12px' }}>{formatDateTime(p.createdAt)}</td>
                                                     <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
                                                         <Link href={`/tickets/${p.ticket.id}`} style={{ color: 'var(--brand-primary)', textDecoration: 'underline' }}>
@@ -848,58 +790,62 @@ export default function CollectionsPage() {
                                                             <span className="badge badge-info" style={{ fontSize: '11px' }}>
                                                                 {p.account?.name || p.method}
                                                             </span>
-                                                            <button
-                                                                className="btn btn-ghost btn-xs"
-                                                                onClick={() => handleOpenPayTransferModal(p)}
-                                                                title="Bu Ödemenin Kasasını / Hesabını Değiştir / Aktar"
-                                                                style={{ fontSize: '11px', padding: '2px 6px', color: 'var(--brand-primary)' }}
-                                                            >
-                                                                🔄 Aktar
-                                                            </button>
+                                                            {isManager && (
+                                                                <button
+                                                                    className="btn btn-ghost btn-xs"
+                                                                    onClick={() => handleOpenPayTransferModal(p)}
+                                                                    title="Bu Ödemenin Kasasını / Hesabını Değiştir / Aktar"
+                                                                    style={{ fontSize: '11px', padding: '2px 6px', color: 'var(--brand-primary)' }}
+                                                                >
+                                                                    🔄 Aktar
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-success)' }}>
                                                         {formatCurrency(p.amount)}
                                                     </td>
-                                                    <td>
-                                                        {p.method !== 'CASH' ? (
-                                                            <span className="badge badge-info" style={{ fontSize: '11px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--brand-primary)', border: '1px solid rgba(59, 130, 246, 0.3)' }} title="Elektronik banka / POS transferi (Otomatik Onaylı)">
-                                                                ⚡ Elektronik (Otomatik Onaylı)
-                                                            </span>
-                                                        ) : p.isApproved ? (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <span className="badge badge-success" title={`Onaylayan: ${p.approvedBy?.name || 'Müdür'} (${formatDateTime(p.approvedAt)})`}>
-                                                                    ✅ Onaylandı ({p.approvedBy?.name || 'Müdür'})
+                                                    {!isOperatorOnly && (
+                                                        <td>
+                                                            {p.method !== 'CASH' ? (
+                                                                <span className="badge badge-info" style={{ fontSize: '11px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--brand-primary)', border: '1px solid rgba(59, 130, 246, 0.3)' }} title="Elektronik banka / POS transferi (Otomatik Onaylı)">
+                                                                    ⚡ Elektronik (Otomatik Onaylı)
                                                                 </span>
-                                                                {isManager && (
-                                                                    <button
-                                                                        className="btn btn-ghost btn-xs"
-                                                                        onClick={() => handleUnapprove(p.id)}
-                                                                        title="Onayı Kaldır"
-                                                                        style={{ fontSize: '11px', color: 'var(--color-danger)' }}
-                                                                    >
-                                                                        ✕ İptal
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div>
-                                                                {isManager ? (
-                                                                    <button
-                                                                        className="btn btn-primary btn-xs"
-                                                                        onClick={() => handleApprove(p.id)}
-                                                                        style={{ background: '#f59e0b', borderColor: '#d97706', color: '#fff' }}
-                                                                    >
-                                                                        ⏳ Onayla & Kasa/Zarf Al
-                                                                    </button>
-                                                                ) : (
-                                                                    <span className="badge badge-warning" style={{ fontSize: '11px' }}>
-                                                                        ⏳ Müdür Onayı Bekliyor
+                                                            ) : p.isApproved ? (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <span className="badge badge-success" title={`Onaylayan: ${p.approvedBy?.name || 'Müdür'} (${formatDateTime(p.approvedAt)})`}>
+                                                                        ✅ Onaylandı ({p.approvedBy?.name || 'Müdür'})
                                                                     </span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </td>
+                                                                    {isManager && (
+                                                                        <button
+                                                                            className="btn btn-ghost btn-xs"
+                                                                            onClick={() => handleUnapprove(p.id)}
+                                                                            title="Onayı Kaldır"
+                                                                            style={{ fontSize: '11px', color: 'var(--color-danger)' }}
+                                                                        >
+                                                                            ✕ İptal
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div>
+                                                                    {isManager ? (
+                                                                        <button
+                                                                            className="btn btn-primary btn-xs"
+                                                                            onClick={() => handleApprove(p.id)}
+                                                                            style={{ background: '#f59e0b', borderColor: '#d97706', color: '#fff' }}
+                                                                        >
+                                                                            ⏳ Onayla & Kasa/Zarf Al
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="badge badge-warning" style={{ fontSize: '11px' }}>
+                                                                            ⏳ Müdür Onayı Bekliyor
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -1221,8 +1167,6 @@ export default function CollectionsPage() {
                             </div>
                         );
                     })()}
-                        </>
-                    )}
                 </>
             )}
 
