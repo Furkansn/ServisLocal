@@ -15,11 +15,15 @@ const OPERATOR_LINKS = [
     { href: '/reports', label: 'Raporlar', icon: '📈' },
     { href: '/tickets/new', label: 'Yeni Fiş', icon: '➕' },
     { href: '/customers', label: 'Müşteri & Tamirci', icon: '👥' },
-    { href: '/products', label: 'Ürünler & Stok', icon: '📦' },
     { href: '/ne-takilir', label: 'Ne Takılır?', icon: '💡' },
     { href: '/price-list', label: 'Fiyat Listesi', icon: '💵' },
-    { href: '/personnel', label: 'Personel', icon: '👤' },
     { href: '/tv-display', label: 'TV Ekranı', icon: '📺' },
+];
+
+const SETTINGS_LINKS = [
+    { href: '/products', label: 'Ürünler & Stok', icon: '📦' },
+    { href: '/personnel', label: 'Personel', icon: '👤' },
+    { href: '/template-builder', label: 'Şablon Ayarları', icon: '⚙️' },
 ];
 
 export default function Sidebar() {
@@ -101,14 +105,20 @@ export default function Sidebar() {
                 })}
                 
                 <div className="sidebar-section-label" style={{ marginTop: '16px' }}>Ayarlar</div>
-                <Link
-                    href="/template-builder"
-                    title={isCollapsed ? "Şablon Ayarları" : undefined}
-                    className={`sidebar-link ${pathname === '/template-builder' ? 'active' : ''}`}
-                >
-                    <span className="sidebar-link-icon">⚙️</span>
-                    <span className="sidebar-link-text">Şablon Ayarları</span>
-                </Link>
+                {SETTINGS_LINKS.map((link) => {
+                    const isActive = pathname.startsWith(link.href);
+                    return (
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            title={isCollapsed ? link.label : undefined}
+                            className={`sidebar-link ${isActive ? 'active' : ''}`}
+                        >
+                            <span className="sidebar-link-icon">{link.icon}</span>
+                            <span className="sidebar-link-text">{link.label}</span>
+                        </Link>
+                    );
+                })}
             </nav>
 
             {/* User */}
