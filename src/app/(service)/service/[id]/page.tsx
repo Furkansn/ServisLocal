@@ -59,7 +59,6 @@ export default function ServiceProcessPage() {
     const [pendingPhotoType, setPendingPhotoType] = useState<'BROKEN_DEVICE' | 'BARCODE' | 'WORKING_DEVICE' | 'OTHER'>('BROKEN_DEVICE');
     const photoInputRef = useRef<HTMLInputElement>(null);
     const photoSectionRef = useRef<HTMLDivElement>(null);
-    const [photoWarningActive, setPhotoWarningActive] = useState(false);
 
     // Device Condition
     const [deviceCondition, setDeviceCondition] = useState('');
@@ -213,7 +212,6 @@ export default function ServiceProcessPage() {
                     },
                 ]);
             }
-            setPhotoWarningActive(false);
             setFormError('');
         } catch (err: any) {
             alert('Fotoğraf işlenirken hata: ' + err.message);
@@ -303,18 +301,10 @@ export default function ServiceProcessPage() {
         setFormError('');
 
         if (!isPhotoSatisfied) {
-            setPhotoWarningActive(true);
-            setFormError(`Zorunlu fotoğraf eksik! En az ${requiredPhotos} fotoğraf çekmelisiniz (${totalPhotoCount}/${requiredPhotos}).`);
-            
             // Smoothly scroll and center the photo section into viewport
             if (photoSectionRef.current) {
                 photoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-
-            // Keep pulsing highlight active for 5 seconds
-            setTimeout(() => {
-                setPhotoWarningActive(false);
-            }, 5000);
             return;
         }
 
@@ -1039,45 +1029,16 @@ export default function ServiceProcessPage() {
             {/* 5. Photo Capture Section (Mandatory Requirement) */}
             <div
                 ref={photoSectionRef}
-                className={photoWarningActive ? 'attention-pulse-danger' : ''}
                 style={{
-                    background: photoWarningActive ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-secondary)',
-                    border: photoWarningActive ? '2px solid #ef4444' : '1px solid var(--border-primary)',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-primary)',
                     borderRadius: '12px',
                     padding: '14px',
                     marginBottom: '14px',
-                    boxShadow: photoWarningActive ? '0 0 24px rgba(239, 68, 68, 0.35)' : 'var(--shadow-sm)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: 'var(--shadow-sm)',
                     scrollMarginTop: '20px',
                 }}
             >
-                {/* Visual Attention Banner when photos are missing */}
-                {photoWarningActive && (
-                    <div
-                        style={{
-                            background: 'rgba(239, 68, 68, 0.15)',
-                            border: '1px solid #ef4444',
-                            borderRadius: '10px',
-                            padding: '10px 14px',
-                            marginBottom: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            color: '#ef4444',
-                        }}
-                    >
-                        <span style={{ fontSize: '24px', lineHeight: 1 }}>⚠️</span>
-                        <div>
-                            <div style={{ fontWeight: 800, fontSize: '13.5px' }}>Fotoğraf Çekilmedi!</div>
-                            <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', marginTop: '2px' }}>
-                                {isPickup
-                                    ? `Cihazı teslim almak için en az ${requiredPhotos} fotoğraf (Arızalı Cihaz + Barkod) çekmeli veya yüklemelisiniz.`
-                                    : `Cihazı teslim etmek için en az ${requiredPhotos} fotoğraf (Çalışır Hali) çekmeli veya yüklemelisiniz.`}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '16px' }}>📷</span>
@@ -1594,7 +1555,6 @@ export default function ServiceProcessPage() {
                     borderTop: '1px solid var(--border-primary)',
                     padding: '8px 14px',
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
                     boxShadow: '0 -4px 14px rgba(0,0,0,0.12)',
@@ -1602,29 +1562,6 @@ export default function ServiceProcessPage() {
                     backdropFilter: 'blur(8px)',
                 }}
             >
-                {/* Instant Feedback Badge directly above the button when photos are missing */}
-                {photoWarningActive && (
-                    <div
-                        onClick={() => photoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                        style={{
-                            background: '#ef4444',
-                            color: '#ffffff',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            padding: '6px 14px',
-                            borderRadius: '20px',
-                            marginBottom: '8px',
-                            boxShadow: '0 4px 14px rgba(239, 68, 68, 0.45)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        <span>📸 Fotoğraf eksik! En az {requiredPhotos} adet çekmelisiniz ({totalPhotoCount}/{requiredPhotos}) ⬆️</span>
-                    </div>
-                )}
-
                 <div style={{ maxWidth: '680px', width: '100%', display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <button
                         type="button"

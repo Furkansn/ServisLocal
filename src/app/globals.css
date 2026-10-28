@@ -1697,27 +1697,3 @@ select.select {
 .skeleton-pulse {
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
-
-/* ─── Attention Pulse Animation (e.g. Missing photos) ───── */
-@keyframes highlight-pulse-danger {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
-  }
-  30% {
-    transform: scale(1.025);
-    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0.25);
-  }
-  60% {
-    transform: scale(1.01);
-    box-shadow: 0 0 0 16px rgba(239, 68, 68, 0.1);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-  }
-}
-
-.attention-pulse-danger {
-  animation: highlight-pulse-danger 1.2s ease-in-out 3;
-}
