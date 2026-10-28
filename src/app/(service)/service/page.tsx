@@ -1164,6 +1164,7 @@ function WorkOrderCard({
     onShowNotes?: () => void;
 }) {
     const [showNav, setShowNav] = useState<string | null>(null);
+    const [isOpening, setIsOpening] = useState(false);
     const isTask = order.type === 'TASK';
     const isCompleted = order.status === 'COMPLETED';
 
@@ -1434,10 +1435,18 @@ function WorkOrderCard({
                         <>
                             <Link
                                 href={`/service/${order.id}`}
+                                onClick={() => setIsOpening(true)}
                                 className="btn btn-primary btn-sm"
-                                style={{ flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                                style={{
+                                    flex: 2,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px',
+                                    opacity: isOpening ? 0.75 : 1,
+                                }}
                             >
-                                📸 İşlem Yap
+                                {isOpening ? '⏳ Açılıyor...' : '📸 İşlem Yap'}
                             </Link>
                             <button className="btn btn-warning btn-sm" style={{ flex: 1 }} onClick={onPostpone}>
                                 ⏳ Ertele

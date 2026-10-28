@@ -1677,3 +1677,23 @@ select.select {
   background: var(--brand-primary-light);
   color: var(--brand-primary);
 }
+
+/* ─── Skeleton Loading Animation ───────────────────────── */
+@keyframes skeleton-shimmer {
+  0% {
+    opacity: 0.5;
+    background-color: var(--bg-tertiary);
+  }
+  50% {
+    opacity: 0.85;
+    background-color: var(--border-primary);
+  }
+  100% {
+    opacity: 0.5;
+    background-color: var(--bg-tertiary);
+  }
+}
+
+.skeleton-pulse {
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}

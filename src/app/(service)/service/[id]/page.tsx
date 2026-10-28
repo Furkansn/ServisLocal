@@ -27,6 +27,18 @@ import {
     getLocalDateString,
 } from '@/lib/constants';
 
+function formatWhatsAppLink(phone: string) {
+    if (!phone) return '#';
+    let digits = phone.replace(/\D/g, '');
+    if (!digits) return '#';
+    if (digits.startsWith('0')) {
+        digits = '90' + digits.slice(1);
+    } else if (!digits.startsWith('90') && digits.length === 10) {
+        digits = '90' + digits;
+    }
+    return `https://wa.me/${digits}`;
+}
+
 export default function ServiceProcessPage() {
     const params = useParams();
     const recordId = (params?.id as string) || '';
@@ -376,9 +388,67 @@ export default function ServiceProcessPage() {
 
     if (loading) {
         return (
-            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                <div style={{ fontSize: '28px', marginBottom: '8px' }}>🔄</div>
-                <div>İşlem bilgileri yükleniyor...</div>
+            <div style={{ maxWidth: '680px', margin: '0 auto', padding: '12px 14px calc(140px + env(safe-area-inset-bottom, 0px)) 14px' }}>
+                {/* Top Bar Skeleton */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid var(--border-primary)' }}>
+                    <div className="skeleton-pulse" style={{ width: '100px', height: '32px', borderRadius: '8px' }} />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <div className="skeleton-pulse" style={{ width: '110px', height: '26px', borderRadius: '20px' }} />
+                        <div className="skeleton-pulse" style={{ width: '70px', height: '26px', borderRadius: '6px' }} />
+                    </div>
+                </div>
+
+                {/* Customer Card Skeleton */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div>
+                            <div className="skeleton-pulse" style={{ width: '150px', height: '20px', borderRadius: '6px', marginBottom: '6px' }} />
+                            <div className="skeleton-pulse" style={{ width: '110px', height: '14px', borderRadius: '4px' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <div className="skeleton-pulse" style={{ width: '60px', height: '30px', borderRadius: '6px' }} />
+                            <div className="skeleton-pulse" style={{ width: '50px', height: '30px', borderRadius: '6px' }} />
+                        </div>
+                    </div>
+                    <div className="skeleton-pulse" style={{ width: '100%', height: '14px', borderRadius: '4px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <div className="skeleton-pulse" style={{ flex: 1, height: '28px', borderRadius: '6px' }} />
+                        <div className="skeleton-pulse" style={{ flex: 1, height: '28px', borderRadius: '6px' }} />
+                    </div>
+                </div>
+
+                {/* Notes Card Skeleton */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+                    <div className="skeleton-pulse" style={{ width: '160px', height: '18px', borderRadius: '4px', marginBottom: '10px' }} />
+                    <div className="skeleton-pulse" style={{ width: '100%', height: '48px', borderRadius: '8px', marginBottom: '8px' }} />
+                    <div className="skeleton-pulse" style={{ width: '100%', height: '34px', borderRadius: '6px' }} />
+                </div>
+
+                {/* Device Card Skeleton */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div className="skeleton-pulse" style={{ width: '140px', height: '18px', borderRadius: '4px' }} />
+                        <div className="skeleton-pulse" style={{ width: '80px', height: '20px', borderRadius: '10px' }} />
+                    </div>
+                    <div className="skeleton-pulse" style={{ width: '100%', height: '40px', borderRadius: '8px' }} />
+                </div>
+
+                {/* Financial Card Skeleton */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+                    <div className="skeleton-pulse" style={{ width: '130px', height: '18px', borderRadius: '4px', marginBottom: '10px' }} />
+                    <div className="skeleton-pulse" style={{ width: '100%', height: '16px', borderRadius: '4px', marginBottom: '6px' }} />
+                    <div className="skeleton-pulse" style={{ width: '100%', height: '16px', borderRadius: '4px', marginBottom: '6px' }} />
+                    <div className="skeleton-pulse" style={{ width: '100%', height: '24px', borderRadius: '6px' }} />
+                </div>
+
+                {/* Photo Capture Skeleton */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+                    <div className="skeleton-pulse" style={{ width: '150px', height: '18px', borderRadius: '4px', marginBottom: '10px' }} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                        <div className="skeleton-pulse" style={{ height: '60px', borderRadius: '8px' }} />
+                        <div className="skeleton-pulse" style={{ height: '60px', borderRadius: '8px' }} />
+                    </div>
+                </div>
             </div>
         );
     }
@@ -392,7 +462,7 @@ export default function ServiceProcessPage() {
     const mapsQuery = encodeURIComponent(address);
 
     return (
-        <div style={{ maxWidth: '680px', margin: '0 auto', padding: '12px 14px 110px 14px' }}>
+        <div style={{ maxWidth: '680px', margin: '0 auto', padding: '12px 14px calc(140px + env(safe-area-inset-bottom, 0px)) 14px' }}>
             {/* Top Navigation Bar */}
             <div
                 style={{
@@ -477,21 +547,23 @@ export default function ServiceProcessPage() {
             >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                     <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
                                 {contact?.name || 'Müşteri Bilgisi Yok'}
                             </h2>
                             <span
                                 style={{
-                                    fontSize: '10.5px',
-                                    padding: '2px 7px',
-                                    borderRadius: '12px',
+                                    fontSize: '9.5px',
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
                                     fontWeight: 600,
-                                    background: isCustomer ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                    color: isCustomer ? '#2563eb' : '#d97706',
+                                    background: isCustomer ? 'rgba(59, 130, 246, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                                    color: isCustomer ? 'var(--brand-primary)' : '#d97706',
+                                    border: `1px solid ${isCustomer ? 'rgba(59, 130, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`,
+                                    lineHeight: '14px',
                                 }}
                             >
-                                {isCustomer ? 'Bireysel Müşteri' : 'Yetkili Tamirci'}
+                                {isCustomer ? 'Müşteri' : 'Tamirci'}
                             </span>
                         </div>
                         {phone && (
@@ -512,7 +584,7 @@ export default function ServiceProcessPage() {
                                 📞 Ara
                             </a>
                             <a
-                                href={`https://wa.me/${phone.replace(/\D/g, '')}`}
+                                href={formatWhatsAppLink(phone)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="btn btn-secondary btn-sm"
@@ -1466,21 +1538,22 @@ export default function ServiceProcessPage() {
                 )}
             </div>
 
-            {/* Sticky Bottom Bar with Primary Action */}
+            {/* Sticky Bottom Bar with Primary Action (Positioned cleanly above the bottom navbar) */}
             <div
                 style={{
                     position: 'fixed',
-                    bottom: 0,
+                    bottom: 'calc(54px + env(safe-area-inset-bottom, 0px))',
                     left: 0,
                     right: 0,
                     background: 'var(--bg-secondary)',
                     borderTop: '1px solid var(--border-primary)',
-                    padding: '12px 16px',
+                    padding: '8px 14px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
-                    zIndex: 90,
+                    boxShadow: '0 -4px 14px rgba(0,0,0,0.12)',
+                    zIndex: 95,
+                    backdropFilter: 'blur(8px)',
                 }}
             >
                 <div style={{ maxWidth: '680px', width: '100%', display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -1489,8 +1562,8 @@ export default function ServiceProcessPage() {
                         className={`btn ${isPickup ? 'btn-primary' : 'btn-success'}`}
                         style={{
                             flex: 1,
-                            padding: '12px',
-                            fontSize: '15px',
+                            padding: '11px',
+                            fontSize: '14.5px',
                             fontWeight: 700,
                             borderRadius: '10px',
                             display: 'flex',
