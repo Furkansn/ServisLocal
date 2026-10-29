@@ -56,7 +56,7 @@ export default auth((req) => {
 
     // Role-based route protection
     // Operator routes
-    const operatorRoutes = ['/tickets', '/customers', '/repairers', '/collections', '/personnel', '/daily-planning', '/products', '/tv-display', '/price-list', '/template-builder', '/technician-operations'];
+    const operatorRoutes = ['/tickets', '/customers', '/repairers', '/collections', '/personnel', '/daily-planning', '/products', '/tv-display', '/price-list', '/template-builder', '/technician-operations', '/ne-takilir'];
     if (operatorRoutes.some((r) => pathname.startsWith(r))) {
         if (!isOperator) {
             if (userRoles.includes('TECHNICIAN')) {
@@ -70,14 +70,14 @@ export default auth((req) => {
     }
 
     // Service staff routes
-    if (pathname.startsWith('/service')) {
+    if (pathname === '/service' || pathname.startsWith('/service/')) {
         if (!userRoles.includes('SERVICE_STAFF') && !isCompanyAdmin) {
             return NextResponse.redirect(new URL('/login', req.url));
         }
     }
 
     // Technician routes
-    if (pathname.startsWith('/technician')) {
+    if (pathname === '/technician' || pathname.startsWith('/technician/')) {
         if (!userRoles.includes('TECHNICIAN') && !isCompanyAdmin) {
             return NextResponse.redirect(new URL('/login', req.url));
         }
