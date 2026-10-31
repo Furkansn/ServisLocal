@@ -480,16 +480,7 @@ export default function TVDisplayPage() {
                             marginBottom: '8px',
                             lineHeight: 1.3,
                         }}>
-                            TOPLAM TAMİR BEKLEYEN CİHAZ SAYISI
-                        </div>
-                        <div style={{
-                            fontSize: '46px',
-                            fontWeight: 900,
-                            color: '#ffffff',
-                            lineHeight: 1,
-                            marginBottom: '14px',
-                        }}>
-                            {data?.waitingCount || 0}
+                            Açık Fişler
                         </div>
 
                         {/* Breakdown: Müşteri vs Tamirci */}
