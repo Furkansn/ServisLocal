@@ -174,13 +174,17 @@ model Customer {
 model CustomerNote {
   id          String   @id @default(uuid())
   customerId  String
+  ticketId    String?
   personnelId String
   content     String
   createdAt   DateTime @default(now())
 
-  customer  Customer  @relation(fields: [customerId], references: [id])
-  personnel Personnel @relation(fields: [personnelId], references: [id])
+  customer  Customer      @relation(fields: [customerId], references: [id])
+  ticket    RepairTicket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  personnel Personnel     @relation(fields: [personnelId], references: [id])
 
+  @@index([ticketId])
+  @@index([customerId])
   @@map("customer_notes")
 }
 
@@ -204,13 +208,17 @@ model Repairer {
 model RepairerNote {
   id          String   @id @default(uuid())
   repairerId  String
+  ticketId    String?
   personnelId String
   content     String
   createdAt   DateTime @default(now())
 
-  repairer  Repairer  @relation(fields: [repairerId], references: [id])
-  personnel Personnel @relation(fields: [personnelId], references: [id])
+  repairer  Repairer      @relation(fields: [repairerId], references: [id])
+  ticket    RepairTicket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  personnel Personnel     @relation(fields: [personnelId], references: [id])
 
+  @@index([ticketId])
+  @@index([repairerId])
   @@map("repairer_notes")
 }
 
@@ -261,6 +269,8 @@ model RepairTicket {
   serviceRecords     ServiceRecord[]
   statusHistory      StatusHistory[]
   auditLogs          AuditLog[]
+  customerNotes      CustomerNote[]
+  repairerNotes      RepairerNote[]
 
   @@index([status])
   @@index([customerId])

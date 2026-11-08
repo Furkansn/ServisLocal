@@ -88,7 +88,7 @@ export default function ServicePage() {
 
     // Contact Notes Modal state
     const [showNotesModal, setShowNotesModal] = useState(false);
-    const [notesContact, setNotesContact] = useState<{ id: string; name: string; type: 'CUSTOMER' | 'REPAIRER'; ticketNotes?: string; orderNotes?: string } | null>(null);
+    const [notesContact, setNotesContact] = useState<{ id: string; name: string; type: 'CUSTOMER' | 'REPAIRER'; ticketNotes?: string; orderNotes?: string; ticketId?: string; ticketNo?: string } | null>(null);
     const [contactNotes, setContactNotes] = useState<any[]>([]);
     const [isLoadingNotes, setIsLoadingNotes] = useState(false);
     const [newNote, setNewNote] = useState('');
@@ -337,12 +337,20 @@ export default function ServicePage() {
         }
     };
 
-    const handleShowNotes = async (contactId: string, name: string, type: 'CUSTOMER' | 'REPAIRER', ticketNotes?: string, orderNotes?: string) => {
-        setNotesContact({ id: contactId, name, type, ticketNotes, orderNotes });
+    const handleShowNotes = async (
+        contactId: string,
+        name: string,
+        type: 'CUSTOMER' | 'REPAIRER',
+        ticketNotes?: string,
+        orderNotes?: string,
+        ticketId?: string,
+        ticketNo?: string
+    ) => {
+        setNotesContact({ id: contactId, name, type, ticketNotes, orderNotes, ticketId, ticketNo });
         setShowNotesModal(true);
         setIsLoadingNotes(true);
         try {
-            const data = await getContactNotes(contactId, type);
+            const data = await getContactNotes(contactId, type, ticketId);
             setContactNotes(data);
         } catch (err: any) {
             alert('Notlar yüklenemedi: ' + err.message);
@@ -354,9 +362,9 @@ export default function ServicePage() {
     const handleAddNote = async () => {
         if (!notesContact || !newNote.trim()) return;
         try {
-            await addContactNote(notesContact.id, notesContact.type, newNote.trim());
+            await addContactNote(notesContact.id, notesContact.type, newNote.trim(), notesContact.ticketId);
             setNewNote('');
-            const data = await getContactNotes(notesContact.id, notesContact.type);
+            const data = await getContactNotes(notesContact.id, notesContact.type, notesContact.ticketId);
             setContactNotes(data);
             load();
         } catch (err: any) {
@@ -479,7 +487,9 @@ export default function ServicePage() {
                                         contactName,
                                         order.ticket?.customerId ? 'CUSTOMER' : 'REPAIRER',
                                         order.ticket?.notes || undefined,
-                                        order.notes || undefined
+                                        order.notes || undefined,
+                                        order.ticketId || undefined,
+                                        order.ticket?.ticketNo || undefined
                                     );
                                 }
                             }}
@@ -1090,7 +1100,7 @@ export default function ServicePage() {
                 <div className="modal-overlay" onClick={() => setShowNotesModal(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
                         <div className="modal-header">
-                            <h3 className="modal-title">{notesContact.name} - Notlar</h3>
+                            <h3 className="modal-title">{notesContact.name} {notesContact.ticketNo ? `(Fiş #${notesContact.ticketNo})` : ''} - Notlar</h3>
                             <button className="btn btn-close" onClick={() => setShowNotesModal(false)}>✕</button>
                         </div>
                         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>

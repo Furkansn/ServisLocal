@@ -48,7 +48,7 @@ export default function DailyPlanningPage() {
 
     // Notes modal state
     const [showNotesModal, setShowNotesModal] = useState(false);
-    const [notesContact, setNotesContact] = useState<{ id: string, name: string, type: 'CUSTOMER' | 'REPAIRER' } | null>(null);
+    const [notesContact, setNotesContact] = useState<{ id: string, name: string, type: 'CUSTOMER' | 'REPAIRER', ticketId?: string, ticketNo?: string } | null>(null);
     const [contactNotes, setContactNotes] = useState<any[]>([]);
     const [newNote, setNewNote] = useState('');
     const [isLoadingNotes, setIsLoadingNotes] = useState(false);
@@ -176,20 +176,20 @@ export default function DailyPlanningPage() {
     };
 
     const handleShowNotes = async (contactId: string, name: string, type: 'CUSTOMER' | 'REPAIRER', record: ServiceRecord) => {
-        setNotesContact({ id: contactId, name, type });
+        const ticket = record.ticket as any;
+        setNotesContact({ id: contactId, name, type, ticketId: ticket?.id, ticketNo: ticket?.ticketNo });
         setShowNotesModal(true);
         setIsLoadingNotes(true);
         try {
-            const notes = await getContactNotes(contactId, type);
-            const ticket = record.ticket as any;
+            const notes = await getContactNotes(contactId, type, ticket?.id);
 
             let allVisibleNotes: any[] = [];
 
-            // 1. Customer / Repairer Contact Notes
+            // 1. Ticket Specific Notes
             notes.forEach((n: any) => {
                 allVisibleNotes.push({
                     id: n.id,
-                    tag: '📌 Müşteri Notu',
+                    tag: n.ticket?.ticketNo ? `📌 Fiş Notu (#${n.ticket.ticketNo})` : '📌 Müşteri Notu',
                     content: n.content,
                     createdAt: n.createdAt,
                     personnelName: n.personnel?.name || 'Operatör',
@@ -235,10 +235,28 @@ export default function DailyPlanningPage() {
     const handleAddNote = async () => {
         if (!notesContact || !newNote.trim()) return;
         try {
-            await addContactNote(notesContact.id, notesContact.type, newNote);
+            await addContactNote(notesContact.id, notesContact.type, newNote, notesContact.ticketId);
             setNewNote('');
-            const notes = await getContactNotes(notesContact.id, notesContact.type);
-            setContactNotes(notes);
+            const notes = await getContactNotes(notesContact.id, notesContact.type, notesContact.ticketId);
+
+            let allVisibleNotes: any[] = [];
+            notes.forEach((n: any) => {
+                allVisibleNotes.push({
+                    id: n.id,
+                    tag: n.ticket?.ticketNo ? `📌 Fiş Notu (#${n.ticket.ticketNo})` : '📌 Müşteri Notu',
+                    content: n.content,
+                    createdAt: n.createdAt,
+                    personnelName: n.personnel?.name || 'Operatör',
+                    tagBg: 'rgba(59, 130, 246, 0.12)',
+                    tagColor: 'var(--brand-primary)',
+                });
+            });
+
+            const nonContactNotes = contactNotes.filter(n => n.id === 'device-note' || n.id?.startsWith('service-note-'));
+            allVisibleNotes.push(...nonContactNotes);
+            allVisibleNotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+            setContactNotes(allVisibleNotes);
             load(false);
         } catch (err: any) { alert(err.message); }
     };
@@ -655,7 +673,7 @@ export default function DailyPlanningPage() {
                 <div className="modal-overlay" onClick={() => setShowNotesModal(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px' }}>
                         <div className="modal-header">
-                            <h3 className="modal-title">📋 {notesContact.name} — Not Geçmişi ve Ekleme</h3>
+                            <h3 className="modal-title">📋 {notesContact.name} {notesContact.ticketNo ? `(Fiş #${notesContact.ticketNo})` : ''} — Not Geçmişi ve Ekleme</h3>
                             <button className="btn btn-close" onClick={() => setShowNotesModal(false)}>✕</button>
                         </div>
                         <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>

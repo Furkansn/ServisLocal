@@ -352,21 +352,15 @@ export async function getServiceRecordById(recordId: string) {
             assignedPersonnel: { select: { id: true, name: true, phone: true } },
             ticket: {
                 include: {
-                    customer: {
-                        include: {
-                            notes: {
-                                include: { personnel: { select: { name: true } } },
-                                orderBy: { createdAt: 'desc' },
-                            },
-                        },
+                    customer: true,
+                    repairer: true,
+                    customerNotes: {
+                        include: { personnel: { select: { name: true } } },
+                        orderBy: { createdAt: 'desc' },
                     },
-                    repairer: {
-                        include: {
-                            notes: {
-                                include: { personnel: { select: { name: true } } },
-                                orderBy: { createdAt: 'desc' },
-                            },
-                        },
+                    repairerNotes: {
+                        include: { personnel: { select: { name: true } } },
+                        orderBy: { createdAt: 'desc' },
                     },
                     brand: { select: { name: true } },
                     accessories: {

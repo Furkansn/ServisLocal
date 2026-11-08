@@ -165,7 +165,7 @@ export default function ServiceProcessPage() {
             setReceiptTemplate(tpl || null);
             setDeviceCondition((rec.ticket as any)?.deviceCondition || '');
 
-            const initialNotes = (rec.ticket as any)?.customer?.notes || (rec.ticket as any)?.repairer?.notes || [];
+            const initialNotes = (rec.ticket as any)?.customerNotes || (rec.ticket as any)?.repairerNotes || [];
             setContactNotes(initialNotes);
 
             // Default remaining payment
@@ -274,9 +274,9 @@ export default function ServiceProcessPage() {
 
         setIsSavingNote(true);
         try {
-            await addContactNote(contact.id, contactType, newNoteText.trim());
+            await addContactNote(contact.id, contactType, newNoteText.trim(), ticket?.id);
             setNewNoteText('');
-            const updatedNotes = await getContactNotes(contact.id, contactType);
+            const updatedNotes = await getContactNotes(contact.id, contactType, ticket?.id);
             setContactNotes(updatedNotes || []);
         } catch (err: any) {
             alert('Not eklenirken hata: ' + err.message);

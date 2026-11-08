@@ -544,9 +544,9 @@ export default function TicketDetailPage() {
         setNoteLoading(true);
         setNoteError('');
         try {
-            await addContactNote(contactId, contactType, newNoteText.trim());
+            await addContactNote(contactId, contactType, newNoteText.trim(), ticketId);
             setNewNoteText('');
-            const updatedNotes = await getContactNotes(contactId, contactType);
+            const updatedNotes = await getContactNotes(contactId, contactType, ticketId);
             setContactNotes(updatedNotes);
         } catch (err: any) {
             setNoteError(err.message);
