@@ -28,6 +28,7 @@ import {
 } from '@/lib/constants';
 import { PrintableReceipt } from '@/components/print/PrintableReceipt';
 import { shareReceiptViaWhatsApp } from '@/lib/whatsapp-receipt';
+import { getReceiptTemplate } from '@/actions/template';
 
 function formatWhatsAppLink(phone: string) {
     if (!phone) return '#';
@@ -107,6 +108,7 @@ export default function ServiceProcessPage() {
     // Revision Mode & WhatsApp Share State
     const [isRevisionMode, setIsRevisionMode] = useState(false);
     const [isSharingReceipt, setIsSharingReceipt] = useState(false);
+    const [receiptTemplate, setReceiptTemplate] = useState<any>(null);
     const hiddenReceiptRef = useRef<HTMLDivElement>(null);
 
     const isRecordCompleted = record?.status === 'COMPLETED';
@@ -142,11 +144,12 @@ export default function ServiceProcessPage() {
         if (!recordId) return;
         setLoading(true);
         try {
-            const [rec, accs, prods, existingPh] = await Promise.all([
+            const [rec, accs, prods, existingPh, tpl] = await Promise.all([
                 getServiceRecordById(recordId),
                 getAccounts(),
                 getProductsByCategory('ACCESSORY'),
                 getServiceRecordPhotos(recordId),
+                getReceiptTemplate('a4'),
             ]);
 
             if (!rec) {
@@ -159,6 +162,7 @@ export default function ServiceProcessPage() {
             setAccounts(accs || []);
             setAccessoriesList(prods || []);
             setExistingPhotos(existingPh || []);
+            setReceiptTemplate(tpl || null);
             setDeviceCondition((rec.ticket as any)?.deviceCondition || '');
 
             const initialNotes = (rec.ticket as any)?.customer?.notes || (rec.ticket as any)?.repairer?.notes || [];
@@ -1780,11 +1784,10 @@ export default function ServiceProcessPage() {
                 style={{
                     position: 'fixed',
                     left: '-9999px',
-                    top: '-9999px',
+                    top: '0px',
                     width: '794px',
-                    zIndex: -1,
+                    zIndex: -9999,
                     pointerEvents: 'none',
-                    opacity: 0,
                 }}
             >
                 <div ref={hiddenReceiptRef}>
@@ -1793,6 +1796,7 @@ export default function ServiceProcessPage() {
                             ...ticket,
                             deviceCondition,
                         }}
+                        template={receiptTemplate}
                     />
                 </div>
             </div>

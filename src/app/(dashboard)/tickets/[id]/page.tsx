@@ -14,6 +14,7 @@ import { STATUS_LABELS, STATUS_COLORS, getNextStatuses, isReadOnly } from '@/lib
 import { CUSTOMER_TYPE_LABELS, SERVICE_RECORD_TYPE_LABELS, REQUEST_TYPE_LABELS, PRIORITY_LABELS, PAYMENT_METHOD_LABELS, OPERATION_TYPE_LABELS, formatDate, formatDateTime, formatCurrency, parseCurrencyInput, getLocalDateString } from '@/lib/constants';
 import { getSystemUsdRate } from '@/actions/currency';
 import { TicketStatus, Role } from '@prisma/client';
+import { getReceiptTemplate } from '@/actions/template';
 import { PrintableReceipt } from '@/components/print/PrintableReceipt';
 import { shareReceiptViaWhatsApp } from '@/lib/whatsapp-receipt';
 import { useRef } from 'react';
@@ -31,6 +32,7 @@ export default function TicketDetailPage() {
     const [showAudit, setShowAudit] = useState(false);
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
     const [isSharingReceipt, setIsSharingReceipt] = useState(false);
+    const [receiptTemplate, setReceiptTemplate] = useState<any>(null);
     const hiddenReceiptRef = useRef<HTMLDivElement>(null);
 
     const handleShareReceipt = async () => {
@@ -292,6 +294,11 @@ export default function TicketDetailPage() {
 
     useEffect(() => {
         loadTicket();
+        getReceiptTemplate('a4')
+            .then((res) => {
+                if (res) setReceiptTemplate(res);
+            })
+            .catch((err) => console.error('Error loading receipt template:', err));
     }, [ticketId]);
 
     useEffect(() => {
@@ -2086,15 +2093,14 @@ export default function TicketDetailPage() {
                 style={{
                     position: 'fixed',
                     left: '-9999px',
-                    top: '-9999px',
+                    top: '0px',
                     width: '794px',
-                    zIndex: -1,
+                    zIndex: -9999,
                     pointerEvents: 'none',
-                    opacity: 0,
                 }}
             >
                 <div ref={hiddenReceiptRef}>
-                    <PrintableReceipt ticket={ticket} />
+                    <PrintableReceipt ticket={ticket} template={receiptTemplate} />
                 </div>
             </div>
         </div>

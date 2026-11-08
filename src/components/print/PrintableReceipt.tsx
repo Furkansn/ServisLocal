@@ -1,14 +1,330 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { getReceiptTemplate } from '@/actions/template';
 import { formatCurrency, formatDate, REQUEST_TYPE_LABELS, CUSTOMER_TYPE_LABELS } from '@/lib/constants';
 import { STATUS_LABELS } from '@/lib/state-machine';
 
 interface PrintableReceiptProps {
     ticket: any;
+    template?: any;
 }
 
-export const PrintableReceipt: React.FC<PrintableReceiptProps> = ({ ticket }) => {
+export const PrintableReceipt: React.FC<PrintableReceiptProps> = ({ ticket, template: initialTemplate }) => {
+    const [template, setTemplate] = useState<any>(initialTemplate || null);
+
+    useEffect(() => {
+        if (initialTemplate) {
+            setTemplate(initialTemplate);
+            return;
+        }
+
+        let isMounted = true;
+        getReceiptTemplate('a4')
+            .then((res) => {
+                if (isMounted && res) {
+                    setTemplate(res);
+                }
+            })
+            .catch((err) => {
+                console.warn('Could not load A4 template in PrintableReceipt:', err);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [initialTemplate]);
+
     if (!ticket) return null;
 
+    // Helper: Dynamic Variables Replacement Parser
+    const renderVariableText = (content?: string) => {
+        if (!content) return '';
+        let result = content;
+
+        const customerName = ticket.customer?.name || ticket.repairer?.name || '-';
+        const customerPhone = ticket.customer?.phone || ticket.repairer?.phone || '-';
+        const customerAddress = ticket.customer?.address || ticket.repairer?.address || '';
+        const customerCity = ticket.customer?.city || ticket.repairer?.city || '';
+        const customerDistrict = ticket.customer?.district || ticket.repairer?.district || '';
+        const fullAddress = [customerAddress, customerDistrict, customerCity].filter(Boolean).join(' ');
+
+        const pickupRecord = ticket.serviceRecords?.find((sr: any) => sr.type === 'PICKUP');
+        const pickupDate = pickupRecord ? formatDate(pickupRecord.scheduledDate) : formatDate(ticket.createdAt);
+
+        const formatAmount = (num: number) => {
+            if (ticket.currency === 'USD') return `$ ${num.toLocaleString('tr-TR')}`;
+            return formatCurrency(num);
+        };
+
+        const replacements: Record<string, string> = {
+            ticketNo: ticket.ticketNo || '',
+            customerName: customerName,
+            customerPhone: customerPhone,
+            customerAddress: fullAddress,
+            customerType: CUSTOMER_TYPE_LABELS[ticket.customerType as keyof typeof CUSTOMER_TYPE_LABELS] || ticket.customerType || '',
+            requestType: REQUEST_TYPE_LABELS[ticket.requestType as keyof typeof REQUEST_TYPE_LABELS] || ticket.requestType || '',
+            creationDate: formatDate(ticket.createdAt),
+            entryDate: formatDate(ticket.createdAt),
+            pickupDate: pickupDate,
+            deviceCondition: ticket.deviceCondition || '',
+            brand: ticket.brand?.name || '',
+            model: ticket.model || '',
+            totalAmount: formatAmount(Number(ticket.totalAmount || 0)),
+            status: STATUS_LABELS[ticket.status as keyof typeof STATUS_LABELS] || ticket.status || '',
+        };
+
+        Object.entries(replacements).forEach(([key, val]) => {
+            result = result.replaceAll(`{{${key}}}`, val);
+        });
+
+        return result;
+    };
+
+    const renderVariableTextHtml = (content?: string) => {
+        if (!content) return '';
+        let result = renderVariableText(content);
+        result = result.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        result = result.replace(/\*(.*?)\*/g, '<i>$1</i>');
+        return result;
+    };
+
+    // Table parsing & rendering
+    const renderTable = (el: any) => {
+        let tableItems: { name: string; price: number; quantity: number }[] = [];
+        const rawItems = ticket.repairItems;
+        let parsedItems: any[] = [];
+        if (rawItems) {
+            if (typeof rawItems === 'string') {
+                try {
+                    parsedItems = JSON.parse(rawItems);
+                } catch {
+                    parsedItems = [];
+                }
+            } else if (Array.isArray(rawItems)) {
+                parsedItems = rawItems;
+            }
+        }
+        if (parsedItems.length > 0) {
+            parsedItems.forEach((item) => {
+                tableItems.push({
+                    name: REQUEST_TYPE_LABELS[item.type as keyof typeof REQUEST_TYPE_LABELS] || item.type || 'Tamir Ücreti',
+                    price: Number(item.price),
+                    quantity: 1,
+                });
+            });
+        } else {
+            tableItems.push({
+                name: REQUEST_TYPE_LABELS[ticket.requestType as keyof typeof REQUEST_TYPE_LABELS] || 'Tamir Ücreti',
+                price: Number(ticket.repairPrice || 0),
+                quantity: 1,
+            });
+        }
+
+        if (ticket.accessories && ticket.accessories.length > 0) {
+            ticket.accessories.forEach((acc: any) => {
+                tableItems.push({
+                    name: acc.product?.name || 'Aksesuar',
+                    price: Number(acc.unitPrice),
+                    quantity: acc.quantity,
+                });
+            });
+        }
+
+        const columns = (el.columns && el.columns.length > 0) ? el.columns : [
+            { id: '1', title: 'İşlem / Ürün', key: 'name', width: 50 },
+            { id: '2', title: 'Adet', key: 'qty', width: 15 },
+            { id: '3', title: 'Birim Fiyat', key: 'price', width: 15 },
+            { id: '4', title: 'Toplam', key: 'total', width: 20 },
+        ];
+
+        return (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: `${el.styles?.fontSize || 12}px` }}>
+                <thead>
+                    <tr style={{ background: el.styles?.headerBackgroundColor || '#2461db' }}>
+                        {columns.map((col: any) => (
+                            <th
+                                key={col.id}
+                                style={{
+                                    border: `${el.styles?.borderWidth || 1}px solid ${el.styles?.borderColor || '#cccccc'}`,
+                                    padding: '6px 8px',
+                                    textAlign: col.key === 'price' || col.key === 'total' ? 'right' : col.key === 'qty' ? 'center' : 'left',
+                                    fontWeight: 'bold',
+                                    width: `${col.width}%`,
+                                    background: el.styles?.headerBackgroundColor || '#2461db',
+                                    color: el.styles?.headerColor || '#ffffff',
+                                }}
+                            >
+                                {col.title}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {tableItems.map((item, idx) => (
+                        <tr key={idx} style={{ background: el.styles?.backgroundColor || '#ffffff' }}>
+                            {columns.map((col: any) => {
+                                let val = '';
+                                if (col.key === 'name') val = item.name;
+                                if (col.key === 'price') val = ticket.currency === 'USD' ? `$ ${item.price.toLocaleString('tr-TR')}` : formatCurrency(item.price);
+                                if (col.key === 'qty') val = String(item.quantity);
+                                if (col.key === 'total') val = ticket.currency === 'USD' ? `$ ${(item.price * item.quantity).toLocaleString('tr-TR')}` : formatCurrency(item.price * item.quantity);
+
+                                return (
+                                    <td
+                                        key={col.id}
+                                        style={{
+                                            border: `${el.styles?.borderWidth || 1}px solid ${el.styles?.borderColor || '#cccccc'}`,
+                                            padding: '6px 8px',
+                                            textAlign: col.key === 'price' || col.key === 'total' ? 'right' : col.key === 'qty' ? 'center' : 'left',
+                                            color: el.styles?.color || '#000000',
+                                            background: el.styles?.backgroundColor || '#ffffff',
+                                        }}
+                                    >
+                                        {val}
+                                    </td>
+                                );
+                            })}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        );
+    };
+
+    // ─────────────────────────────────────────────────────────────
+    // 1. CUSTOM TEMPLATE RENDERING (From /template-builder in DB)
+    // ─────────────────────────────────────────────────────────────
+    if (template && template.elements && template.elements.length > 0) {
+        return (
+            <div
+                style={{
+                    width: '794px',
+                    height: '1123px',
+                    minHeight: '1123px',
+                    background: '#ffffff',
+                    margin: '0 auto',
+                    padding: '0px',
+                    boxSizing: 'border-box',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    fontFamily: 'sans-serif',
+                }}
+            >
+                {template.elements.map((el: any) => {
+                    const elementStyles: React.CSSProperties = {
+                        position: 'absolute',
+                        left: `${el.x}px`,
+                        top: `${el.y}px`,
+                        width: `${el.width}px`,
+                        height: `${el.height}px`,
+                        fontFamily: el.styles?.fontFamily || 'sans-serif',
+                        fontSize: `${el.styles?.fontSize || 14}px`,
+                        fontWeight: el.styles?.fontWeight || 'normal',
+                        lineHeight: el.styles?.lineHeight || 1.4,
+                        textAlign: el.styles?.textAlign || 'left',
+                        color: el.styles?.color || '#000000',
+                        backgroundColor: el.styles?.backgroundColor || 'transparent',
+                        padding: el.type === 'text' || el.type === 'variable' ? '4px' : '0px',
+                        boxSizing: 'border-box',
+                    };
+
+                    return (
+                        <div key={el.id} style={elementStyles}>
+                            {el.type === 'text' && (
+                                <div
+                                    style={{ whiteSpace: 'pre-wrap' }}
+                                    dangerouslySetInnerHTML={{ __html: renderVariableTextHtml(el.content) }}
+                                />
+                            )}
+                            {el.type === 'variable' && (
+                                <div
+                                    style={{ fontWeight: 700, whiteSpace: 'pre-wrap' }}
+                                    dangerouslySetInnerHTML={{ __html: renderVariableTextHtml(el.content) }}
+                                />
+                            )}
+                            {el.type === 'image' && el.content && (
+                                <img
+                                    src={el.content}
+                                    alt="Logo"
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'contain',
+                                        display: 'block',
+                                    }}
+                                />
+                            )}
+                            {el.type === 'divider' && (
+                                <div
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            width: '100%',
+                                            borderTop: `${el.styles?.borderWidth || 2}px ${el.styles?.borderStyle || 'solid'} ${el.styles?.borderColor || '#000000'}`,
+                                        }}
+                                    />
+                                </div>
+                            )}
+                            {el.type === 'shape' && (
+                                <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+                                    {el.styles?.shapeType === 'triangle' ? (
+                                        <svg
+                                            width="100%"
+                                            height="100%"
+                                            viewBox="0 0 100 100"
+                                            preserveAspectRatio="none"
+                                            style={{ display: 'block' }}
+                                        >
+                                            <polygon
+                                                points="50,5 95,95 5,95"
+                                                fill={el.styles?.isTransparentFill ? 'transparent' : (el.styles?.backgroundColor || '#e5e7eb')}
+                                                stroke={el.styles?.isTransparentBorder ? 'transparent' : (el.styles?.borderColor || '#000000')}
+                                                strokeWidth={el.styles?.isTransparentBorder ? 0 : (el.styles?.borderWidth || 2)}
+                                                strokeDasharray={
+                                                    el.styles?.borderStyle === 'dashed'
+                                                        ? '6,4'
+                                                        : el.styles?.borderStyle === 'dotted'
+                                                        ? '2,2'
+                                                        : undefined
+                                                }
+                                                strokeLinejoin="round"
+                                                strokeLinecap="round"
+                                            />
+                                        </svg>
+                                    ) : (
+                                        <div
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                boxSizing: 'border-box',
+                                                borderRadius: el.styles?.shapeType === 'circle' ? '50%' : `${el.styles?.borderRadius ?? 8}px`,
+                                                backgroundColor: el.styles?.isTransparentFill ? 'transparent' : (el.styles?.backgroundColor || '#e5e7eb'),
+                                                border: el.styles?.isTransparentBorder
+                                                    ? 'none'
+                                                    : `${el.styles?.borderWidth || 2}px ${el.styles?.borderStyle || 'solid'} ${el.styles?.borderColor || '#000000'}`,
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            )}
+                            {el.type === 'table' && renderTable(el)}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2. FALLBACK DEFAULT RECEIPT (When no custom template in DB)
+    // ─────────────────────────────────────────────────────────────
     const customerName = ticket.customer?.name || ticket.repairer?.name || '-';
     const customerPhone = ticket.customer?.phone || ticket.repairer?.phone || '-';
     const customerAddress = ticket.customer?.address || ticket.repairer?.address || '';
@@ -272,4 +588,3 @@ export const PrintableReceipt: React.FC<PrintableReceiptProps> = ({ ticket }) =>
         </div>
     );
 };
-
