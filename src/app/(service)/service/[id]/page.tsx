@@ -26,6 +26,8 @@ import {
     parseCurrencyInput,
     getLocalDateString,
 } from '@/lib/constants';
+import { PrintableReceipt } from '@/components/print/PrintableReceipt';
+import { shareReceiptViaWhatsApp } from '@/lib/whatsapp-receipt';
 
 function formatWhatsAppLink(phone: string) {
     if (!phone) return '#';
@@ -101,6 +103,40 @@ export default function ServiceProcessPage() {
     const [completionNotes, setCompletionNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState('');
+
+    // Revision Mode & WhatsApp Share State
+    const [isRevisionMode, setIsRevisionMode] = useState(false);
+    const [isSharingReceipt, setIsSharingReceipt] = useState(false);
+    const hiddenReceiptRef = useRef<HTMLDivElement>(null);
+
+    const isRecordCompleted = record?.status === 'COMPLETED';
+
+    const handleShareReceipt = async () => {
+        if (!ticket || !hiddenReceiptRef.current) return;
+        setIsSharingReceipt(true);
+        try {
+            // If device condition was changed, auto-save first without requiring user to hit save button
+            if (deviceCondition !== (ticket?.deviceCondition || '')) {
+                await updateTicketDeviceCondition(ticket.id, deviceCondition);
+                setRecord((prev: any) => ({
+                    ...prev,
+                    ticket: { ...prev.ticket, deviceCondition },
+                }));
+            }
+
+            await shareReceiptViaWhatsApp({
+                receiptElement: hiddenReceiptRef.current,
+                ticket: {
+                    ...ticket,
+                    deviceCondition,
+                },
+            });
+        } catch (err: any) {
+            alert('Fiş gönderilirken hata: ' + (err.message || err));
+        } finally {
+            setIsSharingReceipt(false);
+        }
+    };
 
     const loadData = async () => {
         if (!recordId) return;
@@ -487,6 +523,26 @@ export default function ServiceProcessPage() {
                 </Link>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                        type="button"
+                        onClick={handleShareReceipt}
+                        disabled={isSharingReceipt}
+                        className="btn btn-sm"
+                        style={{
+                            background: '#25D366',
+                            color: '#ffffff',
+                            borderColor: '#25D366',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                            padding: '5px 10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}
+                        title="Resmi Fişi Müşteriye WhatsApp'tan Gönder"
+                    >
+                        {isSharingReceipt ? '⏳ Hazırlanıyor...' : '📲 Fiş Gönder'}
+                    </button>
                     <span
                         style={{
                             padding: '4px 10px',
@@ -515,6 +571,54 @@ export default function ServiceProcessPage() {
                     </span>
                 </div>
             </div>
+
+            {/* Completed Service Banner & Revision Mode Toggle */}
+            {isRecordCompleted && (
+                <div
+                    style={{
+                        padding: '12px 14px',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        borderRadius: '10px',
+                        marginBottom: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '18px' }}>✅</span>
+                        <div>
+                            <div style={{ fontWeight: 800, color: '#059669', fontSize: '13px' }}>
+                                Bu Servis Kaydı Tamamlanmıştır
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                {record.completedAt ? `Tamamlanma: ${new Date(record.completedAt).toLocaleString('tr-TR')}` : 'İşlem tamamlandı'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => setIsRevisionMode(prev => !prev)}
+                            style={{
+                                fontSize: '12px',
+                                padding: '6px 12px',
+                                fontWeight: 700,
+                                background: isRevisionMode ? '#f59e0b' : 'var(--bg-primary)',
+                                color: isRevisionMode ? '#ffffff' : '#d97706',
+                                border: '1px solid #f59e0b',
+                            }}
+                        >
+                            {isRevisionMode ? '✕ Revizeyi Kapat' : '✏️ Düzenle / Revize Et'}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Error Banner */}
             {formError && (
@@ -1562,35 +1666,134 @@ export default function ServiceProcessPage() {
                     backdropFilter: 'blur(8px)',
                 }}
             >
-                <div style={{ maxWidth: '680px', width: '100%', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ maxWidth: '680px', width: '100%', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {/* Share Receipt Button Always Accessible */}
                     <button
                         type="button"
-                        className={`btn ${isPickup ? 'btn-primary' : 'btn-success'}`}
+                        onClick={handleShareReceipt}
+                        disabled={isSharingReceipt}
+                        className="btn btn-sm"
                         style={{
-                            flex: 1,
-                            padding: '11px',
-                            fontSize: '14.5px',
+                            background: '#25D366',
+                            color: '#ffffff',
+                            borderColor: '#25D366',
                             fontWeight: 700,
+                            padding: '11px 16px',
                             borderRadius: '10px',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: '8px',
+                            gap: '6px',
+                            fontSize: '14px',
+                            whiteSpace: 'nowrap',
                         }}
-                        disabled={isSubmitting}
-                        onClick={handleComplete}
                     >
-                        {isSubmitting ? (
-                            'İşlem Kaydediliyor...'
-                        ) : (
-                            <>
-                                <span>{isPickup ? '📥 Cihazı Teslim Al' : '📤 Cihazı Teslim Et'}</span>
-                                <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 500 }}>
-                                    ({totalPhotoCount}/{requiredPhotos} Foto)
-                                </span>
-                            </>
-                        )}
+                        {isSharingReceipt ? '⏳' : '📲 Fiş Gönder'}
                     </button>
+
+                    {/* If completed and not in revision mode: show Completed Info; Else show Action Button */}
+                    {isRecordCompleted && !isRevisionMode ? (
+                        <div
+                            style={{
+                                flex: 1,
+                                padding: '11px',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                borderRadius: '10px',
+                                textAlign: 'center',
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                color: '#059669',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                            }}
+                        >
+                            ✓ Servis Tamamlandı
+                        </div>
+                    ) : isRecordCompleted && isRevisionMode ? (
+                        <button
+                            type="button"
+                            className="btn btn-warning"
+                            style={{
+                                flex: 1,
+                                padding: '11px',
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                borderRadius: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                            }}
+                            disabled={isSubmitting}
+                            onClick={async () => {
+                                setIsSubmitting(true);
+                                try {
+                                    if (deviceCondition !== (ticket?.deviceCondition || '')) {
+                                        await updateTicketDeviceCondition(ticket.id, deviceCondition);
+                                    }
+                                    alert('✓ Servis bilgileri ve hasar durumu güncellendi.');
+                                    setIsRevisionMode(false);
+                                    loadData();
+                                } catch (err: any) {
+                                    alert(err.message || 'Güncelleme hatası');
+                                } finally {
+                                    setIsSubmitting(false);
+                                }
+                            }}
+                        >
+                            {isSubmitting ? 'Kaydediliyor...' : '💾 Revizyonu Kaydet'}
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className={`btn ${isPickup ? 'btn-primary' : 'btn-success'}`}
+                            style={{
+                                flex: 1,
+                                padding: '11px',
+                                fontSize: '14.5px',
+                                fontWeight: 700,
+                                borderRadius: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                            }}
+                            disabled={isSubmitting}
+                            onClick={handleComplete}
+                        >
+                            {isSubmitting ? (
+                                'İşlem Kaydediliyor...'
+                            ) : (
+                                <>
+                                    <span>{isPickup ? '📥 Cihazı Teslim Al' : '📤 Cihazı Teslim Et'}</span>
+                                    <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 500 }}>
+                                        ({totalPhotoCount}/{requiredPhotos} Foto)
+                                    </span>
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Hidden Offscreen Container for Receipt Image Generation */}
+            <div
+                style={{
+                    position: 'fixed',
+                    left: '-9999px',
+                    top: '-9999px',
+                    width: '794px',
+                    zIndex: -1,
+                    pointerEvents: 'none',
+                    opacity: 0,
+                }}
+            >
+                <div ref={hiddenReceiptRef}>
+                    <PrintableReceipt
+                        ticket={{
+                            ...ticket,
+                            deviceCondition,
+                        }}
+                    />
                 </div>
             </div>
         </div>

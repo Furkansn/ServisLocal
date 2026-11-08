@@ -14,6 +14,9 @@ import { STATUS_LABELS, STATUS_COLORS, getNextStatuses, isReadOnly } from '@/lib
 import { CUSTOMER_TYPE_LABELS, SERVICE_RECORD_TYPE_LABELS, REQUEST_TYPE_LABELS, PRIORITY_LABELS, PAYMENT_METHOD_LABELS, OPERATION_TYPE_LABELS, formatDate, formatDateTime, formatCurrency, parseCurrencyInput, getLocalDateString } from '@/lib/constants';
 import { getSystemUsdRate } from '@/actions/currency';
 import { TicketStatus, Role } from '@prisma/client';
+import { PrintableReceipt } from '@/components/print/PrintableReceipt';
+import { shareReceiptViaWhatsApp } from '@/lib/whatsapp-receipt';
+import { useRef } from 'react';
 
 type Ticket = Awaited<ReturnType<typeof getTicketById>>;
 
@@ -27,6 +30,23 @@ export default function TicketDetailPage() {
     const [showPayment, setShowPayment] = useState(false);
     const [showAudit, setShowAudit] = useState(false);
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [isSharingReceipt, setIsSharingReceipt] = useState(false);
+    const hiddenReceiptRef = useRef<HTMLDivElement>(null);
+
+    const handleShareReceipt = async () => {
+        if (!ticket || !hiddenReceiptRef.current) return;
+        setIsSharingReceipt(true);
+        try {
+            await shareReceiptViaWhatsApp({
+                receiptElement: hiddenReceiptRef.current,
+                ticket,
+            });
+        } catch (err: any) {
+            alert('Fiş gönderilemedi: ' + (err.message || err));
+        } finally {
+            setIsSharingReceipt(false);
+        }
+    };
 
     // Contact notes state
     const [contactNotes, setContactNotes] = useState<any[]>([]);
@@ -575,7 +595,24 @@ export default function TicketDetailPage() {
                 </div>
                 <div className="flex gap-2">
                     <button className="btn btn-secondary btn-sm" onClick={handlePrintLabel}>🏷️ Etiket Yazdır</button>
-                    <button className="btn btn-primary btn-sm" onClick={() => window.open(`/print/ticket/${ticketId}`, '_blank')}>🖨️ Fiş Yazdır</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => window.open(`/print/ticket/${ticketId}`, '_blank')}>🖨️ Fiş Yazdır</button>
+                    <button
+                        className="btn btn-sm"
+                        onClick={handleShareReceipt}
+                        disabled={isSharingReceipt}
+                        style={{
+                            background: '#25D366',
+                            color: '#ffffff',
+                            borderColor: '#25D366',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}
+                        title="Müşteriye WhatsApp Üzerinden Resmi Fiş Görseli Gönder"
+                    >
+                        {isSharingReceipt ? '⏳ Hazırlanıyor...' : '📲 Fişi Gönder'}
+                    </button>
                     {!readOnly && (
                         <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/tickets/${ticketId}/edit`)}>✏️ Düzenle</button>
                     )}
@@ -2043,6 +2080,23 @@ export default function TicketDetailPage() {
                     </div>
                 </div>
             )}
+
+            {/* Hidden Offscreen Container for Receipt Image Generation */}
+            <div
+                style={{
+                    position: 'fixed',
+                    left: '-9999px',
+                    top: '-9999px',
+                    width: '794px',
+                    zIndex: -1,
+                    pointerEvents: 'none',
+                    opacity: 0,
+                }}
+            >
+                <div ref={hiddenReceiptRef}>
+                    <PrintableReceipt ticket={ticket} />
+                </div>
+            </div>
         </div>
     );
 }

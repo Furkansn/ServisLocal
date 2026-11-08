@@ -1420,7 +1420,7 @@ function WorkOrderCard({
                 <span style={{ color: 'var(--text-secondary)' }}>{(order.ticket as any)?.brand?.name} · {(order.ticket as any)?.model}</span>
             </div>
 
-            {!isCompleted && (
+            {!isCompleted ? (
                 <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                     {isSorting ? (
                         <>
@@ -1456,6 +1456,29 @@ function WorkOrderCard({
                             </button>
                         </>
                     )}
+                </div>
+            ) : (
+                <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                    <Link
+                        href={`/service/${order.id}`}
+                        onClick={() => setIsOpening(true)}
+                        className="btn btn-secondary btn-sm"
+                        style={{
+                            flex: 1,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            fontWeight: 600,
+                            padding: '8px 12px',
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            color: '#059669',
+                            borderColor: 'rgba(16, 185, 129, 0.3)',
+                            opacity: isOpening ? 0.75 : 1,
+                        }}
+                    >
+                        {isOpening ? '⏳ Açılıyor...' : '🔍 Servis Detayı / Revize & Fiş Gönder'}
+                    </Link>
                 </div>
             )}
         </div>

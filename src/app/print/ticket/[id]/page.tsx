@@ -545,6 +545,23 @@ export default async function TicketPrintPage({ params, searchParams }: TicketPr
                                     {fullAddress}
                                 </div>
                             </div>
+
+                            {/* Cihaz Hasar Durumu (Varsa) */}
+                            {ticket.deviceCondition && (
+                                <div style={{
+                                    marginTop: '12px',
+                                    padding: '8px 12px',
+                                    background: '#fef3c7',
+                                    border: '1px solid #fde68a',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    color: '#92400e',
+                                    lineHeight: '1.4'
+                                }}>
+                                    <span style={{ fontWeight: 800 }}>🔍 Cihaz Hasar / Teslim Durumu: </span>
+                                    <span>{ticket.deviceCondition}</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Services and Accessories Table */}

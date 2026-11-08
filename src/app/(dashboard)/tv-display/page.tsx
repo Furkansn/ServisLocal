@@ -172,10 +172,10 @@ export default function TVDisplayPage() {
                 width: '100%',
                 boxSizing: 'border-box',
             }}>
-                
+
                 {/* LEFT SIDE: Waiting Table + Completed Table */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0, overflow: 'hidden' }}>
-                    
+
                     {/* 1. BEKLEYEN CİHAZLAR TABLOSU */}
                     <div style={{
                         background: '#1e293b',
@@ -239,11 +239,11 @@ export default function TVDisplayPage() {
                                                     {/* Öncelik */}
                                                     <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                                         {isUrgent ? (
-                                                             <span style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 800 }}>ACİL</span>
+                                                            <span style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 800 }}>ACİL</span>
                                                         ) : isPriority ? (
-                                                             <span style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fde047', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 800 }}>ÖNCELİK</span>
+                                                            <span style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fde047', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 800 }}>ÖNCELİK</span>
                                                         ) : (
-                                                             <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', border: '1px solid rgba(59, 130, 246, 0.35)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 700 }}>Normal</span>
+                                                            <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', border: '1px solid rgba(59, 130, 246, 0.35)', padding: '1px 5px', borderRadius: '3px', fontSize: '9.5px', fontWeight: 700 }}>Normal</span>
                                                         )}
                                                     </td>
 
